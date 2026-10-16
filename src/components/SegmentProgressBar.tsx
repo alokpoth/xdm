@@ -24,7 +24,7 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
     return (
       <div className={`w-full ${height} bg-slate-800/80 rounded-full overflow-hidden relative`}>
         <div 
-          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 w-full"
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 w-full"
         />
       </div>
     );
@@ -48,28 +48,28 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
     );
   }
 
+  // Sort segments by start byte offset so segments physically always stay from left to right
+  const sorted = [...segments].sort((a, b) => a.start - b.start);
+
   return (
-    <div className={`w-full ${height} bg-slate-800/90 rounded-full overflow-hidden flex gap-[1px] p-[1px] relative`}>
-      {segments.map((seg) => {
+    <div className={`w-full ${height} bg-slate-900/95 rounded-full overflow-hidden relative border border-slate-800`}>
+      {sorted.map((seg) => {
         const segTotal = Math.max(1, seg.end - seg.start + 1);
-        const segDownloaded = Math.max(0, seg.current - seg.start);
-        const segProgress = Math.min(100, Math.max(0, (segDownloaded / segTotal) * 100));
-        const widthPct = Math.max(1, (segTotal / totalBytes) * 100);
+        const segDownloaded = Math.max(0, Math.min(segTotal, seg.current - seg.start));
+        const leftPct = (seg.start / totalBytes) * 100;
+        const totalWidthPct = (segTotal / totalBytes) * 100;
+        const downloadedPct = (segDownloaded / totalBytes) * 100;
 
         return (
-          <div
-            key={seg.id}
-            className="h-full bg-slate-900/90 relative group overflow-hidden"
-            style={{ width: `${widthPct}%` }}
-            title={
-              showTooltip
-                ? `Thread #${seg.id + 1}: ${formatBytes(segDownloaded)} / ${formatBytes(segTotal)} (${segProgress.toFixed(0)}%) | ${formatSpeed(seg.speed)}`
-                : undefined
-            }
-          >
-            {/* Segment Fill */}
+          <React.Fragment key={seg.id}>
+            {/* Thread slice divider */}
+            <div 
+              className="absolute top-0 bottom-0 border-r border-slate-800/80 pointer-events-none z-10" 
+              style={{ left: `${leftPct + totalWidthPct}%` }}
+            />
+            {/* Thread downloaded fill */}
             <div
-              className={`h-full transition-all duration-200 ${
+              className={`absolute top-0 bottom-0 transition-all duration-200 ${
                 seg.status === 'completed'
                   ? 'bg-emerald-500'
                   : seg.status === 'downloading'
@@ -80,9 +80,17 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
                   ? 'bg-rose-400'
                   : 'bg-amber-400/80'
               }`}
-              style={{ width: `${segProgress}%` }}
+              style={{
+                left: `${leftPct}%`,
+                width: `${downloadedPct}%`
+              }}
+              title={
+                showTooltip
+                  ? `Thread #${seg.id + 1}: ${formatBytes(segDownloaded)} / ${formatBytes(segTotal)} (${((segDownloaded / segTotal) * 100).toFixed(0)}%) | ${formatSpeed(seg.speed)}`
+                  : undefined
+              }
             />
-          </div>
+          </React.Fragment>
         );
       })}
     </div>

@@ -259,15 +259,22 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
         </div>
       </div>
 
-      {/* Dynamic Segmented Progress Bar */}
+      {/* Unified Master Progress Bar: Butter-smooth, never jumps backwards */}
       <div className="mt-2.5">
-        <SegmentProgressBar
-          segments={item.segments}
-          totalBytes={item.totalBytes}
-          overallProgress={item.progress}
-          status={item.status}
-          height="h-2"
-        />
+        <div className="w-full h-2 bg-slate-900/90 rounded-full overflow-hidden relative border border-slate-800/80">
+          <div 
+            className={`h-full rounded-full transition-all duration-300 ease-out ${
+              item.status === 'completed'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                : item.status === 'paused'
+                ? 'bg-amber-500'
+                : item.status === 'error'
+                ? 'bg-rose-500'
+                : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+            }`}
+            style={{ width: `${item.status === 'completed' ? 100 : Math.min(100, Math.max(0, item.progress || 0))}%` }}
+          />
+        </div>
       </div>
     </div>
   );

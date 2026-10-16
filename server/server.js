@@ -22,7 +22,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.2' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.3' });
 });
 
 app.get('/api/default-dir', (req, res) => {
@@ -163,7 +163,7 @@ app.get('/api/extension/status', (req, res) => {
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.2',
+    version: '1.0.3',
     path: path.resolve(__dirname, '../extension')
   });
 });
@@ -246,6 +246,6 @@ server.on('error', (err) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, () => {
   console.log(`[XDM Core Engine] Listening on http://127.0.0.1:${PORT}`);
 });

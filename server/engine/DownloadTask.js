@@ -4,9 +4,9 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-// High performance connection agents with keep-alive
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 128, timeout: 30000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 128, timeout: 30000 });
+// High performance connection agents with keep-alive & socket pooling
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 128, timeout: 60000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 128, timeout: 60000 });
 
 class DownloadTask {
   constructor(options) {
@@ -18,7 +18,7 @@ class DownloadTask {
     this.totalBytes = options.totalBytes || 0;
     this.downloadedBytes = options.downloadedBytes || 0;
     this.status = options.status || 'queued'; // queued, probing, downloading, paused, completed, error
-    this.connections = Math.min(Math.max(options.connections || 16, 1), 32);
+    this.connections = Math.min(Math.max(options.connections || 32, 1), 64);
     this.resumable = options.resumable ?? false;
     this.contentType = options.contentType || 'application/octet-stream';
     this.category = options.category || 'others';
@@ -426,8 +426,9 @@ class DownloadTask {
       if (res.statusCode === 200 && this.resumable && this.connections > 1) {
         if (seg.id > 0) {
           // Cancel other duplicate full-file streams
-          req.destroy();
           seg.status = 'completed';
+          this.activeStreams.delete(seg.id);
+          try { req.destroy(); } catch (e) {}
           return;
         } else {
           // Primary connection handles full file
@@ -447,7 +448,7 @@ class DownloadTask {
 
       res.on('data', (chunk) => {
         if (this.isPaused || this.isCancelled) {
-          req.destroy();
+          try { req.destroy(); } catch (e) {}
           return;
         }
 
@@ -457,8 +458,10 @@ class DownloadTask {
           : chunk.length;
 
         if (bytesToWrite <= 0) {
-          req.destroy();
           seg.status = 'completed';
+          seg.speed = 0;
+          this.activeStreams.delete(seg.id);
+          try { req.destroy(); } catch (e) {}
           this.checkAllCompleted();
           return;
         }
@@ -466,40 +469,42 @@ class DownloadTask {
         const writeOffset = seg.current;
         seg.current += bytesToWrite;
         seg.downloaded += bytesToWrite;
+        this.downloadedBytes += bytesToWrite;
 
-        // Recalculate accurate downloaded bytes across all segments
-        this.downloadedBytes = this.segments.reduce((acc, s) => acc + s.downloaded, 0);
         if (this.totalBytes > 0 && this.downloadedBytes > this.totalBytes) {
           this.downloadedBytes = this.totalBytes;
         }
 
-        // Write directly to file position
-        try {
-          if (this.fileFd) {
-            fs.writeSync(this.fileFd, chunk, 0, bytesToWrite, writeOffset);
-          }
-        } catch (writeErr) {
-          this.log(`Disk write error on segment #${seg.id}: ${writeErr.message}`, 'error');
+        // Non-blocking asynchronous file write with pending write tracking
+        if (this.fileFd) {
+          this.pendingWrites = (this.pendingWrites || 0) + 1;
+          fs.write(this.fileFd, chunk, 0, bytesToWrite, writeOffset, (writeErr) => {
+            this.pendingWrites = Math.max(0, (this.pendingWrites || 1) - 1);
+            if (writeErr) {
+              this.log(`Disk write error on segment #${seg.id}: ${writeErr.message}`, 'error');
+            }
+          });
         }
 
         if (seg.current > seg.end && this.resumable && this.totalBytes > 0) {
-          req.destroy();
           seg.status = 'completed';
+          seg.speed = 0;
+          this.activeStreams.delete(seg.id);
+          try { req.destroy(); } catch (e) {}
           this.checkAllCompleted();
         }
       });
 
-
       res.on('end', () => {
         this.activeStreams.delete(seg.id);
-        if (seg.current >= seg.end || (!this.resumable && this.totalBytes === 0)) {
+        if (seg.current > seg.end || seg.status === 'completed' || (!this.resumable && this.totalBytes === 0)) {
           seg.status = 'completed';
           seg.speed = 0;
           this.saveMeta();
           this.checkAllCompleted();
         } else {
           // Premature end
-          if (!this.isPaused && !this.isCancelled) {
+          if (!this.isPaused && !this.isCancelled && seg.status !== 'completed') {
             this.retrySegment(seg);
           }
         }
@@ -507,6 +512,7 @@ class DownloadTask {
 
       res.on('error', (err) => {
         this.activeStreams.delete(seg.id);
+        if (seg.status === 'completed' || seg.current > seg.end) return;
         if (!this.isPaused && !this.isCancelled) {
           this.log(`Segment #${seg.id} stream error: ${err.message}`, 'warn');
           this.retrySegment(seg);
@@ -514,8 +520,17 @@ class DownloadTask {
       });
     });
 
+    // Optimize socket for immediate packet transfer (disable Nagle algorithm)
+    req.on('socket', (sock) => {
+      try {
+        sock.setNoDelay(true);
+        sock.setKeepAlive(true, 30000);
+      } catch (e) {}
+    });
+
     req.on('error', (err) => {
       this.activeStreams.delete(seg.id);
+      if (seg.status === 'completed' || seg.current > seg.end) return;
       if (!this.isPaused && !this.isCancelled) {
         this.log(`Segment #${seg.id} connection error: ${err.message}`, 'warn');
         this.retrySegment(seg);
@@ -523,8 +538,9 @@ class DownloadTask {
     });
 
     req.on('timeout', () => {
-      req.destroy();
+      try { req.destroy(); } catch (e) {}
       this.activeStreams.delete(seg.id);
+      if (seg.status === 'completed' || seg.current > seg.end) return;
       if (!this.isPaused && !this.isCancelled) {
         this.retrySegment(seg);
       }
@@ -591,12 +607,14 @@ class DownloadTask {
         };
 
         this.segments.push(newSegment);
+        // Ensure segments always stay sorted in linear byte order so UI never jumps
+        this.segments.sort((a, b) => a.start - b.start);
         this.log(`Dynamic Turbo Slicing: Segment #${targetSegment.id} subdivided. Thread #${newSegId} assigned ${((originalEnd - newStart + 1) / (1024*1024)).toFixed(2)} MB to saturate full device bandwidth!`);
 
         this.downloadSegment(newSegment);
         this.saveMeta();
       }
-    }, 2500);
+    }, 1500);
   }
 
   startSpeedTracker() {
@@ -650,18 +668,25 @@ class DownloadTask {
 
     let allDone = true;
     for (const seg of this.segments) {
-      if (seg.current < seg.end && seg.status !== 'completed') {
+      if (seg.current <= seg.end && seg.status !== 'completed') {
         allDone = false;
         break;
       }
     }
 
     if (allDone) {
+      // Wait for any pending async disk writes to finish flushing
+      if ((this.pendingWrites || 0) > 0) {
+        setTimeout(() => this.checkAllCompleted(), 40);
+        return;
+      }
+
       this.status = 'completed';
       this.completedAt = Date.now();
       this.speed = 0;
       this.eta = 0;
       this.downloadedBytes = this.totalBytes || this.downloadedBytes;
+      this.progress = 100;
       this.log(`Download completed successfully: ${this.fileName}! File verified.`, 'success');
 
       this.cleanup();
@@ -766,13 +791,16 @@ class DownloadTask {
     let progress = this.progress || 0;
     if (this.status === 'completed') {
       progress = 100;
+      this.lastReportedProgress = 100;
       if (this.totalBytes <= 0 && this.downloadedBytes > 0) {
         this.totalBytes = this.downloadedBytes;
       } else if (this.totalBytes > 0 && (!this.downloadedBytes || this.downloadedBytes === 0)) {
         this.downloadedBytes = this.totalBytes;
       }
     } else if (this.totalBytes > 0) {
-      progress = Math.min(100, Math.round((this.downloadedBytes / this.totalBytes) * 1000) / 10);
+      const calc = Math.min(100, Math.round((this.downloadedBytes / this.totalBytes) * 1000) / 10);
+      progress = Math.max(this.lastReportedProgress || 0, calc);
+      this.lastReportedProgress = progress;
     }
 
     return {

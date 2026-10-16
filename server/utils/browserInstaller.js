@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const EXTENSION_ID = 'oglkcogpmnehcnhnaehelcikpijjblgc';
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 
 class BrowserInstaller {
   constructor() {

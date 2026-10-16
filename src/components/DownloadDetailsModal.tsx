@@ -241,7 +241,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-80 overflow-y-auto pr-1">
-                {(item.segments || []).map((seg) => {
+                {[...(item.segments || [])].sort((a, b) => a.start - b.start).map((seg) => {
                   const segTotal = Math.max(1, seg.end - seg.start + 1);
                   const segDownloaded = Math.max(0, seg.current - seg.start);
                   const segPercent = Math.min(100, (segDownloaded / segTotal) * 100);

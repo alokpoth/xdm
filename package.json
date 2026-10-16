@@ -1,6 +1,6 @@
 {
   "name": "xdm",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 32-connection streaming & browser video grabber",
   "author": "Zihan Fakir <zihanfakir@gmail.com> (https://zihan.uk)",
   "homepage": "https://xdm.zihan.uk",
@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.xdm.turbomanager",
     "productName": "XDM Turbo",
+    "asar": false,
     "directories": {
       "output": "release"
     },
@@ -53,10 +54,13 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,

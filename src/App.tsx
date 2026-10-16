@@ -67,7 +67,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     const connectWs = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.port === '5173' ? 'localhost:19684' : window.location.host;
+      const host = window.location.port === '5173' 
+        ? '127.0.0.1:19684' 
+        : (window.location.host || '127.0.0.1:19684');
       const wsUrl = `${protocol}//${host}/ws`;
 
       const ws = new WebSocket(wsUrl);

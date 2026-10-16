@@ -62,13 +62,13 @@ function createWindow() {
 
   // Load UI from local engine or vite
   const loadApp = () => {
-    http.get('http://localhost:5173', () => {
-      mainWindow.loadURL('http://localhost:5173');
+    http.get('http://127.0.0.1:5173', () => {
+      mainWindow.loadURL('http://127.0.0.1:5173');
     }).on('error', () => {
-      mainWindow.loadURL('http://localhost:19684');
+      mainWindow.loadURL('http://127.0.0.1:19684');
     });
   };
-  setTimeout(loadApp, 400);
+  setTimeout(loadApp, 300);
 
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {

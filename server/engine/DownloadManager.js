@@ -14,7 +14,7 @@ class DownloadManager {
     this.settings = {
       defaultSaveDir: path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Downloads'),
       maxConcurrentDownloads: 3,
-      defaultConnections: 16, // 16 parallel threads per file for maximum bandwidth saturation
+      defaultConnections: 32, // 32 parallel threads per file for 10x faster IDM bandwidth saturation
       autoStart: true,
       soundNotification: true,
       speedLimit: 0, // 0 = unlimited turbo
