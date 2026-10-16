@@ -1,0 +1,85 @@
+{
+  "name": "xdm",
+  "version": "1.0.1",
+  "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 32-connection streaming & browser video grabber",
+  "author": "Zihan Fakir <zihanfakir@gmail.com> (https://zihan.uk)",
+  "homepage": "https://xdm.zihan.uk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zihanfakir/xdm.git"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"node server/server.js\" \"vite\"",
+    "server": "node server/server.js",
+    "vite": "vite",
+    "electron": "electron electron/main.js",
+    "app": "concurrently -k \"vite\" \"electron electron/main.js\"",
+    "build": "vite build",
+    "dist:win": "vite build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.xdm.turbomanager",
+    "productName": "XDM Turbo",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "server/**/*",
+      "electron/**/*",
+      "extension/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "XDM Turbo",
+      "uninstallDisplayName": "XDM Turbo Download Manager",
+      "include": "installer/customInstaller.nsh"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "lucide-react": "^1.58.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.1",
+    "concurrently": "^10.0.6",
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3",
+    "postcss": "^8.5.30",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

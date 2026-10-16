@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "XDM Turbo - Download Manager Integration",
+  "version": "1.0.1",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3YAEqXuBf8YgKW2L+Wd7J3eeluqwjUXZVRqZQKimeE2aXEiauSVC/GDhczyZQV1lw6GVjkJb0KKn7xOvUcnSHfoZ8Wau7GdThkLfp/2L4LbP3DksKEwKqZ6OmQJrUrrTWjypU1y2xVtydd9d75nHngt7bs9TwPkgIWUEQrc4OkDA1cnewS2syTrlExYSZ+rqHGFyt14FYuUFA5cHroOQr83xTXLEQjSeTDau1OSmEW5D1cu03p2GYWSv275VUY190acOGWiJZWvBuvXBm0ZmUIdZRWuR9iCm0cdvkMb8XHSnY8JI6PsZIbcdLKvF9s6aSmd4fuAmfLEbPvvtVK6kWQIDAQAB",
+  "description": "IDM-style video grabber for YouTube, Facebook, and all sites, with Turbo multi-thread download interception.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
