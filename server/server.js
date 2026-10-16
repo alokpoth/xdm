@@ -22,7 +22,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '2.0.0' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.2' });
 });
 
 app.get('/api/default-dir', (req, res) => {
@@ -163,7 +163,7 @@ app.get('/api/extension/status', (req, res) => {
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.1',
+    version: '1.0.2',
     path: path.resolve(__dirname, '../extension')
   });
 });

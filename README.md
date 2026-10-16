@@ -1,6 +1,6 @@
 # ⚡ XDM Turbo - Next-Gen Internet Download Manager
 
-[![Version](https://img.shields.io/badge/version-1.0.1-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
+[![Version](https://img.shields.io/badge/version-1.0.2-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
 [![Website](https://img.shields.io/badge/website-xdm.zihan.uk-blue.svg)](https://xdm.zihan.uk)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://github.com/zihanfakir/xdm/releases)

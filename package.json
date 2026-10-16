@@ -1,6 +1,6 @@
 {
   "name": "xdm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 32-connection streaming & browser video grabber",
   "author": "Zihan Fakir <zihanfakir@gmail.com> (https://zihan.uk)",
   "homepage": "https://xdm.zihan.uk",
@@ -27,10 +27,20 @@
     "files": [
       "dist/**/*",
       "server/**/*",
+      "!server/bin/**/*",
       "electron/**/*",
-      "extension/**/*",
       "package.json",
       "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "extension",
+        "to": "extension"
+      },
+      {
+        "from": "server/bin",
+        "to": "server/bin"
+      }
     ],
     "win": {
       "target": [

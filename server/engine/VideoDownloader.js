@@ -98,6 +98,23 @@ class VideoDownloader {
     });
   }
 
+  getFfmpegPath() {
+    const localFfmpeg = path.resolve(__dirname, '../bin/ffmpeg.exe');
+    if (fs.existsSync(localFfmpeg)) return localFfmpeg;
+
+    if (process.resourcesPath) {
+      const resourcesFfmpeg = path.resolve(process.resourcesPath, 'server/bin/ffmpeg.exe');
+      if (fs.existsSync(resourcesFfmpeg)) return resourcesFfmpeg;
+    }
+
+    try {
+      const pythonFfmpeg = require('child_process').execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"').toString().trim();
+      if (pythonFfmpeg && fs.existsSync(pythonFfmpeg)) return pythonFfmpeg;
+    } catch (e) {}
+
+    return 'ffmpeg';
+  }
+
   // Download video with multi-threading fragments
   downloadVideo(options, onProgress, onLog) {
     const { url, formatId, saveDir, title } = options;
@@ -107,6 +124,7 @@ class VideoDownloader {
       .substring(0, 100);
 
     const outTemplate = path.join(saveDir, `${safeTitle}.%(ext)s`);
+    const ffmpegPath = this.getFfmpegPath();
 
     const args = [
       '-m', 'yt_dlp',
@@ -117,11 +135,17 @@ class VideoDownloader {
       '-o', outTemplate
     ];
 
-    if (formatId && formatId !== 'best') {
-      args.push('-f', formatId);
-      if (formatId.includes('audio')) {
-        args.push('--extract-audio', '--audio-format', 'mp3');
-      }
+    if (ffmpegPath && ffmpegPath !== 'ffmpeg') {
+      args.push('--ffmpeg-location', ffmpegPath);
+    }
+
+    // Always guarantee audio is merged into video
+    if (!formatId || formatId === 'best') {
+      args.push('-f', 'bestvideo*+bestaudio/best', '--merge-output-format', 'mp4');
+    } else if (formatId.includes('audio')) {
+      args.push('-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', '0');
+    } else {
+      args.push('-f', formatId, '--merge-output-format', 'mp4');
     }
 
     args.push(url);

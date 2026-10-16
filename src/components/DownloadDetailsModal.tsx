@@ -111,9 +111,9 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
                 {item.fileName}
               </h2>
               <div className="flex items-center space-x-2 text-[11px] text-slate-400">
-                <span className="font-mono text-emerald-400 font-bold">{item.progress.toFixed(1)}%</span>
+                <span className="font-mono text-emerald-400 font-bold">{item.status === 'completed' ? '100%' : `${(item.progress || 0).toFixed(1)}%`}</span>
                 <span>•</span>
-                <span>{formatBytes(item.downloadedBytes)} of {formatBytes(item.totalBytes)}</span>
+                <span>{formatBytes(item.downloadedBytes)} {item.totalBytes > 0 && `of ${formatBytes(item.totalBytes)}`}</span>
                 <span>•</span>
                 <span className="text-slate-300 font-semibold">{formatSpeed(item.speed)}</span>
               </div>

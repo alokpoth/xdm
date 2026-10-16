@@ -140,7 +140,7 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
               </span>
               <span className="text-slate-600 flex-shrink-0">•</span>
               <span className="font-mono font-semibold text-emerald-400 flex-shrink-0">
-                {item.progress.toFixed(1)}%
+                {item.status === 'completed' ? '100%' : `${(item.progress || 0).toFixed(1)}%`}
               </span>
               {item.status === 'downloading' && (
                 <>

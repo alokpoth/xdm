@@ -197,14 +197,18 @@ class DownloadManager {
     this.saveState();
     this.broadcastTelemetry();
 
+    const safeTitlePrefix = (options.title || task.fileName.replace(/\.[^/.]+$/, ''))
+      .replace(/[<>:"/\\|?*]+/g, '_')
+      .substring(0, 50);
+
     const child = videoDownloader.downloadVideo({
       url: options.url,
       formatId: options.formatId || 'best',
       saveDir,
       title: options.title || task.fileName.replace(/\.[^/.]+$/, '')
     }, (progressData) => {
-      task.progress = progressData.progress;
-      task.downloadedBytes = progressData.downloadedBytes;
+      task.progress = progressData.progress || task.progress;
+      task.downloadedBytes = progressData.downloadedBytes || task.downloadedBytes;
       if (progressData.totalBytes > 0) task.totalBytes = progressData.totalBytes;
       this.broadcastTelemetry();
     }, (logMsg, type) => {
@@ -216,8 +220,26 @@ class DownloadManager {
         task.status = 'completed';
         task.progress = 100;
         task.speed = 0;
+        task.eta = 0;
         task.completedAt = Date.now();
-        task.log('Video download completed successfully!', 'success');
+        // Check actual output file on disk to get real file path and size
+        try {
+          const files = fs.readdirSync(saveDir);
+          const matched = files.find(f => f.startsWith(safeTitlePrefix));
+          if (matched) {
+            const actualPath = path.join(saveDir, matched);
+            const stat = fs.statSync(actualPath);
+            task.filePath = actualPath;
+            task.fileName = matched;
+            task.totalBytes = stat.size;
+            task.downloadedBytes = stat.size;
+          }
+        } catch (e) {}
+        if (!task.totalBytes || task.totalBytes <= 0) {
+          task.totalBytes = task.downloadedBytes > 0 ? task.downloadedBytes : 1;
+          task.downloadedBytes = task.totalBytes;
+        }
+        task.log('Video download completed successfully with merged audio!', 'success');
       } else {
         task.status = 'error';
         task.log(`Video download process exited with code ${code}`, 'error');

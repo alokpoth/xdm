@@ -763,9 +763,17 @@ class DownloadTask {
   }
 
   toJSON() {
-    const progress = this.totalBytes > 0 
-      ? Math.min(100, Math.round((this.downloadedBytes / this.totalBytes) * 1000) / 10) 
-      : 0;
+    let progress = this.progress || 0;
+    if (this.status === 'completed') {
+      progress = 100;
+      if (this.totalBytes <= 0 && this.downloadedBytes > 0) {
+        this.totalBytes = this.downloadedBytes;
+      } else if (this.totalBytes > 0 && (!this.downloadedBytes || this.downloadedBytes === 0)) {
+        this.downloadedBytes = this.totalBytes;
+      }
+    } else if (this.totalBytes > 0) {
+      progress = Math.min(100, Math.round((this.downloadedBytes / this.totalBytes) * 1000) / 10);
+    }
 
     return {
       id: this.id,

@@ -19,15 +19,24 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
   height = 'h-2.5',
   showTooltip = true
 }) => {
+  // If completed, show solid 100% finished bar
+  if (status === 'completed') {
+    return (
+      <div className={`w-full ${height} bg-slate-800/80 rounded-full overflow-hidden relative`}>
+        <div 
+          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 w-full"
+        />
+      </div>
+    );
+  }
+
   // If no segments or not segmented yet, show smooth progress bar
   if (!segments || segments.length === 0 || totalBytes <= 0) {
     return (
       <div className={`w-full ${height} bg-slate-800/80 rounded-full overflow-hidden relative`}>
         <div 
           className={`h-full transition-all duration-300 rounded-full ${
-            status === 'completed'
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
-              : status === 'paused'
+            status === 'paused'
               ? 'bg-amber-500'
               : status === 'error'
               ? 'bg-rose-500'

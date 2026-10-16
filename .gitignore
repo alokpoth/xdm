@@ -8,6 +8,7 @@ dist/
 release/
 XDM Turbo/
 build/
+server/bin/*.exe
 
 # Local state and user data
 .xdm/
