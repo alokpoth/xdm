@@ -22,7 +22,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.3' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.5' });
 });
 
 app.get('/api/default-dir', (req, res) => {

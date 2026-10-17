@@ -21,7 +21,7 @@
   "build": {
     "appId": "com.xdm.turbomanager",
     "productName": "XDM Turbo",
-    "asar": false,
+    "asar": true,
     "directories": {
       "output": "release"
     },
