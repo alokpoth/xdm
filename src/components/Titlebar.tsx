@@ -1,5 +1,5 @@
-import React from 'react';
-import { Minus, Square, X, Zap, Wifi } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Minus, Square, Copy, X, Zap, Wifi } from 'lucide-react';
 
 interface TitlebarProps {
   activeConnectionsCount: number;
@@ -7,6 +7,19 @@ interface TitlebarProps {
 
 export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) => {
   const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.isElectron;
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    if (isElectron && (window as any).electronAPI?.isMaximized) {
+      (window as any).electronAPI.isMaximized().then((max: boolean) => setIsMaximized(max)).catch(() => {});
+    }
+    if (isElectron && (window as any).electronAPI?.onMaximizedChange) {
+      const cleanup = (window as any).electronAPI.onMaximizedChange((max: boolean) => {
+        setIsMaximized(max);
+      });
+      return cleanup;
+    }
+  }, [isElectron]);
 
   const handleMinimize = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -31,7 +44,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
       className="h-9 min-h-[36px] bg-[#070a10] border-b border-slate-800/80 flex items-center justify-between px-3 select-none titlebar-drag-region z-50 overflow-hidden flex-shrink-0"
     >
       {/* Left: Branding */}
-      <div className="flex items-center space-x-2" style={noDragStyle}>
+      <div className="flex items-center space-x-2 flex-shrink-0" style={noDragStyle}>
         <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
           <Zap className="w-3 h-3 text-black fill-current stroke-[2.5]" />
         </div>
@@ -44,7 +57,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
       </div>
 
       {/* Center: System Status */}
-      <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400" style={noDragStyle}>
+      <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400 flex-shrink-0" style={noDragStyle}>
         <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-800">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -63,12 +76,12 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
       </div>
 
       {/* Right: Window Controls */}
-      <div className="flex items-center space-x-1 shrink-0" style={noDragStyle}>
+      <div className="flex items-center space-x-1 flex-shrink-0" style={noDragStyle}>
         {isElectron && (
           <>
             <button
               onClick={handleMinimize}
-              className="w-9 h-7 flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 shrink-0 cursor-pointer"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer"
               title="Minimize"
               style={noDragStyle}
             >
@@ -76,15 +89,19 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
             </button>
             <button
               onClick={(e) => handleMaximize(e)}
-              className="w-9 h-7 flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 shrink-0 cursor-pointer"
-              title="Maximize / Restore"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer"
+              title={isMaximized ? "Restore" : "Maximize"}
               style={noDragStyle}
             >
-              <Square className="w-3 h-3" />
+              {isMaximized ? (
+                <Copy className="w-3 h-3 rotate-180" />
+              ) : (
+                <Square className="w-3 h-3" />
+              )}
             </button>
             <button
               onClick={handleClose}
-              className="w-9 h-7 flex items-center justify-center rounded hover:bg-rose-600 text-slate-400 hover:text-white transition-colors active:bg-rose-700 shrink-0 cursor-pointer"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-rose-600 text-slate-400 hover:text-white transition-colors active:bg-rose-700 flex-shrink-0 cursor-pointer"
               title="Close to Tray"
               style={noDragStyle}
             >

@@ -22,6 +22,10 @@ class VideoDownloader {
       let stdout = '';
       let stderr = '';
 
+      child.on('error', (err) => {
+        reject(new Error('Python / yt-dlp runtime not found or failed to spawn: ' + err.message));
+      });
+
       child.stdout.on('data', (d) => { stdout += d.toString(); });
       child.stderr.on('data', (d) => { stderr += d.toString(); });
 
@@ -151,6 +155,10 @@ class VideoDownloader {
     args.push(url);
 
     const child = spawn(this.pythonCmd, args);
+
+    child.on('error', (err) => {
+      if (onLog) onLog(`Video process spawn error: ${err.message}`, 'error');
+    });
 
     child.stdout.on('data', (data) => {
       const text = data.toString();

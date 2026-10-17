@@ -20,7 +20,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   useEffect(() => {
     setForm(settings);
-  }, [settings, isOpen]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [settings, isOpen, onClose]);
 
   if (!isOpen) return null;
 

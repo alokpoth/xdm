@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Activity, 
@@ -38,6 +38,14 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
   onOpenFolder
 }) => {
   const [activeTab, setActiveTab] = useState<'segments' | 'speed' | 'logs' | 'info'>('segments');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && item) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [item, onClose]);
 
   if (!item) return null;
 

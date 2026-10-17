@@ -35,11 +35,14 @@ class DownloadTask {
 
     // Runtime state
     this.fileFd = null;
-    this.metaPath = '';
-    this.filePath = '';
+    this.filePath = options.filePath || (this.fileName ? path.join(this.saveDir, this.fileName) : '');
+    this.metaPath = this.filePath ? this.filePath + '.xdm.meta' : '';
     this.activeStreams = new Map(); // segmentId -> req
     this.speedTrackerInterval = null;
     this.dynamicSplitInterval = null;
+    this.staggerTimers = [];
+    this.pendingWrites = 0;
+    this.speedLimit = options.speedLimit || 0;
     this.lastBytes = this.downloadedBytes;
     this.isPaused = false;
     this.isCancelled = false;
@@ -141,12 +144,14 @@ class DownloadTask {
             this.contentType = res.headers['content-type'] || 'application/octet-stream';
             
             const acceptRanges = res.headers['accept-ranges'];
-            this.resumable = acceptRanges === 'bytes' || Boolean(this.totalBytes > 0);
+            this.resumable = acceptRanges === 'bytes';
 
             this.log(`File: ${this.fileName} | Size: ${(this.totalBytes / (1024*1024)).toFixed(2)} MB | Resumable: ${this.resumable}`);
             
             this.filePath = path.join(this.saveDir, this.fileName);
             this.metaPath = this.filePath + '.xdm.meta';
+
+            try { res.destroy(); } catch (e) {}
 
             resolve({
               url: this.url,
@@ -165,7 +170,7 @@ class DownloadTask {
           });
 
           req.on('timeout', () => {
-            req.destroy();
+            try { req.destroy(); } catch (e) {}
             this.probeWithGet(targetUrl).then(resolve).catch(reject);
           });
 
@@ -181,61 +186,85 @@ class DownloadTask {
 
   async probeWithGet(targetUrl) {
     return new Promise((resolve, reject) => {
-      try {
-        const parsed = new URL(targetUrl);
-        const isHttps = parsed.protocol === 'https:';
-        const client = isHttps ? https : http;
-        const agent = isHttps ? httpsAgent : httpAgent;
+      let redirects = 0;
+      const maxRedirects = 10;
 
-        const req = client.request(parsed, {
-          method: 'GET',
-          agent,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Range': 'bytes=0-0',
-            'Connection': 'close'
-          },
-          timeout: 15000
-        }, (res) => {
-          let totalBytes = 0;
-          let resumable = false;
+      const doProbeGet = (currentUrl) => {
+        try {
+          const parsed = new URL(currentUrl);
+          const isHttps = parsed.protocol === 'https:';
+          const client = isHttps ? https : http;
+          const agent = isHttps ? httpsAgent : httpAgent;
 
-          if (res.statusCode === 206) {
-            resumable = true;
-            const contentRange = res.headers['content-range'];
-            if (contentRange) {
-              const match = contentRange.match(/\/(\d+)/);
-              if (match) totalBytes = parseInt(match[1], 10);
+          const req = client.request(parsed, {
+            method: 'GET',
+            agent,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Range': 'bytes=0-0',
+              'Accept-Encoding': 'identity',
+              'Connection': 'close'
+            },
+            timeout: 15000
+          }, (res) => {
+            // Handle redirects
+            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+              try { res.destroy(); } catch (e) {}
+              if (redirects++ > maxRedirects) {
+                return reject(new Error('Too many redirects in probe'));
+              }
+              const redirectUrl = new URL(res.headers.location, currentUrl).toString();
+              this.url = redirectUrl;
+              return doProbeGet(redirectUrl);
             }
-          } else {
-            const len = res.headers['content-length'];
-            if (len) totalBytes = parseInt(len, 10);
-          }
 
-          let guessedName = path.basename(parsed.pathname) || 'download_' + Date.now();
-          this.fileName = this.sanitizeFileName(this.fileName || guessedName);
-          this.totalBytes = totalBytes;
-          this.resumable = resumable;
-          this.filePath = path.join(this.saveDir, this.fileName);
-          this.metaPath = this.filePath + '.xdm.meta';
-          this.category = this.detectCategory(path.extname(this.fileName));
+            let totalBytes = 0;
+            let resumable = false;
 
-          res.destroy();
-          resolve({
-            url: this.url,
-            fileName: this.fileName,
-            totalBytes: this.totalBytes,
-            resumable: this.resumable,
-            category: this.category,
-            contentType: res.headers['content-type'] || 'application/octet-stream'
+            if (res.statusCode === 206) {
+              resumable = true;
+              const contentRange = res.headers['content-range'];
+              if (contentRange) {
+                const match = contentRange.match(/\/(\d+)/);
+                if (match) totalBytes = parseInt(match[1], 10);
+              }
+            } else {
+              const len = res.headers['content-length'];
+              if (len) totalBytes = parseInt(len, 10);
+            }
+
+            let guessedName = path.basename(parsed.pathname) || 'download_' + Date.now();
+            this.fileName = this.sanitizeFileName(this.fileName || guessedName);
+            this.totalBytes = totalBytes;
+            this.resumable = resumable;
+            this.filePath = path.join(this.saveDir, this.fileName);
+            this.metaPath = this.filePath + '.xdm.meta';
+            this.category = this.detectCategory(path.extname(this.fileName));
+
+            try { res.destroy(); } catch (e) {}
+            resolve({
+              url: this.url,
+              fileName: this.fileName,
+              totalBytes: this.totalBytes,
+              resumable: this.resumable,
+              category: this.category,
+              contentType: res.headers['content-type'] || 'application/octet-stream'
+            });
           });
-        });
 
-        req.on('error', reject);
-        req.end();
-      } catch (err) {
-        reject(err);
-      }
+          req.on('timeout', () => {
+            try { req.destroy(); } catch (e) {}
+            reject(new Error('GET probe timed out'));
+          });
+
+          req.on('error', reject);
+          req.end();
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      doProbeGet(targetUrl);
     });
   }
 
@@ -365,19 +394,27 @@ class DownloadTask {
       this.fileFd = fs.openSync(this.filePath, 'r+');
 
       this.status = 'downloading';
+      this.lastBytes = this.downloadedBytes;
       this.startSpeedTracker();
       this.startDynamicSplitter();
 
       this.log(`Download started with ${this.segments.length} parallel connection threads`);
 
+      // Clear existing stagger timers
+      if (this.staggerTimers) {
+        this.staggerTimers.forEach(t => clearTimeout(t));
+      }
+      this.staggerTimers = [];
+
       // Launch segments with a slight stagger (40ms) to prevent server burst rate-limits
       this.segments.forEach((seg, i) => {
         if (seg.current <= seg.end && seg.status !== 'completed') {
-          setTimeout(() => {
+          const timer = setTimeout(() => {
             if (!this.isPaused && !this.isCancelled && this.status === 'downloading') {
               this.downloadSegment(seg);
             }
           }, i * 40);
+          this.staggerTimers.push(timer);
         }
       });
 
@@ -404,8 +441,9 @@ class DownloadTask {
     const agent = isHttps ? httpsAgent : httpAgent;
 
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 XDM/1.0',
       'Accept': '*/*',
+      'Accept-Encoding': 'identity',
       'Connection': 'keep-alive'
     };
 
@@ -413,31 +451,51 @@ class DownloadTask {
       headers['Range'] = `bytes=${seg.current}-${seg.end}`;
     }
 
-    let segLastDownloaded = seg.downloaded;
-
     const req = client.request(parsed, {
       method: 'GET',
       agent,
       headers,
       timeout: 30000
     }, (res) => {
-      // If server returned 200 OK instead of 206 Partial Content,
-      // it means the server ignores Range headers and is streaming the whole file!
-      if (res.statusCode === 200 && this.resumable && this.connections > 1) {
+      // Check if server returned 200 OK
+      if (res.statusCode === 200) {
         if (seg.id > 0) {
-          // Cancel other duplicate full-file streams
+          // Secondary segment receives full file stream: cancel immediately
           seg.status = 'completed';
           this.activeStreams.delete(seg.id);
           try { req.destroy(); } catch (e) {}
           return;
-        } else {
-          // Primary connection handles full file
+        }
+
+        // Segment 0 handles download
+        if (this.resumable && this.connections > 1) {
           this.resumable = false;
           this.connections = 1;
-          seg.end = this.totalBytes > 0 ? this.totalBytes - 1 : Infinity;
           this.log('Server does not support partial ranges (returned HTTP 200). Switched to high-speed single connection.', 'warn');
+
+          // Cancel all other streams immediately
+          for (const [id, activeReq] of this.activeStreams.entries()) {
+            if (id !== seg.id) {
+              try { activeReq.destroy(); } catch (e) {}
+              this.activeStreams.delete(id);
+            }
+          }
+          for (const s of this.segments) {
+            if (s.id !== 0) s.status = 'completed';
+          }
+
+          // Reset segment 0 and truncate file to prevent corruption
+          seg.start = 0;
+          seg.current = 0;
+          seg.downloaded = 0;
+          seg.end = this.totalBytes > 0 ? this.totalBytes - 1 : Infinity;
+          this.downloadedBytes = 0;
+
+          if (this.fileFd) {
+            try { fs.ftruncateSync(this.fileFd, 0); } catch (e) {}
+          }
         }
-      } else if (res.statusCode !== 200 && res.statusCode !== 206) {
+      } else if (res.statusCode !== 206) {
         seg.status = 'error';
         this.log(`Segment #${seg.id} HTTP error: ${res.statusCode}`, 'warn');
         this.retrySegment(seg);
@@ -475,12 +533,13 @@ class DownloadTask {
           this.downloadedBytes = this.totalBytes;
         }
 
-        // Non-blocking asynchronous file write with pending write tracking
+        // Non-blocking asynchronous file write with safe sub-array slice
         if (this.fileFd) {
           this.pendingWrites = (this.pendingWrites || 0) + 1;
-          fs.write(this.fileFd, chunk, 0, bytesToWrite, writeOffset, (writeErr) => {
+          const writeBuf = chunk.subarray(0, bytesToWrite);
+          fs.write(this.fileFd, writeBuf, 0, bytesToWrite, writeOffset, (writeErr) => {
             this.pendingWrites = Math.max(0, (this.pendingWrites || 1) - 1);
-            if (writeErr) {
+            if (writeErr && writeErr.code !== 'EBADF') {
               this.log(`Disk write error on segment #${seg.id}: ${writeErr.message}`, 'error');
             }
           });
@@ -538,12 +597,8 @@ class DownloadTask {
     });
 
     req.on('timeout', () => {
-      try { req.destroy(); } catch (e) {}
       this.activeStreams.delete(seg.id);
-      if (seg.status === 'completed' || seg.current > seg.end) return;
-      if (!this.isPaused && !this.isCancelled) {
-        this.retrySegment(seg);
-      }
+      try { req.destroy(new Error('Connection timed out')); } catch (e) {}
     });
 
     this.activeStreams.set(seg.id, req);
@@ -552,8 +607,10 @@ class DownloadTask {
 
   retrySegment(seg) {
     if (this.isPaused || this.isCancelled) return;
+    if (seg._retryTimer) clearTimeout(seg._retryTimer);
     seg.status = 'retrying';
-    setTimeout(() => {
+    seg._retryTimer = setTimeout(() => {
+      seg._retryTimer = null;
       if (!this.isPaused && !this.isCancelled && seg.current <= seg.end) {
         this.downloadSegment(seg);
       }
@@ -743,6 +800,8 @@ class DownloadTask {
   restart() {
     this.pause();
     this.downloadedBytes = 0;
+    this.progress = 0;
+    this.lastReportedProgress = 0;
     this.segments = [];
     try {
       if (fs.existsSync(this.filePath)) fs.unlinkSync(this.filePath);
@@ -775,16 +834,35 @@ class DownloadTask {
       clearInterval(this.dynamicSplitInterval);
       this.dynamicSplitInterval = null;
     }
-    if (this.fileFd) {
-      try {
-        fs.closeSync(this.fileFd);
-      } catch (e) {}
-      this.fileFd = null;
+    if (this.staggerTimers) {
+      this.staggerTimers.forEach(t => clearTimeout(t));
+      this.staggerTimers = [];
+    }
+    if (this.segments) {
+      for (const seg of this.segments) {
+        if (seg._retryTimer) {
+          clearTimeout(seg._retryTimer);
+          seg._retryTimer = null;
+        }
+      }
     }
     for (const [id, req] of this.activeStreams.entries()) {
       try { req.destroy(); } catch (e) {}
     }
     this.activeStreams.clear();
+
+    const fdToClose = this.fileFd;
+    this.fileFd = null;
+    if (fdToClose) {
+      const tryClose = () => {
+        if (this.pendingWrites > 0) {
+          setTimeout(tryClose, 25);
+        } else {
+          try { fs.closeSync(fdToClose); } catch (e) {}
+        }
+      };
+      tryClose();
+    }
   }
 
   toJSON() {

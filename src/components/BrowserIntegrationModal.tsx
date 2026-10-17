@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Globe, Copy, Check, ExternalLink, Code } from 'lucide-react';
 
 interface BrowserIntegrationModalProps {
@@ -14,6 +14,24 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
   const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
   const [copiedExtPath, setCopiedExtPath] = useState(false);
   const [autoInstalled, setAutoInstalled] = useState(false);
+  const [extensionPath, setExtensionPath] = useState('E:\\XDM\\extension');
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/extension/status')
+        .then(res => res.json())
+        .then(data => {
+          if (data.extensionDir) setExtensionPath(data.extensionDir);
+        })
+        .catch(() => {});
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
 
   const handleAutoInstall = async () => {
     try {
@@ -52,7 +70,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
   };
 
   const handleCopyExtPath = () => {
-    navigator.clipboard.writeText('E:\\XDM\\extension');
+    navigator.clipboard.writeText(extensionPath);
     setCopiedExtPath(true);
     setTimeout(() => setCopiedExtPath(false), 2000);
   };

@@ -44,6 +44,11 @@ export const App: React.FC = () => {
 
   const prevCompletedCountRef = useRef<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
+  const settingsRef = useRef<Settings>(settings);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   // Play audio chime
   const playCompletionSound = () => {
@@ -58,6 +63,9 @@ export const App: React.FC = () => {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = () => {
+        try { ctx.close(); } catch (e) {}
+      };
       osc.start();
       osc.stop(ctx.currentTime + 0.4);
     } catch (e) {}
@@ -90,7 +98,7 @@ export const App: React.FC = () => {
             // Check if any download just finished
             const completedCount = newDownloads.filter(d => d.status === 'completed').length;
             if (completedCount > prevCompletedCountRef.current && prevCompletedCountRef.current > 0) {
-              if (settings.soundNotification) playCompletionSound();
+              if (settingsRef.current.soundNotification) playCompletionSound();
               confetti({
                 particleCount: 80,
                 spread: 70,
@@ -119,7 +127,7 @@ export const App: React.FC = () => {
     return () => {
       if (wsRef.current) wsRef.current.close();
     };
-  }, [settings.soundNotification]);
+  }, []);
 
   // Actions wrapped in useCallback to prevent re-creation and click latency
   const handleAddDownload = useCallback(async (options: {
@@ -219,11 +227,15 @@ export const App: React.FC = () => {
 
   // Inspected Item
   const inspectedItem = downloads.find(d => d.id === inspectedItemId) || null;
+  const handleInspect = useCallback((item: DownloadItem) => setInspectedItemId(item.id), []);
 
-  // Active threads count
+  // Active threads count (only downloading or connecting threads)
   const activeConnectionsCount = downloads
     .filter(d => d.status === 'downloading')
-    .reduce((acc, d) => acc + (d.segments?.length || 1), 0);
+    .reduce((acc, d) => {
+      const activeSegs = d.segments?.filter(s => s.status === 'downloading' || s.status === 'connecting').length;
+      return acc + (activeSegs && activeSegs > 0 ? activeSegs : 1);
+    }, 0);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#090d16] text-slate-100 overflow-hidden font-sans">
@@ -269,7 +281,7 @@ export const App: React.FC = () => {
                   onDelete={handleDelete}
                   onOpenFile={handleOpenFile}
                   onOpenFolder={handleOpenFolder}
-                  onInspect={(t) => setInspectedItemId(t.id)}
+                  onInspect={handleInspect}
                 />
               ))
             ) : (

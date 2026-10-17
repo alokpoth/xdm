@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { spawn, exec } = require('child_process');
 const DownloadTask = require('./DownloadTask');
 const videoDownloader = require('./VideoDownloader');
 
@@ -83,7 +83,9 @@ class DownloadManager {
     try {
       this.ensureStorage();
       const list = Array.from(this.tasks.values()).map(t => t.toJSON());
-      fs.writeFileSync(this.storageFile, JSON.stringify(list, null, 2), 'utf-8');
+      const tempFile = this.storageFile + '.tmp';
+      fs.writeFileSync(tempFile, JSON.stringify(list, null, 2), 'utf-8');
+      fs.renameSync(tempFile, this.storageFile);
     } catch (e) {}
   }
 
@@ -215,7 +217,10 @@ class DownloadManager {
       task.log(logMsg, type || 'info');
     });
 
+    task.childProcess = child;
+
     child.on('close', (code) => {
+      task.childProcess = null;
       if (code === 0) {
         task.status = 'completed';
         task.progress = 100;
@@ -299,6 +304,10 @@ class DownloadManager {
   pauseDownload(id) {
     const task = this.tasks.get(id);
     if (task) {
+      if (task.childProcess) {
+        try { task.childProcess.kill(); } catch (e) {}
+        task.childProcess = null;
+      }
       task.pause();
       this.saveState();
       this.processQueue();
@@ -320,6 +329,10 @@ class DownloadManager {
   restartDownload(id) {
     const task = this.tasks.get(id);
     if (task) {
+      if (task.childProcess) {
+        try { task.childProcess.kill(); } catch (e) {}
+        task.childProcess = null;
+      }
       task.restart();
       this.saveState();
       return true;
@@ -330,6 +343,10 @@ class DownloadManager {
   deleteDownload(id, deleteFile = false) {
     const task = this.tasks.get(id);
     if (task) {
+      if (task.childProcess) {
+        try { task.childProcess.kill(); } catch (e) {}
+        task.childProcess = null;
+      }
       task.cancel(deleteFile);
       this.tasks.delete(id);
       this.saveState();
@@ -341,6 +358,10 @@ class DownloadManager {
 
   pauseAll() {
     for (const task of this.tasks.values()) {
+      if (task.childProcess) {
+        try { task.childProcess.kill(); } catch (e) {}
+        task.childProcess = null;
+      }
       if (task.status === 'downloading') {
         task.pause();
       }
@@ -391,11 +412,11 @@ class DownloadManager {
 
     // Windows native open
     if (process.platform === 'win32') {
-      exec(`start "" "${task.filePath}"`);
+      spawn('cmd.exe', ['/c', 'start', '', task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else if (process.platform === 'darwin') {
-      exec(`open "${task.filePath}"`);
+      spawn('open', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else {
-      exec(`xdg-open "${task.filePath}"`);
+      spawn('xdg-open', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
     }
   }
 
@@ -408,14 +429,14 @@ class DownloadManager {
     if (process.platform === 'win32') {
       // Highlight file in Windows Explorer
       if (fs.existsSync(task.filePath)) {
-        exec(`explorer.exe /select,"${task.filePath}"`);
+        spawn('explorer.exe', [`/select,${task.filePath}`], { detached: true, stdio: 'ignore' }).unref();
       } else if (fs.existsSync(task.saveDir)) {
-        exec(`explorer.exe "${task.saveDir}"`);
+        spawn('explorer.exe', [task.saveDir], { detached: true, stdio: 'ignore' }).unref();
       }
     } else if (process.platform === 'darwin') {
-      exec(`open -R "${task.filePath}"`);
+      spawn('open', ['-R', task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else {
-      exec(`xdg-open "${task.saveDir}"`);
+      spawn('xdg-open', [task.saveDir], { detached: true, stdio: 'ignore' }).unref();
     }
   }
 }

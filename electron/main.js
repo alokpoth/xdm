@@ -1,6 +1,21 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
+
+function getIconPath(fileName = 'icon.ico') {
+  const candidates = [
+    path.join(__dirname, '../public', fileName),
+    path.join(__dirname, '../dist', fileName),
+    path.join(process.resourcesPath || '', 'public', fileName),
+    path.join(process.resourcesPath || '', fileName),
+    path.join(__dirname, fileName)
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.join(__dirname, '../public', fileName);
+}
 
 // Ignore EADDRINUSE silently if already running
 process.on('uncaughtException', (err) => {
@@ -43,6 +58,9 @@ if (!gotTheLock) {
 }
 
 function createWindow() {
+  const iconPath = getIconPath('icon.ico');
+  const pngIcon = getIconPath('icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1240,
     height: 780,
@@ -57,33 +75,75 @@ function createWindow() {
       contextIsolation: true,
       webSecurity: false
     },
-    icon: path.join(__dirname, '../public/icon.png')
+    icon: fs.existsSync(iconPath) ? iconPath : pngIcon
   });
 
-  // Load UI from local engine or vite
-  const loadApp = () => {
+  // Track maximize state and send to renderer
+  mainWindow.on('maximize', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('window:maximized-changed', true);
+    }
+  });
+
+  mainWindow.on('unmaximize', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('window:maximized-changed', false);
+    }
+  });
+
+  // Resilient UI loader: wait for local server to be ready before showing
+  let loadAttempts = 0;
+  const maxAttempts = 40;
+
+  const tryLoad = () => {
+    // First check if Vite dev server is running
     http.get('http://127.0.0.1:5173', () => {
       mainWindow.loadURL('http://127.0.0.1:5173');
     }).on('error', () => {
-      mainWindow.loadURL('http://127.0.0.1:19684');
+      // Otherwise check local Express engine
+      http.get('http://127.0.0.1:19684/api/stats', () => {
+        mainWindow.loadURL('http://127.0.0.1:19684');
+      }).on('error', () => {
+        if (++loadAttempts < maxAttempts) {
+          setTimeout(tryLoad, 250);
+        } else {
+          mainWindow.loadURL('http://127.0.0.1:19684');
+        }
+      });
     });
   };
-  setTimeout(loadApp, 300);
+
+  tryLoad();
+
+  mainWindow.webContents.on('did-fail-load', () => {
+    setTimeout(() => {
+      if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
+    }, 600);
+  });
 
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
+      if (tray) {
+        event.preventDefault();
+        mainWindow.hide();
+      } else {
+        app.isQuitting = true;
+        app.quit();
+      }
     }
     return false;
   });
 }
 
 function createTray() {
+  const iconPath = getIconPath('icon.ico');
+  const pngIcon = getIconPath('icon.png');
+  const trayIcon = fs.existsSync(iconPath) ? iconPath : pngIcon;
+
   // Simple tray menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Open XDM',
+      label: 'Open XDM Turbo',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -115,7 +175,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit XDM',
+      label: 'Quit XDM Turbo',
       click: () => {
         app.isQuitting = true;
         app.quit();
@@ -124,7 +184,7 @@ function createTray() {
   ]);
 
   try {
-    tray = new Tray(path.join(__dirname, '../public/favicon.ico'));
+    tray = new Tray(trayIcon);
     tray.setToolTip('XDM Turbo Download Manager');
     tray.setContextMenu(contextMenu);
     tray.on('double-click', () => {
@@ -134,7 +194,7 @@ function createTray() {
       }
     });
   } catch (e) {
-    // Tray icon may not exist yet
+    console.error('Tray creation failed:', e.message);
   }
 }
 
@@ -153,8 +213,19 @@ ipcMain.handle('window:maximize', () => {
   }
 });
 
+ipcMain.handle('window:isMaximized', () => {
+  return mainWindow ? mainWindow.isMaximized() : false;
+});
+
 ipcMain.handle('window:close', () => {
-  if (mainWindow) mainWindow.hide();
+  if (mainWindow) {
+    if (tray) {
+      mainWindow.hide();
+    } else {
+      app.isQuitting = true;
+      app.quit();
+    }
+  }
 });
 
 ipcMain.handle('dialog:open-directory', async (event, defaultPath) => {

@@ -21,7 +21,12 @@
         action: 'START_DOWNLOAD',
         payload: { url, autoStart: true }
       }, (res) => {
-        showToast('🚀 Sent to XDM Turbo: ' + url.split('/').pop());
+        if (res && res.success) {
+          showToast('🚀 Sent to XDM Turbo: ' + url.split('/').pop());
+        } else {
+          // If engine is offline, fall back to default browser download
+          window.location.href = url;
+        }
       });
     }
   }, true);
@@ -46,14 +51,18 @@
     const videos = document.querySelectorAll('video');
 
     videos.forEach((video) => {
-      if (video.dataset.xdmAttached) return;
-      video.dataset.xdmAttached = 'true';
+      // Skip tiny preview thumbnails or hidden audio players
+      if ((video.offsetWidth > 0 && video.offsetWidth < 160) || (video.offsetHeight > 0 && video.offsetHeight < 100)) {
+        return;
+      }
 
       const playerContainer = video.closest('.html5-video-player') || 
                               video.closest('[data-video-id]') || 
+                              video.closest('.video-js') ||
                               video.parentElement;
 
       if (!playerContainer) return;
+      if (playerContainer.querySelector('.xdm-video-panel')) return; // already attached to container
 
       // Position relative if static
       const computedPos = window.getComputedStyle(playerContainer).position;
