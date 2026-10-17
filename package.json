@@ -55,13 +55,12 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowElevation": false,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,

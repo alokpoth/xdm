@@ -1,9 +1,8 @@
 !macro customCheckAppRunning
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo*.exe" /T'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo*.exe" /T'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
-  Sleep 1000
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe"'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe"'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe"'
+  Sleep 500
 !macroend
 
 !macro customUnInstallCheck
@@ -26,9 +25,8 @@
 !macroend
 
 !macro customUnInstall
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo*.exe" /T'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo*.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe"'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe"'
   DeleteRegKey HKCU "Software\Google\Chrome\Extensions\oglkcogpmnehcnhnaehelcikpijjblgc"
   DeleteRegKey HKCU "Software\Microsoft\Edge\Extensions\oglkcogpmnehcnhnaehelcikpijjblgc"
   DeleteRegKey HKCU "Software\BraveSoftware\Brave-Browser\Extensions\oglkcogpmnehcnhnaehelcikpijjblgc"
