@@ -5,8 +5,8 @@ const https = require('https');
 const { URL } = require('url');
 
 // High performance connection agents with keep-alive & socket pooling
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 128, timeout: 60000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 512, maxFreeSockets: 128, timeout: 60000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 256, timeout: 60000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 256, timeout: 60000 });
 
 class DownloadTask {
   constructor(options) {
@@ -406,14 +406,14 @@ class DownloadTask {
       }
       this.staggerTimers = [];
 
-      // Launch segments with a slight stagger (40ms) to prevent server burst rate-limits
+      // Launch segments with a rapid stagger (15ms) to achieve instant bandwidth saturation
       this.segments.forEach((seg, i) => {
         if (seg.current <= seg.end && seg.status !== 'completed') {
           const timer = setTimeout(() => {
             if (!this.isPaused && !this.isCancelled && this.status === 'downloading') {
               this.downloadSegment(seg);
             }
-          }, i * 40);
+          }, i * 15);
           this.staggerTimers.push(timer);
         }
       });
@@ -629,14 +629,14 @@ class DownloadTask {
       const activeCount = Array.from(this.activeStreams.values()).length;
       if (activeCount >= this.connections) return; // All channels occupied
 
-      // Find the segment with the largest remaining byte count > 3MB
+      // Find the segment with the largest remaining byte count > 1MB
       let maxRemaining = 0;
       let targetSegment = null;
 
       for (const seg of this.segments) {
         if (seg.status === 'downloading') {
           const remaining = seg.end - seg.current;
-          if (remaining > maxRemaining && remaining > 3 * 1024 * 1024) {
+          if (remaining > maxRemaining && remaining > 1024 * 1024) {
             maxRemaining = remaining;
             targetSegment = seg;
           }
@@ -671,7 +671,7 @@ class DownloadTask {
         this.downloadSegment(newSegment);
         this.saveMeta();
       }
-    }, 1500);
+    }, 600);
   }
 
   startSpeedTracker() {
