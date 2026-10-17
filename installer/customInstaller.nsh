@@ -25,17 +25,17 @@
   # Write clean external extension json if browser profile exists
   CreateDirectory "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.5"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.6"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.5"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.6"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.5"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.6"}'
   FileClose $0
 !macroend
 

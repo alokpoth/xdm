@@ -1,6 +1,6 @@
 {
   "name": "xdm",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 32-connection streaming & browser video grabber",
   "author": "Zihan Fakir <zihanfakir@gmail.com> (https://zihan.uk)",
   "homepage": "https://xdm.zihan.uk",
@@ -66,6 +66,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "XDM Turbo",
       "uninstallDisplayName": "XDM Turbo Download Manager",
+      "differentialPackage": false,
       "include": "installer/customInstaller.nsh"
     }
   },

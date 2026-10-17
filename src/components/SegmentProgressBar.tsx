@@ -69,7 +69,7 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
             />
             {/* Thread downloaded fill */}
             <div
-              className={`absolute top-0 bottom-0 transition-all duration-200 ${
+              className={`absolute top-0 bottom-0 ${
                 seg.status === 'completed'
                   ? 'bg-emerald-500'
                   : seg.status === 'downloading'
@@ -82,7 +82,7 @@ export const SegmentProgressBar: React.FC<SegmentProgressBarProps> = ({
               }`}
               style={{
                 left: `${leftPct}%`,
-                width: `${downloadedPct}%`
+                width: `${seg.status === 'completed' ? totalWidthPct : downloadedPct}%`
               }}
               title={
                 showTooltip

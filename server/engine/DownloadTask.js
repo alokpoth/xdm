@@ -536,7 +536,7 @@ class DownloadTask {
         // Non-blocking asynchronous file write with safe sub-array slice
         if (this.fileFd) {
           this.pendingWrites = (this.pendingWrites || 0) + 1;
-          const writeBuf = chunk.subarray(0, bytesToWrite);
+          const writeBuf = Buffer.from(chunk.subarray(0, bytesToWrite));
           fs.write(this.fileFd, writeBuf, 0, bytesToWrite, writeOffset, (writeErr) => {
             this.pendingWrites = Math.max(0, (this.pendingWrites || 1) - 1);
             if (writeErr && writeErr.code !== 'EBADF') {
@@ -845,6 +845,10 @@ class DownloadTask {
           seg._retryTimer = null;
         }
       }
+    }
+    if (this.childProcess) {
+      try { this.childProcess.kill(); } catch (e) {}
+      this.childProcess = null;
     }
     for (const [id, req] of this.activeStreams.entries()) {
       try { req.destroy(); } catch (e) {}
