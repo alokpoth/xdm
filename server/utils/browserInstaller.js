@@ -47,25 +47,7 @@ class BrowserInstaller {
       }
     }
 
-    // 2. Write Windows Registry Keys for Chromium
-    const commands = [
-      `reg.exe add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
-      `reg.exe add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
-      `reg.exe add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
-      `reg.exe add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
-      `reg.exe add "HKCU\\Software\\BraveSoftware\\Brave-Browser\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
-      `reg.exe add "HKCU\\Software\\BraveSoftware\\Brave-Browser\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`
-    ];
-
-    return new Promise((resolve) => {
-      exec(commands.join(' && '), (err) => {
-        if (!err) {
-          resolve({ success: true, message: 'Extension auto-registered across Chrome, Edge, and Brave!' });
-        } else {
-          resolve({ success: true, message: 'External extensions JSON written successfully' });
-        }
-      });
-    });
+    return { success: true, message: 'External extensions JSON written successfully' };
   }
 
   // Open Chrome / Edge directly with the extension loaded
