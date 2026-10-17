@@ -122,16 +122,16 @@ function createWindow() {
   });
 
   mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
-      if (tray) {
-        event.preventDefault();
-        mainWindow.hide();
-      } else {
-        app.isQuitting = true;
-        app.quit();
-      }
+    if (app.isQuitting) {
+      return;
     }
-    return false;
+    if (tray) {
+      event.preventDefault();
+      mainWindow.hide();
+    } else {
+      app.isQuitting = true;
+      app.quit();
+    }
   });
 }
 
@@ -258,8 +258,19 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('before-quit', () => {
+  app.isQuitting = true;
+});
+
+app.on('will-quit', () => {
+  if (tray) {
+    try { tray.destroy(); } catch (e) {}
+    tray = null;
+  }
+});
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    // Keep running in background tray
+  if (app.isQuitting || !tray) {
+    app.quit();
   }
 });
