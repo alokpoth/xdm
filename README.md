@@ -7,8 +7,8 @@
 
 > **Full IDM (Internet Download Manager) Clone with Ultra-Modern Minimalist UI & Bandwidth Saturation Turbo Engine**
 > 
-> 🌐 **Official Website & Downloads:** [https://xdm.zihan.uk](https://xdm.zihan.uk)  
-> 👤 **Author:** [Zihan Fakir](https://zihan.uk) (@zihanfakir)
+> ?? **Official Website & Downloads:** [https://xdm.zihan.uk](https://xdm.zihan.uk)  
+> ?? **Author:** [Zihan Fakir](https://xdm.zihan.uk) (@zihanfakir)
 
 XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging 32-connection HTTP Range streaming, dynamic segment subdivision (work-stealing), direct disk pre-allocation, and universal browser video capture.
 

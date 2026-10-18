@@ -61,9 +61,23 @@ app.post('/api/video/info', async (req, res) => {
 
 app.post('/api/video/download', async (req, res) => {
   try {
-    const { url, formatId, title, saveDir } = req.body;
+    const { url, formatId, title, saveDir, connections } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
-    const task = await manager.addVideoDownload({ url, formatId, title, saveDir });
+
+    // If url is a direct media stream (e.g. from Instagram CDN, Facebook CDN, or raw MP4), route to Turbo engine
+    if (url.includes('.mp4') || url.includes('cdninstagram.com') || url.includes('fbcdn.net') || url.includes('mime=video') || url.includes('bytestart=')) {
+      const cleanTitle = (title || 'Video_Download').replace(/[<>:"/\\|?*]+/g, '_').trim();
+      const task = await manager.addDownload({
+        url,
+        fileName: `${cleanTitle}.mp4`,
+        connections: parseInt(connections, 10) || 32,
+        saveDir,
+        autoStart: true
+      });
+      return res.json(task);
+    }
+
+    const task = await manager.addVideoDownload({ url, formatId, title, saveDir, connections: parseInt(connections, 10) || 32 });
     res.json(task);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to start video download' });
@@ -157,13 +171,38 @@ app.get('/api/stats', (req, res) => {
   res.json(manager.getGlobalStats());
 });
 
+// License API Endpoints
+app.get('/api/license', (req, res) => {
+  res.json(manager.licenseManager.getStatus());
+});
+
+app.post('/api/license/activate', (req, res) => {
+  try {
+    const { key, customerName } = req.body;
+    if (!key) return res.status(400).json({ success: false, error: 'License key is required' });
+    const result = manager.licenseManager.activate(key, customerName);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/license/deactivate', (req, res) => {
+  try {
+    const result = manager.licenseManager.deactivate();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 const browserInstaller = require('./utils/browserInstaller');
 
 app.get('/api/extension/status', (req, res) => {
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.3',
+    version: '1.0.7',
     path: path.resolve(__dirname, '../extension')
   });
 });

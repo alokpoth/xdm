@@ -132,7 +132,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
             {item.status === 'downloading' ? (
               <button
                 onClick={() => onPause(item.id)}
-                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-medium flex items-center space-x-1"
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-medium flex items-center space-x-1 cursor-pointer focus:outline-none select-none"
               >
                 <Pause className="w-3.5 h-3.5 fill-current" />
                 <span>Pause</span>
@@ -140,7 +140,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
             ) : item.status !== 'completed' ? (
               <button
                 onClick={() => onResume(item.id)}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center space-x-1"
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center space-x-1 cursor-pointer focus:outline-none select-none"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Resume</span>
@@ -148,7 +148,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
             ) : (
               <button
                 onClick={() => onOpenFile(item.id)}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center space-x-1"
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center space-x-1 cursor-pointer focus:outline-none select-none"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span>Open File</span>
@@ -157,7 +157,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
             <button
               onClick={() => onOpenFolder(item.id)}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer focus:outline-none select-none"
               title="Open Folder"
             >
               <FolderOpen className="w-4 h-4" />
@@ -165,7 +165,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none select-none"
             >
               <X className="w-4 h-4" />
             </button>
@@ -187,7 +187,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
         <div className="flex items-center space-x-1 px-5 border-b border-slate-800 bg-slate-900/40 text-xs font-medium">
           <button
             onClick={() => setActiveTab('segments')}
-            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all cursor-pointer focus:outline-none select-none ${
               activeTab === 'segments'
                 ? 'border-emerald-400 text-emerald-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -199,7 +199,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('speed')}
-            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all cursor-pointer focus:outline-none select-none ${
               activeTab === 'speed'
                 ? 'border-emerald-400 text-emerald-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -211,7 +211,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('logs')}
-            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all cursor-pointer focus:outline-none select-none ${
               activeTab === 'logs'
                 ? 'border-emerald-400 text-emerald-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -223,7 +223,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('info')}
-            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-2.5 border-b-2 transition-all cursor-pointer focus:outline-none select-none ${
               activeTab === 'info'
                 ? 'border-emerald-400 text-emerald-300 font-semibold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'

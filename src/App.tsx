@@ -8,7 +8,8 @@ import { AddDownloadModal } from './components/AddDownloadModal';
 import { DownloadDetailsModal } from './components/DownloadDetailsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { BrowserIntegrationModal } from './components/BrowserIntegrationModal';
-import { DownloadItem, GlobalStats, Settings, FileCategory } from './types';
+import { LicenseModal } from './components/LicenseModal';
+import { DownloadItem, GlobalStats, Settings, FileCategory, LicenseInfo } from './types';
 import { Download, Inbox } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
     speedLimit: 0,
     categoriesDir: true,
   });
+  const [license, setLicense] = useState<LicenseInfo | null>(null);
 
   const [currentFilter, setCurrentFilter] = useState<{ type: 'status' | 'category'; value: string }>({
     type: 'status',
@@ -40,6 +42,7 @@ export const App: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isBrowserModalOpen, setIsBrowserModalOpen] = useState(false);
+  const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [inspectedItemId, setInspectedItemId] = useState<string | null>(null);
 
   const prevCompletedCountRef = useRef<number>(0);
@@ -90,10 +93,12 @@ export const App: React.FC = () => {
             setDownloads(msg.payload.downloads || []);
             if (msg.payload.settings) setSettings(msg.payload.settings);
             if (msg.payload.stats) setStats(msg.payload.stats);
+            if (msg.payload.license) setLicense(msg.payload.license);
           } else if (msg.type === 'TELEMETRY') {
             const newDownloads: DownloadItem[] = msg.payload.downloads || [];
             setDownloads(newDownloads);
             if (msg.payload.stats) setStats(msg.payload.stats);
+            if (msg.payload.license) setLicense(msg.payload.license);
 
             // Check if any download just finished
             const completedCount = newDownloads.filter(d => d.status === 'completed').length;
@@ -107,6 +112,8 @@ export const App: React.FC = () => {
               });
             }
             prevCompletedCountRef.current = completedCount;
+          } else if (msg.type === 'LICENSE_UPDATE') {
+            if (msg.payload) setLicense(msg.payload);
           }
         } catch (e) {}
       };
@@ -124,6 +131,12 @@ export const App: React.FC = () => {
       .then(data => setSettings(data))
       .catch(() => {});
 
+    // Fetch initial license
+    fetch('/api/license')
+      .then(res => res.json())
+      .then(data => setLicense(data))
+      .catch(() => {});
+
     return () => {
       if (wsRef.current) wsRef.current.close();
     };
@@ -137,11 +150,26 @@ export const App: React.FC = () => {
     saveDir: string;
     autoStart: boolean;
     category?: string;
+    formatId?: string;
   }) => {
-    const res = await fetch('/api/downloads', {
+    const isVideoSite = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com/i.test(options.url);
+    const hasFormat = options.formatId && (options.formatId.includes('best') || options.formatId.includes('audio') || options.formatId.includes('height'));
+    
+    const endpoint = (isVideoSite || hasFormat) ? '/api/video/download' : '/api/downloads';
+    const body = (isVideoSite || hasFormat)
+      ? {
+          url: options.url,
+          formatId: options.formatId || 'best',
+          title: options.fileName,
+          saveDir: options.saveDir,
+          connections: options.connections || 32
+        }
+      : options;
+
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(options)
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to start download');
@@ -197,6 +225,39 @@ export const App: React.FC = () => {
     await handleSaveSettings({ speedLimit: limit });
   }, [handleSaveSettings]);
 
+  const handleActivateLicense = useCallback(async (key: string, name?: string) => {
+    const res = await fetch('/api/license/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, customerName: name })
+    });
+    const data = await res.json();
+    if (data.success && data.license) {
+      setLicense(data.license);
+      confetti({
+        particleCount: 120,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899']
+      });
+    }
+    return data;
+  }, []);
+
+  const handleDeactivateLicense = useCallback(async () => {
+    const res = await fetch('/api/license/deactivate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      const statusRes = await fetch('/api/license');
+      const statusData = await statusRes.json();
+      setLicense(statusData);
+    }
+    return data;
+  }, []);
+
   // Filter & Search Logic
   const filteredDownloads = downloads.filter((item) => {
     // Search query
@@ -250,6 +311,8 @@ export const App: React.FC = () => {
           onSelectFilter={setCurrentFilter}
           downloads={downloads}
           stats={stats}
+          license={license}
+          onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
         />
 
         {/* Center Content Area */}
@@ -259,6 +322,8 @@ export const App: React.FC = () => {
             onOpenAddModal={() => setIsAddModalOpen(true)}
             onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
             onOpenBrowserModal={() => setIsBrowserModalOpen(true)}
+            onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+            license={license}
             onPauseAll={handlePauseAll}
             onResumeAll={handleResumeAll}
             onClearFinished={handleClearFinished}
@@ -297,7 +362,7 @@ export const App: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all"
+                  className="px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer focus:outline-none select-none"
                 >
                   + Add Download Link
                 </button>
@@ -339,6 +404,15 @@ export const App: React.FC = () => {
       <BrowserIntegrationModal
         isOpen={isBrowserModalOpen}
         onClose={() => setIsBrowserModalOpen(false)}
+      />
+
+      {/* License & Activation Modal */}
+      <LicenseModal
+        isOpen={isLicenseModalOpen}
+        onClose={() => setIsLicenseModalOpen(false)}
+        license={license}
+        onActivate={handleActivateLicense}
+        onDeactivate={handleDeactivateLicense}
       />
     </div>
   );

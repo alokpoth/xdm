@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Copy, Check, ExternalLink, Code } from 'lucide-react';
+import { X, Globe, Copy, Check, ExternalLink, Code, Zap } from 'lucide-react';
 
 interface BrowserIntegrationModalProps {
   isOpen: boolean;
@@ -94,7 +94,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none select-none"
           >
             <X className="w-4 h-4" />
           </button>
@@ -106,7 +106,8 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
           <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-emerald-300 font-mono text-[12px] flex items-center gap-1.5">
-                <span>⚡ Automatic Extension Integration</span>
+                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Automatic Extension Integration</span>
               </span>
               <span className="text-[10px] bg-emerald-500 text-black px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                 IDM Auto Mode
@@ -119,29 +120,29 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 onClick={handleAutoInstall}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all flex items-center space-x-1.5 shadow-md shadow-emerald-500/20"
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all flex items-center space-x-1.5 shadow-md shadow-emerald-500/20 cursor-pointer focus:outline-none select-none"
               >
-                {autoInstalled ? <Check className="w-3.5 h-3.5" /> : null}
-                <span>{autoInstalled ? '✓ Registered in Windows Registry!' : '⚡ Auto-Register in Windows Registry'}</span>
+                {autoInstalled ? <Check className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                <span>{autoInstalled ? 'Registered in Windows Registry!' : 'Auto-Register in Windows Registry'}</span>
               </button>
 
               <button
                 onClick={() => handleLaunchBrowser('chrome')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer focus:outline-none select-none"
               >
                 Open Chrome
               </button>
 
               <button
                 onClick={() => handleLaunchBrowser('edge')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer focus:outline-none select-none"
               >
                 Open Edge
               </button>
 
               <button
                 onClick={handleCopyExtPath}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all flex items-center space-x-1"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all flex items-center space-x-1 cursor-pointer focus:outline-none select-none"
                 title="Copy folder path"
               >
                 {copiedExtPath ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -175,7 +176,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
               </a>
               <button
                 onClick={handleCopyScriptUrl}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1 transition-all"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1 transition-all cursor-pointer focus:outline-none select-none"
               >
                 {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedScript ? 'Copied Link!' : 'Copy Script URL'}</span>
@@ -193,7 +194,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
             </p>
             <button
               onClick={handleCopyBookmarklet}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5 transition-all cursor-pointer focus:outline-none select-none"
             >
               {copiedBookmarklet ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Code className="w-3.5 h-3.5" />}
               <span>{copiedBookmarklet ? 'Bookmarklet Copied!' : 'Copy Bookmarklet Code'}</span>
@@ -215,7 +216,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
         <div className="px-5 py-3.5 bg-slate-900/60 border-t border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer focus:outline-none select-none"
           >
             Close
           </button>

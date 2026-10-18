@@ -179,33 +179,36 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
         >
           {item.status === 'downloading' ? (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onPause(item.id);
               }}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-all shrink-0 active:scale-90"
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
               title="Pause Download"
             >
               <Pause className="w-4 h-4 fill-current shrink-0" />
             </button>
           ) : item.status !== 'completed' ? (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onResume(item.id);
               }}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all shrink-0 active:scale-90"
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
               title="Start / Resume Download"
             >
               <Play className="w-4 h-4 fill-current shrink-0" />
             </button>
           ) : (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenFile(item.id);
               }}
-              className="h-8 flex items-center space-x-1 px-2.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-all shadow-sm shrink-0 active:scale-90"
+              className="h-8 flex items-center space-x-1 px-2.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-all shadow-sm shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
               title="Open Finished File"
             >
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -214,44 +217,48 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
           )}
 
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onOpenFolder(item.id);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all shrink-0 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
             title="Show in Folder"
           >
             <FolderOpen className="w-4 h-4 shrink-0" />
           </button>
 
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onInspect(item);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all shrink-0 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
             title="Inspect Connections & Segments"
           >
             <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
           </button>
 
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onRestart(item.id);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition-all shrink-0 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
             title="Restart Download"
           >
             <RotateCcw className="w-3.5 h-3.5 shrink-0" />
           </button>
 
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(item.id, false);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all shrink-0 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
             title="Remove from list"
           >
             <Trash2 className="w-3.5 h-3.5 shrink-0" />

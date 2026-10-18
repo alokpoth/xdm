@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDirectoryDialog: (defaultPath) => ipcRenderer.invoke('dialog:open-directory', defaultPath),
   openPath: (filePath) => ipcRenderer.invoke('shell:open-path', filePath),
   showItemInFolder: (filePath) => ipcRenderer.invoke('shell:show-item-in-folder', filePath),
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+  getAutoStart: () => ipcRenderer.invoke('app:get-auto-start'),
+  setAutoStart: (val) => ipcRenderer.invoke('app:set-auto-start', val),
   isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   onMaximizedChange: (callback) => {
     const handler = (_event, isMax) => callback(isMax);

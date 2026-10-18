@@ -90,4 +90,35 @@ export interface ProbeResult {
   resumable: boolean;
   category: FileCategory;
   contentType: string;
+  isVideo?: boolean;
+  videoInfo?: {
+    id: string;
+    title: string;
+    thumbnail?: string;
+    durationString?: string;
+    uploader?: string;
+    formats?: Array<{
+      id: string;
+      label: string;
+      resolution: string;
+      ext: string;
+      hasAudio: boolean;
+      hasVideo: boolean;
+    }>;
+  };
 }
+
+export interface LicenseInfo {
+  isPro: boolean;
+  status: 'free' | 'pro' | 'expired' | 'trial';
+  maskedKey: string;
+  fullKey: string;
+  customerName: string;
+  hardwareId: string;
+  activatedAt: number | null;
+  expiresAt: number | null;
+  checkIntervalSeconds: number;
+  issuer: string;
+  error?: string;
+}
+

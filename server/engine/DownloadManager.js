@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const DownloadTask = require('./DownloadTask');
 const videoDownloader = require('./VideoDownloader');
+const LicenseManager = require('./LicenseManager');
 
 class DownloadManager {
   constructor(options = {}) {
@@ -23,6 +24,15 @@ class DownloadManager {
 
     this.tasks = new Map(); // id -> DownloadTask
     this.subscribers = new Set(); // WebSocket clients
+
+    this.licenseManager = options.licenseManager || new LicenseManager({ storageDir: this.storageDir });
+    this.licenseManager.onStatusChange = (status) => {
+      this.broadcast({
+        type: 'LICENSE_UPDATE',
+        payload: status
+      });
+      this.broadcastTelemetry(true);
+    };
 
     this.ensureStorage();
     this.loadSettings();
@@ -69,8 +79,11 @@ class DownloadManager {
           if (item.status === 'downloading' || item.status === 'probing') {
             item.status = 'paused';
           }
+          const isVid = Boolean(item.isVideoStream || (item.id && item.id.startsWith('xdm_vid_')));
           const task = new DownloadTask({
             ...item,
+            isVideoStream: isVid,
+            formatId: item.formatId || 'best',
             onProgress: () => this.broadcastTelemetry()
           });
           this.tasks.set(task.id, task);
@@ -97,7 +110,8 @@ class DownloadManager {
       payload: {
         downloads: this.getAllDownloads(),
         settings: this.settings,
-        stats: this.getGlobalStats()
+        stats: this.getGlobalStats(),
+        license: this.licenseManager ? this.licenseManager.getStatus() : null
       }
     }));
 
@@ -117,13 +131,30 @@ class DownloadManager {
     }
   }
 
-  broadcastTelemetry() {
+  broadcastTelemetry(force = false) {
     if (this.subscribers.size === 0) return;
+
+    let hasActive = false;
+    for (const task of this.tasks.values()) {
+      if (task.status === 'downloading' || task.status === 'probing') {
+        hasActive = true;
+        break;
+      }
+    }
+
+    const now = Date.now();
+    // When idle with no active downloads, throttle updates to once every 2.5s to preserve CPU and RAM
+    if (!hasActive && !force && this._lastIdleBroadcast && (now - this._lastIdleBroadcast < 2500)) {
+      return;
+    }
+    this._lastIdleBroadcast = now;
+
     this.broadcast({
       type: 'TELEMETRY',
       payload: {
         downloads: this.getAllDownloads(),
-        stats: this.getGlobalStats()
+        stats: this.getGlobalStats(),
+        license: this.licenseManager ? this.licenseManager.getStatus() : null
       }
     });
   }
@@ -159,6 +190,30 @@ class DownloadManager {
   }
 
   async probeUrl(url) {
+    const isVideoSite = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com/i.test(url);
+    if (isVideoSite) {
+      try {
+        const videoInfo = await this.getVideoInfo(url);
+        if (videoInfo) {
+          const rawTitle = videoInfo.title || 'Video';
+          const cleanTitle = rawTitle.replace(/[<>:"/\\|?*]+/g, '_').trim();
+          const finalName = /xdm\s+by\s+zihan/i.test(cleanTitle) ? `${cleanTitle}.mp4` : `${cleanTitle} XDM by Zihan.mp4`;
+          return {
+            url,
+            isVideo: true,
+            videoInfo,
+            fileName: finalName,
+            totalBytes: 0,
+            resumable: true,
+            category: 'video',
+            contentType: 'video/mp4'
+          };
+        }
+      } catch (e) {
+        // Fall back to direct probe if video metadata fails
+      }
+    }
+
     const tempTask = new DownloadTask({
       url,
       saveDir: this.settings.defaultSaveDir
@@ -171,47 +226,36 @@ class DownloadManager {
     return await videoDownloader.getVideoInfo(url);
   }
 
-  async addVideoDownload(options) {
-    let saveDir = options.saveDir || this.settings.defaultSaveDir;
-    const isAudio = options.formatId && options.formatId.includes('audio');
-    const cat = isAudio ? 'Audio' : 'Video';
-    
-    if (this.settings.categoriesDir) {
-      saveDir = path.join(saveDir, cat);
+  startVideoDownloadStream(task) {
+    if (task.childProcess) {
+      try { task.childProcess.kill(); } catch (e) {}
+      task.childProcess = null;
     }
-    if (!fs.existsSync(saveDir)) {
-      fs.mkdirSync(saveDir, { recursive: true });
-    }
-
-    const taskId = 'xdm_vid_' + Date.now();
-    const task = new DownloadTask({
-      id: taskId,
-      url: options.url,
-      fileName: options.title ? `${options.title}.${isAudio ? 'mp3' : 'mp4'}` : `video_${Date.now()}.${isAudio ? 'mp3' : 'mp4'}`,
-      saveDir,
-      category: isAudio ? 'audio' : 'video',
-      connections: 16
-    });
 
     task.status = 'downloading';
-    task.log(`Starting video stream download (${options.formatId || 'best'})...`);
-    this.tasks.set(task.id, task);
+    task.error = null;
+    task.log(`Starting video stream download (${task.formatId || 'best'}) with ${task.connections || 32} parallel streams...`);
     this.saveState();
     this.broadcastTelemetry();
 
-    const safeTitlePrefix = (options.title || task.fileName.replace(/\.[^/.]+$/, ''))
+    const safeTitlePrefix = (task.fileName.replace(/\.[^/.]+$/, ''))
       .replace(/[<>:"/\\|?*]+/g, '_')
       .substring(0, 50);
 
     const child = videoDownloader.downloadVideo({
-      url: options.url,
-      formatId: options.formatId || 'best',
-      saveDir,
-      title: options.title || task.fileName.replace(/\.[^/.]+$/, '')
+      url: task.url,
+      formatId: task.formatId || 'best',
+      saveDir: task.saveDir,
+      connections: task.connections || this.settings.defaultConnections || 32,
+      title: task.fileName.replace(/\.[^/.]+$/, '')
     }, (progressData) => {
       task.progress = progressData.progress || task.progress;
       task.downloadedBytes = progressData.downloadedBytes || task.downloadedBytes;
       if (progressData.totalBytes > 0) task.totalBytes = progressData.totalBytes;
+      if (progressData.speedBytes > 0) {
+        task.speed = progressData.speedBytes;
+        if (task.speed > task.peakSpeed) task.peakSpeed = task.speed;
+      }
       this.broadcastTelemetry();
     }, (logMsg, type) => {
       task.log(logMsg, type || 'info');
@@ -227,12 +271,12 @@ class DownloadManager {
         task.speed = 0;
         task.eta = 0;
         task.completedAt = Date.now();
-        // Check actual output file on disk to get real file path and size
+        task.error = null;
         try {
-          const files = fs.readdirSync(saveDir);
+          const files = fs.readdirSync(task.saveDir);
           const matched = files.find(f => f.startsWith(safeTitlePrefix));
           if (matched) {
-            const actualPath = path.join(saveDir, matched);
+            const actualPath = path.join(task.saveDir, matched);
             const stat = fs.statSync(actualPath);
             task.filePath = actualPath;
             task.fileName = matched;
@@ -246,13 +290,51 @@ class DownloadManager {
         }
         task.log('Video download completed successfully with merged audio!', 'success');
       } else {
-        task.status = 'error';
-        task.log(`Video download process exited with code ${code}`, 'error');
+        if (task.status !== 'paused' && task.status !== 'cancelled') {
+          task.status = 'error';
+          task.error = `Video download process exited with code ${code}`;
+          task.log(`Video download process exited with code ${code}`, 'error');
+        }
       }
       this.saveState();
       this.broadcastTelemetry();
     });
+  }
 
+  async addVideoDownload(options) {
+    let saveDir = options.saveDir || this.settings.defaultSaveDir;
+    const isAudio = !/video|height/i.test(options.formatId || '') && (/audio|mp3|m4a|aac|flac|wav|opus/i.test(options.formatId || '') || options.category === 'audio');
+    const cat = isAudio ? 'Audio' : 'Video';
+    
+    if (this.settings.categoriesDir) {
+      saveDir = path.join(saveDir, cat);
+    }
+    if (!fs.existsSync(saveDir)) {
+      fs.mkdirSync(saveDir, { recursive: true });
+    }
+
+    const taskId = 'xdm_vid_' + Date.now();
+    let chosenConnections = options.connections || this.settings.defaultConnections || 32;
+    if (!this.licenseManager || !this.licenseManager.license.isPro) {
+      chosenConnections = Math.min(chosenConnections, 8); // Free tier capped to 8 streams
+    }
+    const baseTitle = options.title || `video_${Date.now()}`;
+    const cleanExt = isAudio ? '.mp3' : '.mp4';
+    const finalName = baseTitle.toLowerCase().endsWith(cleanExt) ? baseTitle : `${baseTitle}${cleanExt}`;
+
+    const task = new DownloadTask({
+      id: taskId,
+      url: options.url,
+      fileName: finalName,
+      saveDir,
+      category: isAudio ? 'audio' : 'video',
+      connections: chosenConnections,
+      isVideoStream: true,
+      formatId: options.formatId || 'best'
+    });
+
+    this.tasks.set(task.id, task);
+    this.startVideoDownloadStream(task);
     return task.toJSON();
   }
 
@@ -267,6 +349,7 @@ class DownloadManager {
           url: options.url,
           formatId: options.formatId || 'best',
           title: options.fileName || info.title,
+          connections: options.connections || this.settings.defaultConnections || 32,
           saveDir: options.saveDir
         });
       } catch (e) {
@@ -282,11 +365,16 @@ class DownloadManager {
       saveDir = path.join(saveDir, catName);
     }
 
+    let chosenConnections = options.connections || this.settings.defaultConnections || 32;
+    if (!this.licenseManager || !this.licenseManager.license.isPro) {
+      chosenConnections = Math.min(chosenConnections, 8); // Free tier capped to 8 streams
+    }
+
     const task = new DownloadTask({
       url: options.url,
       fileName: options.fileName,
       saveDir,
-      connections: options.connections || this.settings.defaultConnections,
+      connections: chosenConnections,
       onProgress: () => this.broadcastTelemetry()
     });
 
@@ -304,9 +392,18 @@ class DownloadManager {
   pauseDownload(id) {
     const task = this.tasks.get(id);
     if (task) {
-      if (task.childProcess) {
-        try { task.childProcess.kill(); } catch (e) {}
-        task.childProcess = null;
+      if (task.childProcess || task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+        task.status = 'paused';
+        if (task.childProcess) {
+          try { task.childProcess.kill(); } catch (e) {}
+          task.childProcess = null;
+        }
+        task.speed = 0;
+        task.eta = 0;
+        task.log('Video download paused', 'info');
+        this.saveState();
+        this.broadcastTelemetry();
+        return true;
       }
       task.pause();
       this.saveState();
@@ -319,6 +416,10 @@ class DownloadManager {
   resumeDownload(id) {
     const task = this.tasks.get(id);
     if (task) {
+      if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+        this.startVideoDownloadStream(task);
+        return true;
+      }
       task.resume();
       this.saveState();
       return true;
@@ -332,6 +433,16 @@ class DownloadManager {
       if (task.childProcess) {
         try { task.childProcess.kill(); } catch (e) {}
         task.childProcess = null;
+      }
+      if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+        task.progress = 0;
+        task.downloadedBytes = 0;
+        task.speed = 0;
+        task.eta = 0;
+        task.error = null;
+        task.log('Video download restarted');
+        this.startVideoDownloadStream(task);
+        return true;
       }
       task.restart();
       this.saveState();
@@ -372,7 +483,11 @@ class DownloadManager {
   resumeAll() {
     for (const task of this.tasks.values()) {
       if (task.status === 'paused' || task.status === 'queued') {
-        task.resume();
+        if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+          this.startVideoDownloadStream(task);
+        } else {
+          task.resume();
+        }
       }
     }
     this.saveState();
@@ -396,7 +511,11 @@ class DownloadManager {
     if (running < this.settings.maxConcurrentDownloads) {
       for (const task of this.tasks.values()) {
         if (task.status === 'queued') {
-          task.start();
+          if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+            this.startVideoDownloadStream(task);
+          } else {
+            task.start();
+          }
           running++;
           if (running >= this.settings.maxConcurrentDownloads) break;
         }

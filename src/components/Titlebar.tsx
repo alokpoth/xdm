@@ -5,7 +5,7 @@ interface TitlebarProps {
   activeConnectionsCount: number;
 }
 
-export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) => {
+export const Titlebar: React.FC<TitlebarProps> = React.memo(({ activeConnectionsCount }) => {
   const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.isElectron;
   const [isMaximized, setIsMaximized] = useState(false);
 
@@ -81,7 +81,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
           <>
             <button
               onClick={handleMinimize}
-              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer focus:outline-none select-none"
               title="Minimize"
               style={noDragStyle}
             >
@@ -89,7 +89,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
             </button>
             <button
               onClick={(e) => handleMaximize(e)}
-              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-slate-800/90 text-slate-400 hover:text-white transition-colors active:bg-slate-700 flex-shrink-0 cursor-pointer focus:outline-none select-none"
               title={isMaximized ? "Restore" : "Maximize"}
               style={noDragStyle}
             >
@@ -101,7 +101,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
             </button>
             <button
               onClick={handleClose}
-              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-rose-600 text-slate-400 hover:text-white transition-colors active:bg-rose-700 flex-shrink-0 cursor-pointer"
+              className="w-9 h-7 min-w-[36px] flex items-center justify-center rounded hover:bg-rose-600 text-slate-400 hover:text-white transition-colors active:bg-rose-700 flex-shrink-0 cursor-pointer focus:outline-none select-none"
               title="Close to Tray"
               style={noDragStyle}
             >
@@ -112,4 +112,4 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeConnectionsCount }) =>
       </div>
     </header>
   );
-};
+});

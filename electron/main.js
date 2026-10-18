@@ -17,6 +17,20 @@ function getIconPath(fileName = 'icon.ico') {
   return path.join(__dirname, '../public', fileName);
 }
 
+// Performance & Memory flags for Chromium - Turbo launch & sub-1s cold start
+app.commandLine.appendSwitch('disable-site-isolation-trials');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('v8-cache-options', 'code');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('enable-fast-unload');
+app.commandLine.appendSwitch('disable-breakpad');
+app.commandLine.appendSwitch('disable-component-update');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128');
+app.commandLine.appendSwitch('renderer-process-limit', '2');
+
 // Ignore EADDRINUSE silently if already running
 process.on('uncaughtException', (err) => {
   if (err && err.code === 'EADDRINUSE') {
@@ -43,21 +57,24 @@ if (!gotTheLock) {
     }
   });
 
-  // Start internal backend server
+  // Start internal backend server immediately
   try {
     require('../server/server.js');
   } catch (e) {
     console.error('Failed to require server:', e);
   }
 
-  // Auto-register browser extension in Windows Registry
-  try {
-    const browserInstaller = require('../server/utils/browserInstaller');
-    browserInstaller.registerInRegistry();
-  } catch (e) {}
+  // Defer Windows Registry browser integration so it never delays window launch
+  setTimeout(() => {
+    try {
+      const browserInstaller = require('../server/utils/browserInstaller');
+      browserInstaller.registerInRegistry();
+    } catch (e) {}
+  }, 2500);
 }
 
 function createWindow() {
+  const isHidden = process.argv.includes('--hidden') || process.argv.includes('--minimized');
   const iconPath = getIconPath('icon.ico');
   const pngIcon = getIconPath('icon.png');
 
@@ -69,14 +86,34 @@ function createWindow() {
     frame: false, // Sleek modern frameless window with custom titlebar
     titleBarStyle: 'hidden',
     backgroundColor: '#0b0f17',
+    show: false, // Avoid white/black flash, display instantly on dom-ready/ready-to-show
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false
+      webSecurity: false,
+      spellcheck: false, // Saves 30-50MB RAM
+      backgroundThrottling: true // Reduce CPU/RAM when minimized
     },
     icon: fs.existsSync(iconPath) ? iconPath : pngIcon
   });
+
+  // Ultra-fast sub-second display: show on dom-ready with dark canvas, or ready-to-show
+  if (!isHidden) {
+    let windowShown = false;
+    const revealWindow = () => {
+      if (!windowShown && mainWindow) {
+        windowShown = true;
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    };
+
+    mainWindow.webContents.once('dom-ready', revealWindow);
+    mainWindow.once('ready-to-show', revealWindow);
+    // Instant fallback guarantee
+    setTimeout(revealWindow, 350);
+  }
 
   // Track maximize state and send to renderer
   mainWindow.on('maximize', () => {
@@ -91,26 +128,22 @@ function createWindow() {
     }
   });
 
-  // Resilient UI loader: wait for local server to be ready before showing
+  // Resilient rapid UI loader
   let loadAttempts = 0;
-  const maxAttempts = 40;
+  const maxAttempts = 50;
 
   const tryLoad = () => {
-    // First check if Vite dev server is running
-    http.get('http://127.0.0.1:5173', () => {
-      mainWindow.loadURL('http://127.0.0.1:5173');
-    }).on('error', () => {
-      // Otherwise check local Express engine
-      http.get('http://127.0.0.1:19684/api/stats', () => {
-        mainWindow.loadURL('http://127.0.0.1:19684');
+    // In dev mode, probe Vite dev server first
+    if (!app.isPackaged && process.env.NODE_ENV !== 'production') {
+      http.get('http://127.0.0.1:5173', () => {
+        mainWindow.loadURL('http://127.0.0.1:5173');
       }).on('error', () => {
-        if (++loadAttempts < maxAttempts) {
-          setTimeout(tryLoad, 250);
-        } else {
-          mainWindow.loadURL('http://127.0.0.1:19684');
-        }
+        mainWindow.loadURL('http://127.0.0.1:19684');
       });
-    });
+    } else {
+      // In production packaged app, load the internal engine immediately for sub-1s launch!
+      mainWindow.loadURL('http://127.0.0.1:19684');
+    }
   };
 
   tryLoad();
@@ -118,7 +151,7 @@ function createWindow() {
   mainWindow.webContents.on('did-fail-load', () => {
     setTimeout(() => {
       if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
-    }, 600);
+    }, 150);
   });
 
   mainWindow.on('close', (event) => {
@@ -246,6 +279,39 @@ ipcMain.handle('shell:open-path', async (event, filePath) => {
 ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
   shell.showItemInFolder(filePath);
   return true;
+});
+
+ipcMain.handle('shell:open-external', async (event, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    await shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('app:get-auto-start', () => {
+  try {
+    const settings = app.getLoginItemSettings({
+      args: ['--hidden']
+    });
+    return settings.openAtLogin;
+  } catch (e) {
+    return false;
+  }
+});
+
+ipcMain.handle('app:set-auto-start', (event, openAtLogin) => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: Boolean(openAtLogin),
+      openAsHidden: true,
+      path: process.execPath,
+      args: ['--hidden']
+    });
+    return app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin;
+  } catch (e) {
+    return false;
+  }
 });
 
 app.whenReady().then(() => {

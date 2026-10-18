@@ -18,10 +18,28 @@
   -webkit-app-region: no-drag;
 }
 
-/* Ensure no interactive element is ever dragged */
+/* Ensure no interactive element is ever dragged & set default pointer */
 button, a, input, select, textarea, [role="button"] {
   -webkit-app-region: no-drag !important;
 }
+
+button, a, [role="button"] {
+  cursor: pointer !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Eliminate harsh default browser outlines and focus rings completely on clicks */
+button:focus, 
+button:focus-visible, 
+a:focus, 
+a:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 
 /* Sleek custom scrollbars */
 ::-webkit-scrollbar {

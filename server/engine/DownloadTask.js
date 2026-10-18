@@ -5,8 +5,21 @@ const https = require('https');
 const { URL } = require('url');
 
 // High performance connection agents with keep-alive & socket pooling
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 256, timeout: 60000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 1024, maxFreeSockets: 256, timeout: 60000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 2048, maxFreeSockets: 512, timeout: 60000 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 2048, maxFreeSockets: 512, timeout: 60000 });
+
+function formatXdmFileName(originalName) {
+  if (!originalName || typeof originalName !== 'string') {
+    return `download_${Date.now()} XDM by Zihan`;
+  }
+  const clean = originalName.replace(/[<>:"/\\|?*]+/g, '_').trim();
+  const ext = path.extname(clean);
+  const base = clean.slice(0, clean.length - ext.length);
+  if (/xdm\s+by\s+zihan/i.test(base)) {
+    return clean;
+  }
+  return `${base} XDM by Zihan${ext}`;
+}
 
 class DownloadTask {
   constructor(options) {
@@ -14,7 +27,7 @@ class DownloadTask {
     this.url = options.url.trim();
     this.originalUrl = this.url;
     this.saveDir = options.saveDir || path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Downloads');
-    this.fileName = options.fileName || '';
+    this.fileName = options.fileName ? formatXdmFileName(options.fileName) : '';
     this.totalBytes = options.totalBytes || 0;
     this.downloadedBytes = options.downloadedBytes || 0;
     this.status = options.status || 'queued'; // queued, probing, downloading, paused, completed, error
@@ -31,6 +44,8 @@ class DownloadTask {
     this.createdAt = options.createdAt || Date.now();
     this.completedAt = options.completedAt || null;
     this.segments = options.segments || [];
+    this.isVideoStream = options.isVideoStream || (this.id && this.id.startsWith('xdm_vid_')) || false;
+    this.formatId = options.formatId || 'best';
     this.logs = [];
 
     // Runtime state
@@ -73,7 +88,7 @@ class DownloadTask {
   }
 
   sanitizeFileName(name) {
-    return name.replace(/[<>:"/\\|?*]+/g, '_').trim();
+    return formatXdmFileName(name);
   }
 
   async probeUrl() {
@@ -134,14 +149,30 @@ class DownloadTask {
               guessedName = basename && basename !== '/' ? decodeURIComponent(basename) : 'download_' + Date.now();
             }
 
-            this.fileName = this.sanitizeFileName(this.fileName || guessedName);
-            const ext = path.extname(this.fileName);
-            this.category = this.detectCategory(ext);
+            let baseSanitized = this.sanitizeFileName(this.fileName || guessedName);
+            let ext = path.extname(baseSanitized);
 
             // Extract length and range support
             const len = res.headers['content-length'];
             this.totalBytes = len ? parseInt(len, 10) : 0;
             this.contentType = res.headers['content-type'] || 'application/octet-stream';
+
+            // Auto-append appropriate media extension if missing from URL
+            if (!ext || ext === '.') {
+              if (this.contentType.includes('video/mp4') || this.url.includes('.mp4') || this.url.includes('cdninstagram') || this.url.includes('fbcdn')) {
+                baseSanitized += '.mp4';
+                ext = '.mp4';
+              } else if (this.contentType.includes('video/webm') || this.url.includes('.webm')) {
+                baseSanitized += '.webm';
+                ext = '.webm';
+              } else if (this.contentType.includes('audio/mp3') || this.contentType.includes('audio/mpeg')) {
+                baseSanitized += '.mp3';
+                ext = '.mp3';
+              }
+            }
+
+            this.fileName = baseSanitized;
+            this.category = this.detectCategory(ext);
             
             const acceptRanges = res.headers['accept-ranges'];
             this.resumable = acceptRanges === 'bytes';
@@ -675,18 +706,31 @@ class DownloadTask {
   }
 
   startSpeedTracker() {
+    let lastTick = Date.now();
+    let lastBytesSample = this.downloadedBytes;
+
     this.speedTrackerInterval = setInterval(() => {
-      if (this.status !== 'downloading') return;
+      if (this.status !== 'downloading') {
+        this.speed = 0;
+        return;
+      }
+
+      const now = Date.now();
+      const timeDelta = (now - lastTick) / 1000;
+      if (timeDelta <= 0.05) return;
+      lastTick = now;
 
       const currentDownloaded = this.downloadedBytes;
-      const bytesInWindow = Math.max(0, currentDownloaded - this.lastBytes);
-      this.lastBytes = currentDownloaded;
+      const bytesInWindow = Math.max(0, currentDownloaded - lastBytesSample);
+      lastBytesSample = currentDownloaded;
 
-      this.speed = bytesInWindow; // roughly 1 second window
+      const instantSpeed = Math.round(bytesInWindow / timeDelta);
+      // Fluid responsive moving average
+      this.speed = this.speed > 0 ? Math.round(this.speed * 0.35 + instantSpeed * 0.65) : instantSpeed;
       if (this.speed > this.peakSpeed) this.peakSpeed = this.speed;
 
       this.speedHistory.push({
-        time: Date.now(),
+        time: now,
         speed: this.speed
       });
       if (this.speedHistory.length > 30) {
@@ -706,18 +750,16 @@ class DownloadTask {
         if (seg.status === 'downloading') {
           const segDelta = Math.max(0, seg.downloaded - (seg._lastDownloaded || 0));
           seg._lastDownloaded = seg.downloaded;
-          seg.speed = segDelta;
+          seg.speed = Math.round(segDelta / timeDelta);
         } else {
           seg.speed = 0;
         }
       }
 
-      this.saveMeta();
-
       if (this.onProgressCallback) {
         this.onProgressCallback(this);
       }
-    }, 1000);
+    }, 300);
   }
 
   checkAllCompleted() {
@@ -905,6 +947,8 @@ class DownloadTask {
       resumable: this.resumable,
       category: this.category,
       contentType: this.contentType,
+      isVideoStream: this.isVideoStream,
+      formatId: this.formatId,
       createdAt: this.createdAt,
       completedAt: this.completedAt,
       error: this.error,

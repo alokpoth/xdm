@@ -4,26 +4,117 @@ const fs = require('fs');
 
 class VideoDownloader {
   constructor() {
-    this.pythonCmd = 'python';
+    this._cachedYtDlp = null;
+    this._cachedNode = null;
+    this._cachedFfmpeg = null;
+  }
+
+  getNodePath() {
+    if (this._cachedNode && fs.existsSync(this._cachedNode)) {
+      return this._cachedNode;
+    }
+    const candidates = [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Program Files (x86)\\nodejs\\node.exe',
+      path.join(process.env.APPDATA || '', 'npm/node.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Programs/node/node.exe')
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        this._cachedNode = c;
+        return c;
+      }
+    }
+    return 'node';
+  }
+
+  getFfmpegPath() {
+    if (this._cachedFfmpeg && fs.existsSync(this._cachedFfmpeg)) {
+      return this._cachedFfmpeg;
+    }
+
+    const localFfmpeg = path.resolve(__dirname, '../bin/ffmpeg.exe');
+    if (fs.existsSync(localFfmpeg)) {
+      this._cachedFfmpeg = localFfmpeg;
+      return localFfmpeg;
+    }
+
+    if (process.resourcesPath) {
+      const resourcesFfmpeg = path.resolve(process.resourcesPath, 'server/bin/ffmpeg.exe');
+      if (fs.existsSync(resourcesFfmpeg)) {
+        this._cachedFfmpeg = resourcesFfmpeg;
+        return resourcesFfmpeg;
+      }
+    }
+
+    try {
+      const pythonFfmpeg = require('child_process').execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"').toString().trim();
+      if (pythonFfmpeg && fs.existsSync(pythonFfmpeg)) {
+        this._cachedFfmpeg = pythonFfmpeg;
+        return pythonFfmpeg;
+      }
+    } catch (e) {}
+
+    return 'ffmpeg';
+  }
+
+  getYtDlpExecution() {
+    // 1. Check local server/bin/yt-dlp.exe
+    const localBin = path.resolve(__dirname, '../bin/yt-dlp.exe');
+    if (fs.existsSync(localBin)) {
+      return { cmd: localBin, baseArgs: [] };
+    }
+
+    // 2. Check Electron extraResources
+    if (process.resourcesPath) {
+      const resBin = path.resolve(process.resourcesPath, 'server/bin/yt-dlp.exe');
+      if (fs.existsSync(resBin)) {
+        return { cmd: resBin, baseArgs: [] };
+      }
+    }
+
+    // 3. Check Python scripts directory
+    const pyScript = path.join(process.env.LOCALAPPDATA || '', 'Programs/Python/Python313/Scripts/yt-dlp.exe');
+    if (fs.existsSync(pyScript)) {
+      return { cmd: pyScript, baseArgs: [] };
+    }
+
+    // 4. Fallback to python -m yt_dlp
+    return { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] };
   }
 
   // Extract metadata and formats for any video (YouTube, Facebook, Instagram, Twitter, etc.)
   async getVideoInfo(url) {
     return new Promise((resolve, reject) => {
+      const execInfo = this.getYtDlpExecution();
+      const nodePath = this.getNodePath();
+      const ffmpegPath = this.getFfmpegPath();
+
       const args = [
-        '-m', 'yt_dlp',
+        ...execInfo.baseArgs,
         '--dump-json',
         '--no-playlist',
         '--no-warnings',
-        url.trim()
+        '--no-check-certificates',
+        '--geo-bypass',
+        '--extractor-args', 'youtube:player_client=android,web,tv'
       ];
 
-      const child = spawn(this.pythonCmd, args);
+      if (nodePath) {
+        args.push('--js-runtimes', `node:${nodePath}`);
+      }
+      if (ffmpegPath && ffmpegPath !== 'ffmpeg') {
+        args.push('--ffmpeg-location', ffmpegPath);
+      }
+
+      args.push(url.trim());
+
+      const child = spawn(execInfo.cmd, args, { windowsHide: true });
       let stdout = '';
       let stderr = '';
 
       child.on('error', (err) => {
-        reject(new Error('Python / yt-dlp runtime not found or failed to spawn: ' + err.message));
+        reject(new Error('Video engine runtime failed to spawn: ' + err.message));
       });
 
       child.stdout.on('data', (d) => { stdout += d.toString(); });
@@ -50,21 +141,40 @@ class VideoDownloader {
             hasVideo: true
           });
 
-          // Extract standard video heights: 1080p, 720p, 480p, 360p
+          // Extract standard video heights: 4K 2160p 60fps, 2K 1440p, 1080p, 720p, 480p, 360p
           const seenHeights = new Set();
           if (data.formats && Array.isArray(data.formats)) {
-            // Sort by quality
+            // Sort by quality and fps
             const videoFormats = data.formats.filter(f => f.vcodec !== 'none' && f.height);
-            videoFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+            videoFormats.sort((a, b) => {
+              if ((b.height || 0) !== (a.height || 0)) {
+                return (b.height || 0) - (a.height || 0);
+              }
+              return (b.fps || 0) - (a.fps || 0);
+            });
 
             for (const f of videoFormats) {
               const h = f.height;
               if (h && [2160, 1440, 1080, 720, 480, 360].includes(h) && !seenHeights.has(h)) {
                 seenHeights.add(h);
+                const isHighFps = f.fps && f.fps >= 50;
+                let qualityLabel = `${h}p`;
+                if (h >= 2160) qualityLabel = `4K ${isHighFps ? '60fps ' : ''}Ultra HD (2160p)`;
+                else if (h >= 1440) qualityLabel = `2K ${isHighFps ? '60fps ' : ''}QHD (1440p)`;
+                else if (h >= 1080) qualityLabel = `1080p ${isHighFps ? '60fps ' : ''}FHD`;
+                else if (h >= 720) qualityLabel = `720p ${isHighFps ? '60fps ' : ''}HD`;
+                else if (h >= 480) qualityLabel = `480p SD`;
+                else if (h >= 360) qualityLabel = `360p`;
+
+                const formatSelector = isHighFps
+                  ? `bestvideo[height<=${h}][fps>=50]+bestaudio/bestvideo[height<=${h}]+bestaudio/best`
+                  : `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]`;
+
                 formats.push({
-                  id: `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]`,
-                  label: `${h}p (${f.ext || 'mp4'})`,
+                  id: formatSelector,
+                  label: qualityLabel,
                   resolution: `${h}p`,
+                  fps: f.fps || 30,
                   ext: 'mp4',
                   filesize: f.filesize || f.filesize_approx || 0,
                   hasAudio: true,
@@ -77,7 +187,7 @@ class VideoDownloader {
           // Audio-only option
           formats.push({
             id: 'bestaudio/best',
-            label: 'Audio Only (MP3/M4A)',
+            label: 'Audio Only (MP3 320kbps)',
             resolution: 'Audio',
             ext: 'mp3',
             hasAudio: true,
@@ -102,63 +212,79 @@ class VideoDownloader {
     });
   }
 
-  getFfmpegPath() {
-    const localFfmpeg = path.resolve(__dirname, '../bin/ffmpeg.exe');
-    if (fs.existsSync(localFfmpeg)) return localFfmpeg;
-
-    if (process.resourcesPath) {
-      const resourcesFfmpeg = path.resolve(process.resourcesPath, 'server/bin/ffmpeg.exe');
-      if (fs.existsSync(resourcesFfmpeg)) return resourcesFfmpeg;
-    }
-
-    try {
-      const pythonFfmpeg = require('child_process').execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"').toString().trim();
-      if (pythonFfmpeg && fs.existsSync(pythonFfmpeg)) return pythonFfmpeg;
-    } catch (e) {}
-
-    return 'ffmpeg';
-  }
-
   // Download video with multi-threading fragments
   downloadVideo(options, onProgress, onLog) {
     const { url, formatId, saveDir, title } = options;
 
-    const safeTitle = (title || 'video')
-      .replace(/[<>:"/\\|?*]+/g, '_')
-      .substring(0, 100);
+    let cleanTitle = (title || 'video').replace(/[<>:"/\\|?*]+/g, '_').trim();
+    if (!/xdm\s+by\s+zihan/i.test(cleanTitle)) {
+      cleanTitle = `${cleanTitle} XDM by Zihan`;
+    }
+    const safeTitle = cleanTitle.substring(0, 120);
 
     const outTemplate = path.join(saveDir, `${safeTitle}.%(ext)s`);
     const ffmpegPath = this.getFfmpegPath();
+    const fragments = String(Math.min(Math.max(options.connections || 32, 1), 64));
+    const execInfo = this.getYtDlpExecution();
+    const nodePath = this.getNodePath();
 
     const args = [
-      '-m', 'yt_dlp',
+      ...execInfo.baseArgs,
       '--newline',
       '--no-playlist',
-      '--concurrent-fragments', '16', // 16 parallel threads for turbo video segment download!
+      '--no-check-certificates',
+      '--geo-bypass',
+      '--extractor-args', 'youtube:player_client=android,web,tv',
+      '--concurrent-fragments', fragments, // User selected or 32 parallel threads for turbo video segment download!
       '--progress-template', 'DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes_estimate)s',
       '-o', outTemplate
     ];
+
+    if (nodePath) {
+      args.push('--js-runtimes', `node:${nodePath}`);
+    }
 
     if (ffmpegPath && ffmpegPath !== 'ffmpeg') {
       args.push('--ffmpeg-location', ffmpegPath);
     }
 
-    // Always guarantee audio is merged into video
+    // Format selection with seamless fallback so downloads NEVER fail if a specific resolution is missing
+    const isAudioOnly = !/video|height/i.test(formatId || '') && /audio|mp3|m4a|aac|flac|wav|opus/i.test(formatId || '');
+
+    let robustFormat = '';
     if (!formatId || formatId === 'best') {
-      args.push('-f', 'bestvideo*+bestaudio/best', '--merge-output-format', 'mp4');
-    } else if (formatId.includes('audio')) {
-      args.push('-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', '0');
+      robustFormat = 'bestvideo*+bestaudio/best';
+    } else if (isAudioOnly) {
+      robustFormat = 'bestaudio/best';
     } else {
-      args.push('-f', formatId, '--merge-output-format', 'mp4');
+      robustFormat = `${formatId}/bestvideo*+bestaudio/best`;
+    }
+
+    if (isAudioOnly) {
+      args.push('-f', robustFormat, '--extract-audio', '--audio-format', 'mp3', '--audio-quality', '0');
+    } else {
+      args.push('-f', robustFormat, '--merge-output-format', 'mp4');
     }
 
     args.push(url);
 
-    const child = spawn(this.pythonCmd, args);
+    const child = spawn(execInfo.cmd, args, { windowsHide: true });
 
     child.on('error', (err) => {
       if (onLog) onLog(`Video process spawn error: ${err.message}`, 'error');
     });
+
+    const parseSpeedBytes = (str) => {
+      if (!str) return 0;
+      const match = str.match(/([\d.]+)\s*([KMGTP]?i?B)\/s/i);
+      if (!match) return 0;
+      const val = parseFloat(match[1]);
+      const unit = match[2].toUpperCase();
+      if (unit.startsWith('K')) return Math.round(val * 1024);
+      if (unit.startsWith('M')) return Math.round(val * 1024 * 1024);
+      if (unit.startsWith('G')) return Math.round(val * 1024 * 1024 * 1024);
+      return Math.round(val);
+    };
 
     child.stdout.on('data', (data) => {
       const text = data.toString();
@@ -174,11 +300,13 @@ class VideoDownloader {
             const etaStr = parts[2].trim();
             const downloadedBytes = parseInt(parts[3], 10) || 0;
             const totalBytes = parseInt(parts[4], 10) || 0;
+            const speedBytes = parseSpeedBytes(speedStr);
 
             if (onProgress) {
               onProgress({
                 progress,
                 speedStr,
+                speedBytes,
                 etaStr,
                 downloadedBytes,
                 totalBytes

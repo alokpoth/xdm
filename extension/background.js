@@ -41,20 +41,84 @@ function notify(title, message) {
   }, 3000);
 }
 
-// Auto-intercept browser downloads into XDM Turbo (IDM style)
+const ALLOWED_EXTENSIONS = new Set([
+  // Archives
+  'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'iso', 'xz', 'tgz', 'cab', 'z',
+  // Executables & Installers
+  'exe', 'msi', 'apk', 'dmg', 'pkg', 'deb', 'rpm', 'appx', 'bin',
+  // Video
+  'mp4', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'webm', 'm4v', '3gp', 'ts', 'm2ts',
+  // Audio
+  'mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma', 'opus',
+  // Documents & Media
+  'pdf', 'epub', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'torrent'
+]);
+
+const BLOCKED_DOMAINS = [
+  'doubleclick.net', 'google-analytics.com', 'googletagmanager.com',
+  'facebook.com/tr', 'adnxs.com', 'rubiconproject.com', 'pubmatic.com',
+  'openx.net', 'scorecardresearch.com', 'quantserve.com', 'criteo.com',
+  'amazon-adsystem.com', 'analytics', 'telemetry', 'beacon'
+];
+
+function isCapturableDownload(downloadItem) {
+  if (!downloadItem || !downloadItem.url) return false;
+  const url = downloadItem.url.toLowerCase();
+
+  // Ignore internal/browser protocols
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('chrome:') || url.startsWith('edge:') || url.startsWith('about:')) {
+    return false;
+  }
+
+  // Block ad and tracking domains from being downloaded
+  if (BLOCKED_DOMAINS.some(d => url.includes(d))) {
+    return false;
+  }
+
+  // Check file extension
+  let filename = (downloadItem.filename || '').split(/[\\/]/).pop() || '';
+  let ext = '';
+
+  if (filename.includes('.')) {
+    ext = filename.split('.').pop().toLowerCase();
+  } else {
+    const cleanUrl = url.split('?')[0].split('#')[0];
+    const urlFile = cleanUrl.split('/').pop() || '';
+    if (urlFile.includes('.')) {
+      ext = urlFile.split('.').pop().toLowerCase();
+    }
+  }
+
+  // Strictly check allowed file extensions
+  if (ext && ALLOWED_EXTENSIONS.has(ext)) {
+    return true;
+  }
+
+  // If MIME type is explicitly an archive, video, or audio
+  const mime = (downloadItem.mime || '').toLowerCase();
+  if (mime.startsWith('video/') || mime.startsWith('audio/') || 
+      mime.includes('zip') || mime.includes('octet-stream') || 
+      mime.includes('x-msdownload') || mime.includes('pdf')) {
+    // Only capture if not an html or script file
+    if (!['html', 'htm', 'php', 'asp', 'jsp', 'aspx', 'js', 'json', 'css', 'xml'].includes(ext)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Auto-intercept browser downloads into XDM Turbo (IDM style) with strict filter
 if (chrome.downloads && chrome.downloads.onCreated) {
   chrome.downloads.onCreated.addListener(async (downloadItem) => {
-    if (!downloadItem || !downloadItem.url) return;
-    const url = downloadItem.url;
-    // Skip internal, blob, or data URLs
-    if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('chrome:') || url.startsWith('edge:')) return;
+    if (!isCapturableDownload(downloadItem)) return;
 
     try {
       const res = await fetch(`${XDM_BASE}/api/downloads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
+          url: downloadItem.url,
           fileName: downloadItem.filename ? downloadItem.filename.split(/[\\/]/).pop() : undefined,
           autoStart: true
         })
@@ -66,11 +130,56 @@ if (chrome.downloads && chrome.downloads.onCreated) {
           chrome.downloads.cancel(downloadItem.id);
           chrome.downloads.erase({ id: downloadItem.id });
         } catch (e) {}
-        notify('XDM Turbo', 'Captured download: ' + (downloadItem.filename || url));
+        notify('XDM Turbo', 'Captured download: ' + (downloadItem.filename || downloadItem.url));
       }
     } catch (err) {
       // If XDM engine is not running, let browser download as usual
     }
+  });
+}
+
+// Tab-based media sniffer cache (IDM style)
+const sniffedMediaByTab = new Map();
+
+if (chrome.webRequest && chrome.webRequest.onResponseStarted) {
+  chrome.webRequest.onResponseStarted.addListener((details) => {
+    if (!details || details.tabId <= 0) return;
+    const url = details.url;
+    if (!url || url.startsWith('blob:') || url.startsWith('data:')) return;
+
+    let isVideo = url.includes('.mp4') || 
+                  url.includes('cdninstagram.com') || 
+                  url.includes('fbcdn.net') || 
+                  url.includes('googlevideo.com') ||
+                  url.includes('.webm') ||
+                  url.includes('mime=video') ||
+                  url.includes('bytestart=');
+
+    if (!isVideo && details.responseHeaders) {
+      for (const h of details.responseHeaders) {
+        if (h.name && h.name.toLowerCase() === 'content-type') {
+          const val = (h.value || '').toLowerCase();
+          if (val.startsWith('video/') || val.includes('mp4') || val.includes('octet-stream')) {
+            isVideo = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (isVideo && !url.includes('.m3u8')) {
+      let list = sniffedMediaByTab.get(details.tabId) || [];
+      if (!list.includes(url)) {
+        list = [url, ...list].slice(0, 10);
+        sniffedMediaByTab.set(details.tabId, list);
+      }
+    }
+  }, { urls: ["<all_urls>"] }, ["responseHeaders"]);
+}
+
+if (chrome.tabs && chrome.tabs.onRemoved) {
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    sniffedMediaByTab.delete(tabId);
   });
 }
 
@@ -97,17 +206,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'START_DOWNLOAD') {
-    const targetUrl = (request.payload && request.payload.url) || request.url || '';
-    const isVideoSite = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com/i.test(targetUrl);
-    const endpoint = isVideoSite ? `${XDM_BASE}/api/video/download` : `${XDM_BASE}/api/downloads`;
+    const payload = request.payload || {};
+    let targetUrl = payload.directUrl || payload.url || request.url || '';
+
+    // If target is Instagram, Facebook or blob URL without direct MP4, check our tab's sniffed media cache
+    const tabId = sender.tab ? sender.tab.id : undefined;
+    if (tabId && (!targetUrl || targetUrl.startsWith('blob:') || /instagram\.com|facebook\.com/i.test(targetUrl))) {
+      if (!targetUrl.includes('.mp4') && !targetUrl.includes('cdninstagram.com') && !targetUrl.includes('fbcdn.net')) {
+        const cached = sniffedMediaByTab.get(tabId);
+        if (cached && cached.length > 0) {
+          targetUrl = cached[0];
+          payload.url = targetUrl;
+        }
+      }
+    }
+
+    // Direct stream URLs (.mp4, cdninstagram, fbcdn, bytestart) go directly to Turbo 32-connection engine
+    // YouTube page URLs go to VideoDownloader (yt-dlp) to resolve formats and merge streams
+    const isDirectStream = targetUrl.includes('.mp4') || 
+                           targetUrl.includes('cdninstagram.com') || 
+                           targetUrl.includes('fbcdn.net') || 
+                           targetUrl.includes('bytestart=') || 
+                           targetUrl.includes('mime=video');
+
+    const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl);
+    const endpoint = (isYouTube && !isDirectStream) ? `${XDM_BASE}/api/video/download` : `${XDM_BASE}/api/downloads`;
+
+    const cleanTitle = (payload.title || 'Video_Download').replace(/[<>:"/\\|?*]+/g, '_').trim();
+    const fileName = isDirectStream ? `${cleanTitle}.mp4` : undefined;
 
     fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request.payload || { url: targetUrl, autoStart: true })
+      body: JSON.stringify({
+        url: targetUrl,
+        fileName: fileName,
+        title: cleanTitle,
+        formatId: payload.formatId,
+        autoStart: true
+      })
     })
-      .then(r => r.json())
-      .then(data => sendResponse({ success: true, data }))
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          return sendResponse({ success: false, error: data.error || 'Server rejected download' });
+        }
+        sendResponse({ success: true, data });
+      })
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }

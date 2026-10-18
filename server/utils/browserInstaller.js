@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const EXTENSION_ID = 'oglkcogpmnehcnhnaehelcikpijjblgc';
-const VERSION = '1.0.6';
+let VERSION = '1.0.7';
 
 class BrowserInstaller {
   constructor() {
@@ -12,6 +12,14 @@ class BrowserInstaller {
     } else {
       this.extensionDir = path.resolve(__dirname, '../../extension');
     }
+
+    try {
+      const manifestPath = path.join(this.extensionDir, 'manifest.json');
+      if (fs.existsSync(manifestPath)) {
+        const m = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        if (m.version) VERSION = m.version;
+      }
+    } catch (e) {}
   }
 
   // Automatic multi-layered extension installation for Chrome, Edge, and Brave
@@ -47,7 +55,23 @@ class BrowserInstaller {
       }
     }
 
-    return { success: true, message: 'External extensions JSON written successfully' };
+    // 2. Also register in Windows Registry for Chrome and Edge
+    const regCmds = [
+      `reg add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
+      `reg add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
+      `reg add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
+      `reg add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
+      `reg add "HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist" /v "1" /t REG_SZ /d "${EXTENSION_ID}" /f`,
+      `reg add "HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist" /v "1" /t REG_SZ /d "${EXTENSION_ID}" /f`
+    ];
+
+    for (const cmd of regCmds) {
+      try {
+        exec(cmd);
+      } catch (e) {}
+    }
+
+    return { success: true, message: 'External extensions JSON and Registry written successfully' };
   }
 
   // Open Chrome / Edge directly with the extension loaded

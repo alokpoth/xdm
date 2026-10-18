@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Folder, Check, Sliders, Volume2, HardDrive } from 'lucide-react';
+import { X, Settings, Folder, Check, Sliders, Volume2, HardDrive, Globe } from 'lucide-react';
 import { Settings as SettingsType } from '../types';
 
 interface SettingsModalProps {
@@ -17,6 +17,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [form, setForm] = useState<SettingsType>(settings);
   const [saved, setSaved] = useState(false);
+  const [autoLaunchOnStartup, setAutoLaunchOnStartup] = useState(false);
 
   useEffect(() => {
     setForm(settings);
@@ -24,6 +25,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (e.key === 'Escape' && isOpen) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
+
+    if (isOpen && typeof window !== 'undefined' && (window as any).electronAPI?.getAutoStart) {
+      (window as any).electronAPI.getAutoStart().then((enabled: boolean) => {
+        setAutoLaunchOnStartup(Boolean(enabled));
+      }).catch(() => {});
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [settings, isOpen, onClose]);
 
@@ -34,6 +42,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isElectron) {
       const selected = await (window as any).electronAPI.openDirectoryDialog(form.defaultSaveDir);
       if (selected) setForm({ ...form, defaultSaveDir: selected });
+    }
+  };
+
+  const handleToggleAutoStart = async (checked: boolean) => {
+    setAutoLaunchOnStartup(checked);
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.setAutoStart) {
+      await (window as any).electronAPI.setAutoStart(checked);
     }
   };
 
@@ -62,7 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none select-none"
           >
             <X className="w-4 h-4" />
           </button>
@@ -85,7 +100,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={handleBrowseDir}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center space-x-1.5"
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center space-x-1.5 cursor-pointer focus:outline-none select-none"
               >
                 <Folder className="w-3.5 h-3.5" />
                 <span>Browse</span>
@@ -172,6 +187,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
               <span>Play sound alert on download completion</span>
             </label>
+
+            <label className="flex items-center space-x-2.5 text-slate-300 cursor-pointer pt-1 border-t border-slate-800/60">
+              <input
+                type="checkbox"
+                checked={autoLaunchOnStartup}
+                onChange={(e) => handleToggleAutoStart(e.target.checked)}
+                className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0"
+              />
+              <span className="flex items-center justify-between w-full">
+                <span>Start XDM Turbo on Windows Startup</span>
+                <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono font-medium">Silent in Tray</span>
+              </span>
+            </label>
           </div>
         </div>
 
@@ -180,18 +208,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all cursor-pointer focus:outline-none select-none"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all flex items-center space-x-1.5"
+            className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer focus:outline-none select-none"
           >
             {saved ? <Check className="w-3.5 h-3.5" /> : null}
             <span>{saved ? 'Saved!' : 'Save Changes'}</span>
           </button>
+        </div>
+
+        {/* Developer Credit */}
+        <div className="px-5 py-2.5 bg-slate-950/70 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+          <span className="font-mono">Created by <strong className="text-white">Zihan Fakir</strong></span>
+          <a
+            href="https://xdm.zihan.uk"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                (window as any).electronAPI.openExternal('https://xdm.zihan.uk');
+              } else {
+                window.open('https://xdm.zihan.uk', '_blank');
+              }
+            }}
+            className="text-emerald-400 hover:text-emerald-300 font-mono hover:underline flex items-center space-x-1 cursor-pointer"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>xdm.zihan.uk</span>
+          </a>
         </div>
       </div>
     </div>
