@@ -200,7 +200,26 @@ const SidebarComponent: React.FC<SidebarProps> = ({
       </div>
 
       {/* License Status Card */}
-      {license?.isPro ? (
+      {license?.isAdmin ? (
+        <div 
+          onClick={onOpenLicenseModal}
+          className="shrink-0 mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-yellow-950/20 to-slate-900 border border-amber-500/40 shadow-md cursor-pointer hover:border-amber-400/60 transition-all select-none"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-amber-200">Master Admin</span>
+            </div>
+            <span className="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/40">
+              64 STREAMS
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 font-mono mt-1 flex items-center justify-between">
+            <span>Owner Access</span>
+            <span className="text-amber-400 font-semibold">Active</span>
+          </div>
+        </div>
+      ) : license?.isPro ? (
         <div 
           onClick={onOpenLicenseModal}
           className="shrink-0 mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30 shadow-md cursor-pointer hover:border-emerald-500/50 transition-all select-none"

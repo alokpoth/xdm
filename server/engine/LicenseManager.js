@@ -84,12 +84,13 @@ class LicenseManager {
     // Supported formats:
     // 1) Universal PRO key: XDM-PRO-XXXX-XXXX-XXXX-XXXX (6 segments)
     // 2) Device-Locked key: XDM-LOCK-XXXX-XXXX-XXXX-XXXX (6 segments)
+    // 3) Master Admin key: XDM-ADMIN-XXXX-XXXX-XXXX-XXXX (6 segments)
     if (parts.length !== 6 || parts[0] !== 'XDM') {
-      return { valid: false, message: 'Invalid key format. Must be XDM-PRO-XXXX-XXXX-XXXX-XXXX' };
+      return { valid: false, message: 'Invalid key format. Must be XDM-PRO-... or XDM-ADMIN-...' };
     }
 
     const type = parts[1];
-    if (type !== 'PRO' && type !== 'LOCK') {
+    if (type !== 'PRO' && type !== 'LOCK' && type !== 'ADMIN') {
       return { valid: false, message: 'Unrecognized license type' };
     }
 
@@ -119,6 +120,7 @@ class LicenseManager {
 
     const cleanKey = key.trim().toUpperCase();
     const currentHwId = this.computeHardwareId();
+    const isAdmin = formatCheck.type === 'ADMIN';
 
     // Check if key is device-locked to another hardware ID
     if (formatCheck.type === 'LOCK') {
@@ -138,14 +140,15 @@ class LicenseManager {
 
     const licenseData = {
       isPro: true,
-      status: 'pro',
+      isAdmin: isAdmin,
+      status: isAdmin ? 'admin' : 'pro',
       key: cleanKey,
-      customerName: customerName || 'Valued Customer',
+      customerName: isAdmin ? (customerName || 'Zihan Fakir (Owner & Developer)') : (customerName || 'Valued Customer'),
       hardwareId: currentHwId,
       stamp: stamp,
       activatedAt: Date.now(),
       expiresAt: null, // Lifetime license
-      deviceLocked: true
+      deviceLocked: !isAdmin
     };
 
     try {
@@ -194,21 +197,24 @@ class LicenseManager {
 
       const data = JSON.parse(decrypted);
 
-      // Verify device binding (Strict 1-Device Check)
+      // Verify device binding (Strict 1-Device Check for non-admin)
       const currentHwId = this.computeHardwareId();
-      if (data.hardwareId !== currentHwId) {
+      if (!data.isAdmin && data.hardwareId !== currentHwId) {
         console.warn(`[License] Hardware ID mismatch! Stored: ${data.hardwareId}, Current: ${currentHwId}. Reverting to free.`);
         this.license.isPro = false;
+        this.license.isAdmin = false;
         this.license.status = 'free';
         this.license.error = 'License is bound to another device';
         return;
       }
 
       // Verify cryptographic stamp
-      const expectedStamp = this.generateDeviceStamp(data.key, currentHwId);
+      const stampTargetHwId = data.isAdmin ? data.hardwareId : currentHwId;
+      const expectedStamp = this.generateDeviceStamp(data.key, stampTargetHwId);
       if (data.stamp !== expectedStamp) {
         console.warn('[License] Cryptographic device stamp tampered! Reverting to free.');
         this.license.isPro = false;
+        this.license.isAdmin = false;
         this.license.status = 'free';
         this.license.error = 'License stamp invalid';
         return;
@@ -217,6 +223,7 @@ class LicenseManager {
       // Verify expiration (if any)
       if (data.expiresAt && Date.now() > data.expiresAt) {
         this.license.isPro = false;
+        this.license.isAdmin = false;
         this.license.status = 'expired';
         return;
       }
@@ -224,10 +231,12 @@ class LicenseManager {
       this.license = {
         ...data,
         isPro: true,
-        status: 'pro'
+        isAdmin: Boolean(data.isAdmin),
+        status: data.isAdmin ? 'admin' : 'pro'
       };
     } catch (err) {
       this.license.isPro = false;
+      this.license.isAdmin = false;
       this.license.status = 'free';
     }
   }
@@ -254,6 +263,7 @@ class LicenseManager {
 
     this.license = {
       isPro: false,
+      isAdmin: false,
       status: 'free',
       key: '',
       customerName: '',
@@ -274,6 +284,7 @@ class LicenseManager {
   getStatus() {
     return {
       isPro: this.license.isPro,
+      isAdmin: Boolean(this.license.isAdmin),
       status: this.license.status,
       maskedKey: this.license.key ? this.license.key.replace(/([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$/, '****-****-****-$4') : '',
       fullKey: this.license.key || '',

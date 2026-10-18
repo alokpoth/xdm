@@ -1,9 +1,10 @@
 /**
- * ?? XDM TURBO OFFICIAL LICENSE KEY GENERATOR
+ * ⚡ XDM TURBO OFFICIAL LICENSE KEY GENERATOR
  * Author: Zihan Fakir (https://xdm.zihan.uk)
  * 
  * Usage:
  *   node scripts/keygen.js                         -> Generates 1 Universal PRO Lifetime key (1-device bound on activation)
+ *   node scripts/keygen.js --admin                 -> Generates 1 MASTER ADMIN Key for Zihan Fakir (unlimited devices, 64 streams)
  *   node scripts/keygen.js --count 5               -> Generates 5 PRO keys
  *   node scripts/keygen.js --device XDM-DEV-XXXX-XXXX-XXXX -> Generates a key pre-locked to a specific customer PC
  *   node scripts/keygen.js --verify <KEY>          -> Checks if a key is authentic
@@ -17,14 +18,12 @@ function generateRandomHex(len) {
   return crypto.randomBytes(len).toString('hex').toUpperCase();
 }
 
-function generateProKey(deviceLockId = null) {
-  let type = 'PRO';
+function generateKey(type = 'PRO', deviceLockId = null) {
   let p1, p2;
 
-  if (deviceLockId) {
+  if (type === 'LOCK' || deviceLockId) {
     type = 'LOCK';
-    // Clean device ID
-    const cleanDev = deviceLockId.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const cleanDev = (deviceLockId || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     p1 = cleanDev.substring(6, 10) || generateRandomHex(2); // 4 hex
     p2 = generateRandomHex(2); // 4 hex
   } else {
@@ -52,6 +51,10 @@ function verifyKey(key) {
     return { valid: false, message: 'Invalid structure' };
   }
   const type = parts[1];
+  if (type !== 'PRO' && type !== 'LOCK' && type !== 'ADMIN') {
+    return { valid: false, message: 'Unrecognized license type' };
+  }
+
   const payload = `${parts[2]}-${parts[3]}`;
   const expectedSig = crypto.createHmac('sha256', MASTER_SECRET)
     .update(`${type}::${payload}`)
@@ -72,7 +75,8 @@ const args = process.argv.slice(2);
 let count = 1;
 let deviceId = null;
 let verifyTarget = null;
-let customer = 'Direct Buyer';
+let isAdmin = args.includes('--admin');
+let customer = isAdmin ? 'Zihan Fakir (Owner & Master Admin)' : 'Direct Buyer';
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--count' && args[i + 1]) count = parseInt(args[i + 1], 10) || 1;
@@ -91,23 +95,40 @@ if (verifyTarget) {
   console.log(`\nVerifying Key: ${verifyTarget}`);
   console.log(`-> Result: ${res.valid ? '✅ VALID & GENUINE' : '❌ INVALID / COUNTERFEIT'}`);
   if (res.valid) {
-    console.log(`-> Type: ${res.type === 'LOCK' ? 'Hardware Locked Key' : 'Universal 1-Device Key'}`);
+    if (res.type === 'ADMIN') {
+      console.log(`-> Type: 👑 MASTER ADMIN KEY (Unlimited devices, Owner bypass)`);
+    } else if (res.type === 'LOCK') {
+      console.log(`-> Type: 🔒 Hardware Locked Key (Locked to specific PC)`);
+    } else {
+      console.log(`-> Type: ⚡ Universal 1-Device Key (Locks to first PC activated)`);
+    }
   }
 } else {
-  console.log(`Customer: ${customer}`);
-  console.log(`Target Hardware: ${deviceId ? deviceId + ' (Device Locked)' : 'Any 1 PC (Locks on activation)'}`);
-  console.log(`License Type: PRO LIFETIME (32 Streams, 4K 60fps, Unlimited Speed)\n`);
-  console.log(`Generated Key(s):`);
+  const keyType = isAdmin ? 'ADMIN' : (deviceId ? 'LOCK' : 'PRO');
 
+  console.log(`Customer: ${customer}`);
+  if (isAdmin) {
+    console.log(`Target Hardware: 👑 ALL DEVICES (Master Admin Bypass - Not Locked)`);
+    console.log(`License Type: 👑 MASTER ADMIN (64 Streams, 4K/8K 60fps, Full Developer Access)\n`);
+  } else {
+    console.log(`Target Hardware: ${deviceId ? deviceId + ' (Device Locked)' : 'Any 1 PC (Locks on activation)'}`);
+    console.log(`License Type: ⚡ PRO LIFETIME (32 Streams, 4K 60fps, Unlimited Speed)\n`);
+  }
+
+  console.log(`Generated Key(s):`);
   for (let i = 1; i <= count; i++) {
-    const key = generateProKey(deviceId);
+    const key = generateKey(keyType, deviceId);
     console.log(`  [${i}] ${key}`);
   }
 
-  console.log('\nInstructions for Buyer:');
+  console.log('\nActivation Instructions:');
   console.log('1. Open XDM Turbo.');
-  console.log('2. Click on "Activate PRO" or the "PRO" badge.');
-  console.log('3. Enter the key and click "Activate PRO License".');
-  console.log('4. The software will bind to their device and unlock all PRO features!');
+  console.log('2. Click on "Activate PRO" or the "PRO" badge in top navigation.');
+  console.log('3. Enter the key and click "Activate PRO".');
+  if (isAdmin) {
+    console.log('4. 👑 Master Admin mode activates instantly on this device!');
+  } else {
+    console.log('4. The key binds permanently to that PC with 1-minute cryptographic integrity.');
+  }
 }
 console.log('================================================================\n');

@@ -210,8 +210,21 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
           <span className="hidden lg:inline text-[11px] whitespace-nowrap">Extension</span>
         </button>
 
-        {/* License PRO Status / Upgrade Button */}
-        {license?.isPro ? (
+        {/* License PRO Status / Admin / Upgrade Button */}
+        {license?.isAdmin ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenLicenseModal();
+            }}
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/30 border border-amber-400/60 text-amber-200 text-xs font-bold transition-all shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
+            title="👑 Master Admin Active (Unlimited Devices & 64 Streams)"
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+            <span className="font-mono text-[11px] font-bold tracking-wide">ADMIN</span>
+          </button>
+        ) : license?.isPro ? (
           <button
             type="button"
             onClick={(e) => {

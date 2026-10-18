@@ -110,7 +110,8 @@ export interface ProbeResult {
 
 export interface LicenseInfo {
   isPro: boolean;
-  status: 'free' | 'pro' | 'expired' | 'trial';
+  isAdmin?: boolean;
+  status: 'free' | 'pro' | 'admin' | 'expired' | 'trial';
   maskedKey: string;
   fullKey: string;
   customerName: string;
