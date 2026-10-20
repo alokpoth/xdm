@@ -144,6 +144,15 @@ function requireAdminAuth(req, res, next) {
   next();
 }
 
+function requireOwnerAuth(req, res, next) {
+  requireAdminAuth(req, res, () => {
+    if (req.admin.role !== 'owner' && req.admin.role !== 'superadmin') {
+      return res.status(403).json({ success: false, error: 'Access denied: Master Owner authority required' });
+    }
+    next();
+  });
+}
+
 // Ensure database is ready before processing API requests
 app.use(async (req, res, next) => {
   if (req.path.startsWith('/api')) {
@@ -513,6 +522,13 @@ const handleAdminLogin = async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid admin username or password' });
     }
 
+    if (admin.status === 'banned') {
+      await db.logEvent('admin_login_blocked_banned', null, null, getClientIp(req), { username });
+      return res.status(403).json({ success: false, error: 'Your admin account has been suspended by the Owner.' });
+    }
+
+    await db.updateAdminLastLogin(admin.id);
+
     const session = createAdminSession(admin);
     await db.logEvent('admin_login_success', null, null, getClientIp(req), { username: admin.username });
 
@@ -520,7 +536,7 @@ const handleAdminLogin = async (req, res) => {
       success: true,
       token: session.token,
       expiresAt: session.expiresAt,
-      admin: { id: admin.id, username: admin.username, role: admin.role }
+      admin: { id: admin.id, username: admin.username, role: admin.role, status: admin.status || 'active' }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -615,7 +631,11 @@ app.post('/api/admin/change-password', requireAdminAuth, handleAdminChangeCreden
 // Admin System Overview Metrics
 const handleAdminOverview = async (req, res) => {
   const metrics = await db.getOverviewMetrics();
-  res.json({ success: true, metrics });
+  res.json({
+    success: true,
+    metrics,
+    admin: req.admin ? { id: req.admin.adminId, username: req.admin.username, role: req.admin.role } : null
+  });
 };
 app.get('/api/v1/admin/overview', requireAdminAuth, handleAdminOverview);
 app.get('/api/admin/overview', requireAdminAuth, handleAdminOverview);
@@ -627,9 +647,10 @@ const handleAdminGetLicenses = async (req, res) => {
   const status = req.query.status || null;
   const edition = req.query.edition || null;
   const search = req.query.search || null;
+  const createdByAdmin = req.query.admin || req.query.createdByAdmin || null;
 
-  const licenses = await db.getAllLicenses({ limit, offset, status, edition, search });
-  const total = await db.getLicensesCount({ status, edition, search });
+  const licenses = await db.getAllLicenses({ limit, offset, status, edition, search, createdByAdmin });
+  const total = await db.getLicensesCount({ status, edition, search, createdByAdmin });
 
   res.json({ success: true, licenses, total, limit, offset });
 };
@@ -667,7 +688,8 @@ const handleAdminCreateLicenses = async (req, res) => {
         customerName: customerName || null,
         customerEmail: customerEmail || null,
         notes: notes || null,
-        expiresAt: finalExpiresAt
+        expiresAt: finalExpiresAt,
+        createdByAdmin: req.admin ? req.admin.username : 'owner'
       });
       created.push(lic);
     }
@@ -888,6 +910,137 @@ const handleAdminGetDatabaseStats = async (req, res) => {
 };
 app.get('/api/v1/admin/database/stats', requireAdminAuth, handleAdminGetDatabaseStats);
 app.get('/api/admin/database/stats', requireAdminAuth, handleAdminGetDatabaseStats);
+
+// ==========================================
+// 3. MASTER OWNER & SUB-ADMIN GOVERNANCE ENDPOINTS
+// ==========================================
+
+// Owner: Get All Admins with metrics (key generation stats)
+const handleOwnerGetAdmins = async (req, res) => {
+  try {
+    const admins = await db.getAllAdmins();
+    res.json({ success: true, admins });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.get('/api/v1/owner/admins', requireOwnerAuth, handleOwnerGetAdmins);
+app.get('/api/owner/admins', requireOwnerAuth, handleOwnerGetAdmins);
+
+// Owner: Create New Sub-Admin Account
+const handleOwnerCreateAdmin = async (req, res) => {
+  try {
+    const { username, password, role, notes } = req.body || {};
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.status(400).json({ success: false, error: 'Username must be at least 3 characters long' });
+    }
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(username.trim())) {
+      return res.status(400).json({ success: false, error: 'Username may only contain letters, numbers, hyphens, and underscores' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long' });
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const existing = await db.getAdminByUsername(cleanUsername);
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Admin username is already taken' });
+    }
+
+    const passwordHash = crypto.hashPassword(password);
+    const newAdmin = await db.createAdminUser({
+      username: cleanUsername,
+      passwordHash,
+      role: role === 'owner' ? 'owner' : 'admin',
+      createdBy: req.admin.username,
+      notes: notes ? notes.trim() : null
+    });
+
+    res.json({ success: true, message: 'Admin account created successfully', admin: newAdmin });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/owner/admins', requireOwnerAuth, handleOwnerCreateAdmin);
+app.post('/api/owner/admins', requireOwnerAuth, handleOwnerCreateAdmin);
+
+// Owner: Ban Sub-Admin Account
+const handleOwnerBanAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const updated = await db.updateAdminStatus(id, 'banned', reason || 'Banned by master owner');
+    res.json({ success: true, message: `Admin ${updated.username} has been suspended`, admin: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/owner/admins/:id/ban', requireOwnerAuth, handleOwnerBanAdmin);
+app.post('/api/owner/admins/:id/ban', requireOwnerAuth, handleOwnerBanAdmin);
+
+// Owner: Unban Sub-Admin Account
+const handleOwnerUnbanAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await db.updateAdminStatus(id, 'active', 'Reactivated by master owner');
+    res.json({ success: true, message: `Admin ${updated.username} has been reactivated`, admin: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/owner/admins/:id/unban', requireOwnerAuth, handleOwnerUnbanAdmin);
+app.post('/api/owner/admins/:id/unban', requireOwnerAuth, handleOwnerUnbanAdmin);
+
+// Owner: Reset Sub-Admin Password
+const handleOwnerResetAdminPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body || {};
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters long' });
+    }
+    const hash = crypto.hashPassword(newPassword);
+    const updated = await db.updateAdminPasswordById(id, hash);
+    res.json({ success: true, message: `Password for admin ${updated.username} updated successfully`, admin: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/owner/admins/:id/password', requireOwnerAuth, handleOwnerResetAdminPassword);
+app.post('/api/owner/admins/:id/password', requireOwnerAuth, handleOwnerResetAdminPassword);
+
+// Owner: Delete Sub-Admin Account
+const handleOwnerDeleteAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.deleteAdminUser(id);
+    res.json({ success: true, message: `Admin account ${result.deletedUsername} permanently deleted` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.delete('/api/v1/owner/admins/:id', requireOwnerAuth, handleOwnerDeleteAdmin);
+app.delete('/api/owner/admins/:id', requireOwnerAuth, handleOwnerDeleteAdmin);
+
+// Owner: Query Licenses Created by Specific Admin
+const handleOwnerGetAdminLicenses = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const target = await db.getAdminById(id);
+    if (!target) return res.status(404).json({ success: false, error: 'Admin not found' });
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const licenses = await db.getAllLicenses({ limit, offset, createdByAdmin: target.username });
+    const total = await db.getLicensesCount({ createdByAdmin: target.username });
+
+    res.json({ success: true, admin: target, licenses, total });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.get('/api/v1/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdminLicenses);
+app.get('/api/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdminLicenses);
 
 // Serve Admin UI statically when running standalone
 app.get(/^\/admin(\/.*)?$/, (req, res) => {

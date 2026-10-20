@@ -93,6 +93,7 @@ class LicenseDatabase {
         issued_at INTEGER NOT NULL,
         expires_at INTEGER,
         notes TEXT,
+        created_by_admin TEXT,
         created_at INTEGER NOT NULL
       )`,
       `CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(key)`,
@@ -137,13 +138,34 @@ class LicenseDatabase {
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'superadmin',
-        created_at INTEGER NOT NULL
+        role TEXT NOT NULL DEFAULT 'admin',
+        status TEXT NOT NULL DEFAULT 'active',
+        created_by TEXT,
+        notes TEXT,
+        created_at INTEGER NOT NULL,
+        last_login_at INTEGER
       )`
     ];
 
     for (const sql of statements) {
-      await this.client.execute(sql);
+      try {
+        await this.client.execute(sql);
+      } catch (err) {}
+    }
+
+    // Dynamic schema migrations for existing database instances
+    const migrations = [
+      'ALTER TABLE licenses ADD COLUMN created_by_admin TEXT',
+      "ALTER TABLE admin_users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
+      'ALTER TABLE admin_users ADD COLUMN created_by TEXT',
+      'ALTER TABLE admin_users ADD COLUMN notes TEXT',
+      'ALTER TABLE admin_users ADD COLUMN last_login_at INTEGER',
+      'CREATE INDEX IF NOT EXISTS idx_licenses_admin ON licenses(created_by_admin)'
+    ];
+    for (const mig of migrations) {
+      try {
+        await this.client.execute(mig);
+      } catch (e) {}
     }
   }
 
@@ -155,14 +177,21 @@ class LicenseDatabase {
         if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
           console.warn('[SECURITY WARNING] ADMIN_PASSWORD environment variable is NOT set in production! Using fallback. Please configure a custom secure ADMIN_PASSWORD immediately.');
         }
-        const defaultPass = process.env.ADMIN_PASSWORD || 'zihan2026';
+        const defaultPass = process.env.OWNER_PASSWORD || process.env.ADMIN_PASSWORD || 'zihan2026';
         const passwordHash = crypto.hashPassword(defaultPass);
         await this.client.execute({
-          sql: `INSERT INTO admin_users (id, username, password_hash, role, created_at)
-                VALUES (?, ?, ?, ?, ?)`,
-          args: ['admin_root', 'admin', passwordHash, 'superadmin', Date.now()]
+          sql: `INSERT INTO admin_users (id, username, password_hash, role, status, created_by, notes, created_at)
+                VALUES (?, ?, ?, 'owner', 'active', 'system', 'Master Owner Account', ?)`,
+          args: ['admin_root', 'admin', passwordHash, Date.now()]
         });
-        console.log('[Database] Initialized default admin account: "admin"');
+        console.log('[Database] Initialized default master owner account: "admin"');
+      } else {
+        // Upgrade existing accounts to ensure owner role is set
+        const ownerCheck = await this.client.execute("SELECT COUNT(*) as count FROM admin_users WHERE role = 'owner'");
+        const ownerCount = ownerCheck.rows[0] ? Number(ownerCheck.rows[0].count) : 0;
+        if (ownerCount === 0) {
+          await this.client.execute("UPDATE admin_users SET role = 'owner' WHERE username = 'admin' OR username = 'owner' OR role = 'superadmin' OR id = 'admin_root'");
+        }
       }
     } catch (e) {
       console.warn('[Database] ensureDefaultAdmin warning:', e.message);
@@ -342,6 +371,7 @@ class LicenseDatabase {
     const customerName = options.customerName || null;
     const customerEmail = options.customerEmail || null;
     const notes = options.notes || null;
+    const createdByAdmin = options.createdByAdmin || null;
     let userId = options.userId || null;
 
     if (customerEmail && !userId) {
@@ -350,12 +380,12 @@ class LicenseDatabase {
     }
 
     await this.client.execute({
-      sql: `INSERT INTO licenses (id, key, edition, user_id, customer_name, customer_email, max_devices, status, issued_at, expires_at, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-      args: [id, key, edition, userId, customerName, customerEmail, maxDevices, issuedAt, expiresAt, notes, issuedAt]
+      sql: `INSERT INTO licenses (id, key, edition, user_id, customer_name, customer_email, max_devices, status, issued_at, expires_at, notes, created_by_admin, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+      args: [id, key, edition, userId, customerName, customerEmail, maxDevices, issuedAt, expiresAt, notes, createdByAdmin, issuedAt]
     });
 
-    await this.logEvent('license_created', id, null, 'server', { key, edition, maxDevices, customerName, customerEmail });
+    await this.logEvent('license_created', id, null, 'server', { key, edition, maxDevices, customerName, customerEmail, createdByAdmin });
     return await this.getLicenseById(id);
   }
 
@@ -389,10 +419,14 @@ class LicenseDatabase {
       query += ' AND l.edition = ?';
       params.push(options.edition);
     }
+    if (options.createdByAdmin) {
+      query += ' AND l.created_by_admin = ?';
+      params.push(options.createdByAdmin);
+    }
     if (options.search) {
-      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ?)';
+      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ? OR l.created_by_admin LIKE ?)';
       const s = `%${options.search}%`;
-      params.push(s, s, s, s);
+      params.push(s, s, s, s, s);
     }
 
     query += ' ORDER BY l.created_at DESC';
@@ -418,10 +452,14 @@ class LicenseDatabase {
       query += ' AND l.edition = ?';
       params.push(options.edition);
     }
+    if (options.createdByAdmin) {
+      query += ' AND l.created_by_admin = ?';
+      params.push(options.createdByAdmin);
+    }
     if (options.search) {
-      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ?)';
+      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ? OR l.created_by_admin LIKE ?)';
       const s = `%${options.search}%`;
-      params.push(s, s, s, s);
+      params.push(s, s, s, s, s);
     }
 
     const res = await this.client.execute({ sql: query, args: params });
@@ -904,6 +942,117 @@ class LicenseDatabase {
 
   async updateAdminPassword(username, newPasswordHash) {
     return await this.updateAdminCredentials(username, { newPasswordHash });
+  }
+
+  // --- Owner & Sub-Admin Governance Methods ---
+  async getAllAdmins() {
+    await this.ready();
+    const res = await this.client.execute(`
+      SELECT 
+        a.id, 
+        a.username, 
+        a.role, 
+        COALESCE(a.status, 'active') as status, 
+        a.created_by, 
+        a.notes, 
+        a.created_at, 
+        a.last_login_at,
+        (SELECT COUNT(*) FROM licenses l WHERE l.created_by_admin = a.username OR l.created_by_admin = a.id) as keys_count,
+        (SELECT COUNT(*) FROM licenses l WHERE (l.created_by_admin = a.username OR l.created_by_admin = a.id) AND l.status = 'active') as active_keys_count,
+        (SELECT COUNT(DISTINCT d.id) FROM devices d JOIN licenses l ON d.license_id = l.id WHERE (l.created_by_admin = a.username OR l.created_by_admin = a.id) AND d.is_active = 1) as active_devices_count
+      FROM admin_users a
+      ORDER BY a.created_at ASC
+    `);
+    return res.rows;
+  }
+
+  async getAdminById(id) {
+    await this.ready();
+    const res = await this.client.execute({
+      sql: `SELECT id, username, role, COALESCE(status, 'active') as status, created_by, notes, created_at, last_login_at FROM admin_users WHERE id = ?`,
+      args: [id]
+    });
+    return res.rows[0] || null;
+  }
+
+  async createAdminUser({ username, passwordHash, role = 'admin', createdBy = 'owner', notes = null }) {
+    await this.ready();
+    const cleanUsername = username.trim().toLowerCase();
+    const id = crypto.generateId('adm');
+    const now = Date.now();
+    await this.client.execute({
+      sql: `INSERT INTO admin_users (id, username, password_hash, role, status, created_by, notes, created_at)
+            VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`,
+      args: [id, cleanUsername, passwordHash, role, createdBy, notes, now]
+    });
+    await this.logEvent('admin_user_created', null, null, 'owner', {
+      adminId: id,
+      username: cleanUsername,
+      role,
+      createdBy
+    });
+    return await this.getAdminById(id);
+  }
+
+  async updateAdminStatus(id, newStatus, reason = '') {
+    await this.ready();
+    const target = await this.getAdminById(id);
+    if (!target) throw new Error('Admin account not found');
+    if (target.role === 'owner') {
+      throw new Error('Action prohibited: Master Owner account status cannot be altered');
+    }
+    await this.client.execute({
+      sql: 'UPDATE admin_users SET status = ? WHERE id = ?',
+      args: [newStatus, id]
+    });
+    await this.logEvent(`admin_status_${newStatus}`, null, null, 'owner', {
+      targetAdminId: id,
+      targetUsername: target.username,
+      reason
+    });
+    return await this.getAdminById(id);
+  }
+
+  async updateAdminLastLogin(id) {
+    try {
+      await this.client.execute({
+        sql: 'UPDATE admin_users SET last_login_at = ? WHERE id = ?',
+        args: [Date.now(), id]
+      });
+    } catch (e) {}
+  }
+
+  async updateAdminPasswordById(id, newPasswordHash) {
+    await this.ready();
+    const target = await this.getAdminById(id);
+    if (!target) throw new Error('Admin account not found');
+    await this.client.execute({
+      sql: 'UPDATE admin_users SET password_hash = ? WHERE id = ?',
+      args: [newPasswordHash, id]
+    });
+    await this.logEvent('admin_password_reset_by_owner', null, null, 'owner', {
+      targetAdminId: id,
+      targetUsername: target.username
+    });
+    return await this.getAdminById(id);
+  }
+
+  async deleteAdminUser(id) {
+    await this.ready();
+    const target = await this.getAdminById(id);
+    if (!target) throw new Error('Admin account not found');
+    if (target.role === 'owner') {
+      throw new Error('Action prohibited: Master Owner account cannot be deleted');
+    }
+    await this.client.execute({
+      sql: 'DELETE FROM admin_users WHERE id = ?',
+      args: [id]
+    });
+    await this.logEvent('admin_user_deleted', null, null, 'owner', {
+      deletedAdminId: id,
+      deletedUsername: target.username
+    });
+    return { success: true, deletedUsername: target.username };
   }
 }
 

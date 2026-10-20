@@ -1107,6 +1107,154 @@ test('License Duration & Grace Period Capping: 3-day license calculates expires_
   assert.ok(hbData.graceUntil <= lic.expires_at, 'Heartbeat graceUntil must not exceed expiration');
 });
 
+test('Owner Governance: Master owner can create sub-admins, track key generation metrics, ban, unban, reset password, and delete sub-admins', async () => {
+  // 1. Owner lists all admins
+  const listRes = await fetch(`${SERVER_URL}/api/v1/owner/admins`, {
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  assert.equal(listRes.status, 200);
+  const listData = await listRes.json();
+  assert.equal(listData.success, true);
+  assert.ok(Array.isArray(listData.admins));
+
+  // 2. Owner creates a new sub-admin
+  const testAdminUser = `agent_${Date.now()}`;
+  const createAdminRes = await fetch(`${SERVER_URL}/api/v1/owner/admins`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({
+      username: testAdminUser,
+      password: 'password123',
+      notes: 'Dhaka Regional Agent'
+    })
+  });
+  assert.equal(createAdminRes.status, 200);
+  const createAdminData = await createAdminRes.json();
+  assert.equal(createAdminData.success, true);
+  assert.equal(createAdminData.admin.username, testAdminUser);
+  assert.equal(createAdminData.admin.role, 'admin');
+  const agentId = createAdminData.admin.id;
+
+  // 3. Sub-admin logs in and receives a sub-admin token
+  const agentLoginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: testAdminUser,
+      password: 'password123'
+    })
+  });
+  assert.equal(agentLoginRes.status, 200);
+  const agentLoginData = await agentLoginRes.json();
+  assert.equal(agentLoginData.success, true);
+  const agentToken = agentLoginData.token;
+  assert.equal(agentLoginData.admin.role, 'admin');
+
+  // Sub-admin cannot access owner endpoints (403)
+  const agentForbiddenRes = await fetch(`${SERVER_URL}/api/v1/owner/admins`, {
+    headers: { 'Authorization': `Bearer ${agentToken}` }
+  });
+  assert.equal(agentForbiddenRes.status, 403);
+
+  // 4. Sub-admin generates a license key
+  const agentLicRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${agentToken}`
+    },
+    body: JSON.stringify({
+      edition: 'pro',
+      maxDevices: 1,
+      duration: '7day',
+      customerName: 'Agent Customer 1'
+    })
+  });
+  assert.equal(agentLicRes.status, 200);
+  const agentLicData = await agentLicRes.json();
+  assert.equal(agentLicData.success, true);
+  assert.equal(agentLicData.licenses[0].created_by_admin, testAdminUser);
+
+  // 5. Owner checks metrics: sub-admin's keys_count should be at least 1
+  const updatedAdminsRes = await fetch(`${SERVER_URL}/api/v1/owner/admins`, {
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  const updatedAdminsData = await updatedAdminsRes.json();
+  const agentRecord = updatedAdminsData.admins.find(a => a.id === agentId);
+  assert.ok(agentRecord);
+  assert.ok(Number(agentRecord.keys_count) >= 1, 'keys_count should reflect created license');
+
+  // 6. Owner views keys created by this specific admin
+  const adminKeysRes = await fetch(`${SERVER_URL}/api/v1/owner/admins/${agentId}/licenses`, {
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  assert.equal(adminKeysRes.status, 200);
+  const adminKeysData = await adminKeysRes.json();
+  assert.equal(adminKeysData.success, true);
+  assert.ok(adminKeysData.licenses.length >= 1);
+
+  // 7. Owner bans sub-admin
+  const banRes = await fetch(`${SERVER_URL}/api/v1/owner/admins/${agentId}/ban`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ reason: 'Audit suspension' })
+  });
+  assert.equal(banRes.status, 200);
+
+  // Banned sub-admin cannot log in (403)
+  const bannedLoginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: testAdminUser,
+      password: 'password123'
+    })
+  });
+  assert.equal(bannedLoginRes.status, 403);
+
+  // 8. Owner unbans sub-admin
+  const unbanRes = await fetch(`${SERVER_URL}/api/v1/owner/admins/${agentId}/unban`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  assert.equal(unbanRes.status, 200);
+
+  // 9. Owner resets sub-admin password
+  const resetPassRes = await fetch(`${SERVER_URL}/api/v1/owner/admins/${agentId}/password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ newPassword: 'newSecretPassword2026' })
+  });
+  assert.equal(resetPassRes.status, 200);
+
+  // Login with new password succeeds
+  const newPassLoginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: testAdminUser,
+      password: 'newSecretPassword2026'
+    })
+  });
+  assert.equal(newPassLoginRes.status, 200);
+
+  // 10. Owner deletes sub-admin
+  const deleteRes = await fetch(`${SERVER_URL}/api/v1/owner/admins/${agentId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  assert.equal(deleteRes.status, 200);
+});
+
 test('Admin Database Optimization: Reclaims disk space and prunes stale records via /api/v1/admin/database/optimize', async () => {
   const res = await fetch(`${SERVER_URL}/api/v1/admin/database/optimize`, {
     method: 'POST',
