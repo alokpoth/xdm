@@ -449,6 +449,8 @@ class DownloadTask {
     if (this.status === 'downloading') return;
     this.isPaused = false;
     this.isCancelled = false;
+    this.error = null;
+    this.errorMessage = null;
 
     try {
       if (!this.fileName || !this.totalBytes) {
@@ -957,13 +959,20 @@ class DownloadTask {
 
   resume() {
     if (this.status === 'downloading' || this.status === 'completed') return;
+    this.isPaused = false;
+    this.isCancelled = false;
+    this.error = null;
+    this.errorMessage = null;
     this.log('Resuming download...');
     this.start();
   }
 
   restart() {
-    this.isPaused = true;
-    this.status = 'paused';
+    this.isPaused = false;
+    this.isCancelled = false;
+    this.error = null;
+    this.errorMessage = null;
+    this.status = 'queued';
     this.cleanup();
     this.downloadedBytes = 0;
     this.progress = 0;

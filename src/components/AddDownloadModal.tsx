@@ -203,7 +203,9 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
     if (!url.trim()) return;
     setSubmitting(true);
     try {
-      const formattedName = formatXdmFileName(fileName.trim() || 'download');
+      const fallbackUrlName = url.split('?')[0].split('#')[0].split('/').filter(Boolean).pop();
+      const rawName = fileName.trim() || probeResult?.fileName || fallbackUrlName || `download_${Date.now()}`;
+      const formattedName = formatXdmFileName(rawName);
       const isAudioOnly = !/video|height/i.test(selectedFormat) && /audio|mp3/i.test(selectedFormat);
       const determinedCat = isAudioOnly 
         ? 'audio' 

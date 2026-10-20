@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
   <title>XDM Turbo • Central License Governance & Admin Portal</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,8 +33,27 @@
 </head>
 <body class="min-h-screen flex flex-col bg-[#060911] text-slate-100">
 
+  <!-- ==================== STEALTH 404 VIEW (DEFAULT HIDDEN PORTAL) ==================== -->
+  <div id="stealth404View" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#060911] p-6 text-center select-none">
+    <div class="max-w-md w-full space-y-4">
+      <div class="text-7xl font-black font-mono text-slate-800 cursor-pointer select-none tracking-tight transition-colors hover:text-slate-700 active:scale-95" id="trigger404" title="404 Not Found">
+        404
+      </div>
+      <h1 class="text-xl font-bold text-white tracking-tight">Page Not Found</h1>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        The requested URL was not found on this server. The resource may have been removed, had its name changed, or is temporarily unavailable.
+      </p>
+      <div class="pt-4">
+        <a href="/" class="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-all border border-slate-800">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Return to Homepage</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== LOGIN VIEW ==================== -->
-  <div id="loginView" class="fixed inset-0 z-50 flex items-center justify-center bg-[#060911] p-4">
+  <div id="loginView" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-[#060911] p-4">
     <div class="w-full max-w-md rounded-2xl bg-[#0b1120] border border-slate-800 p-8 shadow-2xl relative overflow-hidden">
       <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
       <div class="text-center space-y-2 mb-6">
@@ -502,20 +522,80 @@
       }
     }
 
+    const stealth404View = document.getElementById('stealth404View');
+
+    function checkStealthAccess() {
+      if (sessionStorage.getItem('xdm_admin_unlocked') === 'true') return true;
+      const params = new URLSearchParams(window.location.search);
+      const key = params.get('key') || params.get('auth') || params.get('access') || params.get('secret');
+      if (key && (key.toLowerCase() === 'zihanfakir' || key.toLowerCase() === 'zihan')) {
+        sessionStorage.setItem('xdm_admin_unlocked', 'true');
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (e) {}
+        return true;
+      }
+      return false;
+    }
+
+    function unlockStealthPortal() {
+      sessionStorage.setItem('xdm_admin_unlocked', 'true');
+      if (authToken) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    }
+
+    // Secret Keybind: Ctrl+Shift+Alt+Z or Ctrl+Shift+A
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'a')) {
+        e.preventDefault();
+        unlockStealthPortal();
+      }
+    });
+
+    // Secret Easter Egg: Click 404 heading 5 times rapidly
+    let clickCount = 0;
+    let clickTimer = null;
+    const trigger404 = document.getElementById('trigger404');
+    if (trigger404) {
+      trigger404.addEventListener('click', () => {
+        clickCount++;
+        clearTimeout(clickTimer);
+        clickTimer = setTimeout(() => { clickCount = 0; }, 1500);
+        if (clickCount >= 5) {
+          unlockStealthPortal();
+        }
+      });
+    }
+
     // Init
-    if (authToken) {
+    const isUnlocked = checkStealthAccess();
+    if (!isUnlocked) {
+      showStealth404();
+    } else if (authToken) {
       showDashboard();
     } else {
       showLogin();
     }
 
+    function showStealth404() {
+      if (stealth404View) stealth404View.classList.remove('hidden');
+      loginView.classList.add('hidden');
+      dashboardView.classList.add('hidden');
+      lucide.createIcons();
+    }
+
     function showLogin() {
+      if (stealth404View) stealth404View.classList.add('hidden');
       loginView.classList.remove('hidden');
       dashboardView.classList.add('hidden');
       lucide.createIcons();
     }
 
     function showDashboard() {
+      if (stealth404View) stealth404View.classList.add('hidden');
       loginView.classList.add('hidden');
       dashboardView.classList.remove('hidden');
       switchTab('overview');

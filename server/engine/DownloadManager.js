@@ -36,7 +36,7 @@ class DownloadManager {
     this._scheduledStopDone = false;
     this._lastCheckedMinute = '';
 
-    this.licenseManager = options.licenseManager || new LicenseManager({ storageDir: this.storageDir });
+    this.licenseManager = options.licenseManager || new LicenseManager({ storageDir: this.storageDir, downloadManager: this });
     this.licenseManager.onStatusChange = (status) => {
       this.broadcast({
         type: 'LICENSE_UPDATE',
@@ -243,6 +243,9 @@ class DownloadManager {
   }
 
   async probeUrl(url) {
+    if (this.isBanned()) {
+      throw new Error('This device is permanently banned by administrator. URL probing is disabled.');
+    }
     const isVideoSite = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com/i.test(url);
     if (isVideoSite) {
       try {
@@ -250,7 +253,7 @@ class DownloadManager {
         if (videoInfo) {
           const rawTitle = videoInfo.title || 'Video';
           const cleanTitle = rawTitle.replace(/[<>:"/\\|?*]+/g, '_').trim();
-          const finalName = /xdm\s+by\s+zihan/i.test(cleanTitle) ? `${cleanTitle}.mp4` : `${cleanTitle} XDM by Zihan.mp4`;
+          const finalName = `${cleanTitle}.mp4`;
           return {
             url,
             isVideo: true,
@@ -362,6 +365,10 @@ class DownloadManager {
     });
   }
 
+  isBanned() {
+    return Boolean(this.licenseManager && this.licenseManager.isBanned());
+  }
+
   // Cryptographic Defense-in-Depth: Validate token signature directly rather than trusting boolean flag alone
   isProVerified() {
     if (!this.licenseManager || !this.licenseManager.isPro()) return false;
@@ -380,6 +387,9 @@ class DownloadManager {
   }
 
   async addVideoDownload(options) {
+    if (this.isBanned()) {
+      throw new Error('This device is permanently banned by administrator. Video download engine is disabled.');
+    }
     let saveDir = options.saveDir || this.settings.defaultSaveDir;
     const isAudio = !/video|height/i.test(options.formatId || '') && (/audio|mp3|m4a|aac|flac|wav|opus/i.test(options.formatId || '') || options.category === 'audio');
     const cat = isAudio ? 'Audio' : 'Video';
@@ -427,6 +437,9 @@ class DownloadManager {
   }
 
   async addDownload(options) {
+    if (this.isBanned()) {
+      throw new Error('This device is permanently banned by administrator. Downloading is disabled.');
+    }
     const isVideoSite = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com/i.test(options.url);
 
     if (isVideoSite) {
@@ -508,6 +521,7 @@ class DownloadManager {
   }
 
   resumeDownload(id) {
+    if (this.isBanned()) return false;
     const task = this.tasks.get(id);
     if (task) {
       if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
@@ -575,6 +589,7 @@ class DownloadManager {
   }
 
   resumeAll() {
+    if (this.isBanned()) return;
     for (const task of this.tasks.values()) {
       if (task.status === 'paused' || task.status === 'queued') {
         if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
@@ -597,6 +612,14 @@ class DownloadManager {
   }
 
   processQueue() {
+    if (this.isBanned()) {
+      for (const task of this.tasks.values()) {
+        if (task.status === 'downloading' || task.status === 'probing') {
+          task.pause();
+        }
+      }
+      return;
+    }
     let running = 0;
     for (const task of this.tasks.values()) {
       if (task.status === 'downloading') running++;

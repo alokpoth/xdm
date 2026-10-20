@@ -318,11 +318,11 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loading || isBanned}
+                disabled={loading}
                 className="btn-emerald-glow w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
               >
                 {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                <span>{loading ? 'Authenticating with Server...' : isBanned ? 'Device Locked' : 'Activate PRO Online'}</span>
+                <span>{loading ? 'Authenticating with Server...' : isBanned ? 'Submit Unban / Activation Key' : 'Activate PRO Online'}</span>
               </button>
             </form>
           )}

@@ -44,6 +44,27 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '2mb' }));
 
+// Hard Ban Lockdown Middleware:
+// If device is banned, all engine features, download endpoints, and controls are completely shut down
+app.use('/api', (req, res, next) => {
+  // Allow health check, checking license status, and submitting an unban/license activation key
+  if (req.path === '/health' || req.path === '/license' || req.path === '/license/activate') {
+    return next();
+  }
+
+  if (manager.licenseManager && manager.licenseManager.isBanned()) {
+    const banInfo = manager.licenseManager.getBanInfo();
+    return res.status(403).json({
+      error: 'DEVICE_BANNED',
+      message: 'This device is permanently banned by the license administrator. All download services, streams, and features are completely disabled.',
+      deviceId: manager.licenseManager.deviceId,
+      banReason: banInfo?.reason || 'Administrative hardware ban',
+      isBanned: true
+    });
+  }
+  next();
+});
+
 // WebSocket telemetry connection
 wss.on('connection', (ws) => {
   manager.subscribe(ws);
@@ -391,7 +412,7 @@ app.get('/extension/xdm-helper.user.js', (req, res) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, autoStart: true })
       }).then(() => {
-        alert('🚀 Sent to XDM Turbo Downloader: ' + url.split('/').pop());
+        alert('Sent to XDM Turbo Downloader: ' + url.split('/').pop());
       }).catch(err => {
         window.location.href = url; // fallback to browser download if XDM is not running
       });

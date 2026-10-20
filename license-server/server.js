@@ -193,7 +193,7 @@ const handleActivate = async (req, res) => {
       return res.status(403).json({
         success: false,
         isBanned: true,
-        error: `⛔ DEVICE BANNED: This device (${deviceId}) is locked because invalid keys were attempted 10 or more times. Only the administrator can unban this device.`
+        error: `DEVICE BANNED: This device (${deviceId}) is locked because invalid keys were attempted 10 or more times. Only the administrator can unban this device.`
       });
     }
 
@@ -205,7 +205,7 @@ const handleActivate = async (req, res) => {
         return res.status(403).json({
           success: false,
           isBanned: true,
-          error: `⛔ DEVICE BANNED: You have entered invalid license keys 10 times. This device (${deviceId}) is now permanently locked. Only the administrator can unban this device.`
+          error: `DEVICE BANNED: You have entered invalid license keys 10 times. This device (${deviceId}) is now permanently locked. Only the administrator can unban this device.`
         });
       }
       return res.status(404).json({

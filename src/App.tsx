@@ -10,7 +10,24 @@ import { BrowserIntegrationModal } from './components/BrowserIntegrationModal';
 import { LicenseModal } from './components/LicenseModal';
 import { UpdateModal } from './components/UpdateModal';
 import { DownloadItem, GlobalStats, Settings, FileCategory, LicenseInfo } from './types';
-import { Download, Inbox, ClipboardList, Power, ArrowRight, X, Zap } from 'lucide-react';
+import { 
+  Download, 
+  Inbox, 
+  ClipboardList, 
+  Power, 
+  ArrowRight, 
+  X, 
+  Zap, 
+  AlertTriangle, 
+  ShieldAlert, 
+  Lock,
+  MessageCircle,
+  Send,
+  Copy,
+  Check,
+  RefreshCw,
+  Sparkles
+} from 'lucide-react';
 
 export const App: React.FC = () => {
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
@@ -89,6 +106,12 @@ export const App: React.FC = () => {
     releaseNotes?: string;
     downloadUrl?: string;
   } | null>(null);
+
+  // Device Ban Lockdown State
+  const [unbanKeyInput, setUnbanKeyInput] = useState('');
+  const [unbanLoading, setUnbanLoading] = useState(false);
+  const [unbanFeedback, setUnbanFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [copiedBanDeviceId, setCopiedBanDeviceId] = useState(false);
 
   const prevCompletedCountRef = useRef<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
@@ -175,6 +198,34 @@ export const App: React.FC = () => {
             prevCompletedCountRef.current = completedCount;
           } else if (msg.type === 'LICENSE_UPDATE') {
             if (msg.payload) setLicense(msg.payload);
+          } else if (msg.type === 'DEVICE_BANNED') {
+            setLicense(prev => ({
+              ...(prev || {
+                isPro: false,
+                status: 'banned',
+                maskedKey: '',
+                fullKey: '',
+                customerName: 'Banned Device',
+                issuer: 'XDM Security'
+              }),
+              isBanned: true,
+              status: 'banned',
+              banReason: msg.payload?.reason || 'Administrative hardware ban',
+              deviceId: msg.payload?.deviceId || prev?.deviceId
+            }));
+          } else if (msg.type === 'DEVICE_UNBANNED') {
+            setLicense(prev => ({
+              ...(prev || {
+                isPro: false,
+                maskedKey: '',
+                fullKey: '',
+                customerName: '',
+                issuer: 'XDM Security'
+              }),
+              isBanned: false,
+              status: 'free',
+              banReason: null
+            }));
           } else if (msg.type === 'SHUTDOWN_WARNING') {
             if (msg.payload) {
               setShutdownWarning(msg.payload);
@@ -240,6 +291,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electronAPI?.onClipboardUrlDetected) {
       const unsub = (window as any).electronAPI.onClipboardUrlDetected((data: { url: string }) => {
+        if (licenseRef.current?.isBanned || licenseRef.current?.status === 'banned') return;
         const isUserPro = Boolean(licenseRef.current?.isPro || licenseRef.current?.isAdmin);
         if (isUserPro && data && data.url && settingsRef.current.clipboardMonitoring !== false) {
           setClipboardUrl(data.url);
@@ -255,6 +307,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electronAPI?.onTrayOpenAddModal) {
       const unsub = (window as any).electronAPI.onTrayOpenAddModal(() => {
+        if (licenseRef.current?.isBanned || licenseRef.current?.status === 'banned') return;
         setIsAddModalOpen(true);
       });
       return () => {
@@ -281,6 +334,7 @@ export const App: React.FC = () => {
   // Global Desktop Shortcut: Ctrl+V (paste link anywhere) or Ctrl+N (new download)
   useEffect(() => {
     const handleGlobalKeyDown = async (e: KeyboardEvent) => {
+      if (licenseRef.current?.isBanned || licenseRef.current?.status === 'banned') return;
       const target = e.target as HTMLElement;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
@@ -416,6 +470,41 @@ export const App: React.FC = () => {
     return data;
   }, []);
 
+  const handleUnbanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!unbanKeyInput.trim()) {
+      setUnbanFeedback({ type: 'error', message: 'Please enter an unban key or active PRO key.' });
+      return;
+    }
+    setUnbanLoading(true);
+    setUnbanFeedback(null);
+    try {
+      const res = await handleActivateLicense(unbanKeyInput.trim());
+      if (res.success) {
+        setUnbanFeedback({ type: 'success', message: res.message || 'Device ban lifted successfully! Engine restored.' });
+        setUnbanKeyInput('');
+        const licRes = await fetch('/api/license');
+        const licData = await licRes.json();
+        setLicense(licData);
+      } else {
+        setUnbanFeedback({ type: 'error', message: res.error || 'Invalid unban key or device verification rejected.' });
+      }
+    } catch (err: any) {
+      setUnbanFeedback({ type: 'error', message: err.message || 'Network error while contacting license server.' });
+    } finally {
+      setUnbanLoading(false);
+    }
+  };
+
+  const handleCopyBanDeviceId = () => {
+    const id = license?.deviceId || license?.hardwareId;
+    if (id) {
+      navigator.clipboard?.writeText(id);
+      setCopiedBanDeviceId(true);
+      setTimeout(() => setCopiedBanDeviceId(false), 2000);
+    }
+  };
+
   // Filter & Search Logic
   const filteredDownloads = downloads.filter((item) => {
     // Search query
@@ -449,7 +538,8 @@ export const App: React.FC = () => {
   const handleInspect = useCallback((item: DownloadItem) => setInspectedItemId(item.id), []);
 
   // Active threads count (only downloading or connecting threads)
-  const activeConnectionsCount = downloads
+  const isBanned = Boolean(license?.isBanned || license?.status === 'banned');
+  const activeConnectionsCount = isBanned ? 0 : downloads
     .filter(d => d.status === 'downloading')
     .reduce((acc, d) => {
       const activeSegs = d.segments?.filter(s => s.status === 'downloading' || s.status === 'connecting').length;
@@ -684,6 +774,133 @@ export const App: React.FC = () => {
           setIsAddModalOpen(true);
         }}
       />
+
+      {/* Strict Device Ban Lockdown Fullscreen Screen */}
+      {isBanned && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-[#060911]/98 backdrop-blur-2xl select-none animate-fadeIn">
+          <div className="w-full max-w-xl rounded-3xl bg-[#0c101d] border border-rose-500/40 p-6 sm:p-8 shadow-[0_0_60px_rgba(244,63,94,0.25)] relative overflow-hidden flex flex-col space-y-5 text-center">
+            {/* Glowing red accent blur */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-rose-500/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Icon & Status */}
+            <div className="flex flex-col items-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/30 animate-pulse">
+                <ShieldAlert className="w-9 h-9 stroke-[1.75]" />
+              </div>
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                <Lock className="w-3.5 h-3.5" />
+                <span>DEVICE HARDWARE ACCESS TERMINATED</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                DEVICE ACCESS PERMANENTLY BANNED
+              </h2>
+              <p className="text-xs text-rose-200/90 max-w-md leading-relaxed">
+                এই ডিভাইসের হার্ডওয়্যার আইডি সিকিউরিটি পলিসি লঙ্ঘনের কারণে স্থায়ীভাবে নিষিদ্ধ করা হয়েছে। সকল ডাউনলোড ইঞ্জিন, নেটওয়ার্ক সকেট ও ব্রাউজার ইন্টিগ্রেশন সম্পূর্ণরূপে বন্ধ রয়েছে।
+              </p>
+            </div>
+
+            {/* Hardware Device ID Card */}
+            <div className="rounded-2xl p-3.5 bg-slate-950/80 border border-rose-500/30 text-left space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Hardware Device ID:</span>
+                <button
+                  type="button"
+                  onClick={handleCopyBanDeviceId}
+                  className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[10px] font-mono transition-all border border-rose-500/30 cursor-pointer active:scale-95"
+                >
+                  {copiedBanDeviceId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedBanDeviceId ? 'Copied' : 'Copy ID'}</span>
+                </button>
+              </div>
+              <div className="font-mono text-xs text-rose-300 bg-black/60 px-3 py-2 rounded-xl border border-rose-500/20 select-all truncate">
+                {license?.deviceId || license?.hardwareId || 'Generating Device ID...'}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                <span className="font-semibold text-rose-400">Ban Reason: </span>
+                <span>{license?.banReason || 'Administrative hardware ban / Unauthorized tampering detected'}</span>
+              </div>
+            </div>
+
+            {/* Unban Key / License Activation Input */}
+            <form onSubmit={handleUnbanSubmit} className="space-y-2.5 text-left">
+              <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400">
+                Enter Unban Key or Authorized License Key
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="XDM-UNBAN-XXXX-XXXX-XXXX"
+                  value={unbanKeyInput}
+                  onChange={(e) => setUnbanKeyInput(e.target.value.toUpperCase())}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-rose-500/30 focus:border-rose-500 focus:outline-none text-white font-mono text-xs placeholder-slate-600"
+                />
+                <button
+                  type="submit"
+                  disabled={unbanLoading}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs font-mono transition-all disabled:opacity-40 flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-rose-600/30 active:scale-95 shrink-0"
+                >
+                  {unbanLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  <span>{unbanLoading ? 'Verifying...' : 'Lift Ban'}</span>
+                </button>
+              </div>
+              {unbanFeedback && (
+                <div className={`p-2.5 rounded-xl text-xs font-medium border flex items-center space-x-2 ${
+                  unbanFeedback.type === 'success' 
+                    ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300' 
+                    : 'bg-rose-950/50 border-rose-500/40 text-rose-300'
+                }`}>
+                  {unbanFeedback.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                  <span>{unbanFeedback.message}</span>
+                </div>
+              )}
+            </form>
+
+            {/* Appeal / Contact Administrator */}
+            <div className="pt-2 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <span className="text-slate-400 font-mono text-[11px]">Appeal to Zihan Fakir:</span>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://wa.me/zihanfakir"
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const url = 'https://wa.me/zihanfakir';
+                    if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                      (window as any).electronAPI.openExternal(url);
+                    } else {
+                      window.open(url, '_blank');
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] font-mono transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WhatsApp: @zihanfakir</span>
+                </a>
+                <a
+                  href="https://t.me/zihanfakir"
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const url = 'https://t.me/zihanfakir';
+                    if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                      (window as any).electronAPI.openExternal(url);
+                    } else {
+                      window.open(url, '_blank');
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-cyan-600/90 hover:bg-cyan-500 text-white font-bold text-[11px] font-mono transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Telegram: @zihanfakir</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

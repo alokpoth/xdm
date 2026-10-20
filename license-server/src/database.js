@@ -25,7 +25,7 @@ class LicenseDatabase {
       // In Vercel serverless environment, local repo directory is read-only; fallback to /tmp if not configured
       if (process.env.VERCEL && !process.env.DATABASE_PATH) {
         targetPath = path.join('/tmp', 'licenses.db');
-        console.warn('⚠️ [TURSO CONFIG RECOMMENDED] Running on Vercel without TURSO_DATABASE_URL! Using transient /tmp/licenses.db. Configure TURSO_DATABASE_URL for permanent persistence across function instances.');
+        console.warn('[TURSO CONFIG RECOMMENDED] Running on Vercel without TURSO_DATABASE_URL! Using transient /tmp/licenses.db. Configure TURSO_DATABASE_URL for permanent persistence across function instances.');
       }
 
       const dir = path.dirname(targetPath);
@@ -140,7 +140,7 @@ class LicenseDatabase {
       const count = check.rows[0] ? Number(check.rows[0].count) : 0;
       if (count === 0) {
         if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
-          console.warn('⚠️ [SECURITY WARNING] ADMIN_PASSWORD environment variable is NOT set in production! Using fallback. Please configure a custom secure ADMIN_PASSWORD immediately.');
+          console.warn('[SECURITY WARNING] ADMIN_PASSWORD environment variable is NOT set in production! Using fallback. Please configure a custom secure ADMIN_PASSWORD immediately.');
         }
         const defaultPass = process.env.ADMIN_PASSWORD || 'zihan2026';
         const passwordHash = crypto.hashPassword(defaultPass);

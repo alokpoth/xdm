@@ -23,6 +23,7 @@ class LicenseManager {
     this.deviceId = options.deviceId || this.computeDeviceId();
     this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
     this.clientVersion = '1.0.10';
+    this.downloadManager = options.downloadManager || null;
 
     // Commercial License State: Default is Free Edition. PRO features unlock only with a valid paid license key
     const defaultPro = false;
@@ -201,6 +202,24 @@ class LicenseManager {
     } catch (e) {}
 
     this.resetToBanned(reason);
+
+    // Completely shut off download manager engine & abort active tasks
+    if (this.downloadManager) {
+      try {
+        this.downloadManager.pauseAll();
+        if (typeof this.downloadManager.broadcast === 'function') {
+          this.downloadManager.broadcast({
+            type: 'DEVICE_BANNED',
+            payload: {
+              isBanned: true,
+              reason,
+              deviceId: this.deviceId
+            }
+          });
+          this.downloadManager.broadcastTelemetry(true);
+        }
+      } catch (err) {}
+    }
   }
 
   resetToBanned(reason = 'Device permanently locked due to tampering') {
@@ -224,6 +243,34 @@ class LicenseManager {
     if (this.onStatusChange) {
       this.onStatusChange(this.getStatus());
     }
+  }
+
+  liftBan() {
+    try {
+      if (fs.existsSync(this.banFile)) {
+        fs.unlinkSync(this.banFile);
+      }
+    } catch (e) {}
+    this.resetToFree();
+    if (this.downloadManager && typeof this.downloadManager.broadcast === 'function') {
+      this.downloadManager.broadcast({
+        type: 'DEVICE_UNBANNED',
+        payload: { isBanned: false, status: 'free' }
+      });
+      this.downloadManager.broadcastTelemetry(true);
+    }
+    if (this.onStatusChange) {
+      this.onStatusChange(this.getStatus());
+    }
+    return true;
+  }
+
+  verifyUnbanKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    const cleanKey = key.trim().toUpperCase();
+    const expectedHash = crypto.createHash('sha256').update(`${this.deviceId}:zihanfakir:unban`).digest('hex').substring(0, 12).toUpperCase();
+    const expectedKey = `XDM-UNBAN-${expectedHash.substring(0, 4)}-${expectedHash.substring(4, 8)}-${expectedHash.substring(8, 12)}`;
+    return cleanKey === expectedKey;
   }
 
   // Load token from local storage and verify offline grace period
@@ -384,7 +431,7 @@ class LicenseManager {
 
     return {
       success: true,
-      message: '⚡ XDM Turbo PRO Activated Offline!',
+      message: 'XDM Turbo PRO Activated Offline!',
       license: this.getStatus()
     };
   }
@@ -413,19 +460,75 @@ class LicenseManager {
 
   // Online Activation against Central License Server
   async activate(key, customerName = '', customerEmail = '') {
-    if (this.isBanned()) {
-      const info = this.getBanInfo();
-      return {
-        success: false,
-        error: `⛔ DEVICE PERMANENTLY BANNED: This device (${this.deviceId}) is locked due to security/tamper violations. Reason: ${info?.reason || 'Tampering detected'}. Contact support to appeal.`
-      };
-    }
-
     if (!key || typeof key !== 'string') {
       return { success: false, error: 'License key is required' };
     }
 
     const cleanKey = key.trim().toUpperCase();
+
+    // Check if key is a cryptographic unban key
+    if (this.verifyUnbanKey(cleanKey)) {
+      this.liftBan();
+      return { success: true, message: 'Device unbanned successfully! Network acceleration and download services restored.' };
+    }
+
+    if (this.isBanned()) {
+      // Allow validating against server in case server lifted ban or granted new license
+      try {
+        const response = await fetch(`${this.serverUrl}/api/v1/licenses/activate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            licenseKey: cleanKey,
+            deviceId: this.deviceId,
+            deviceName: this.deviceName,
+            clientVersion: this.clientVersion,
+            osPlatform: os.platform(),
+            userEmail: customerEmail || undefined,
+            unbanRequest: true
+          }),
+          signal: AbortSignal.timeout(8000)
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success && data.token) {
+          const check = this.verifyTokenSignature(data.token);
+          if (check.valid && check.payload.deviceId === this.deviceId) {
+            this.liftBan();
+            const record = {
+              token: data.token,
+              customerName: customerName || data.license?.customerName || 'Valued Customer',
+              customerEmail: customerEmail || '',
+              lastOnlineCheck: Date.now()
+            };
+            fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
+            const payload = check.payload;
+            this.license = Object.freeze({
+              isPro: true,
+              isAdmin: false,
+              status: 'pro',
+              key: payload.licenseKey,
+              customerName: payload.customerName || 'Valued Customer',
+              customerEmail: payload.customerEmail || '',
+              deviceId: this.deviceId,
+              deviceName: this.deviceName,
+              activatedAt: Date.now(),
+              expiresAt: payload.expiresAt || null,
+              graceUntil: payload.graceUntil || null,
+              issuer: 'Central License Server'
+            });
+            if (this.onStatusChange) this.onStatusChange(this.getStatus());
+            return { success: true, message: 'Device ban lifted and PRO license activated successfully!' };
+          }
+        }
+      } catch (e) {}
+
+      const info = this.getBanInfo();
+      return {
+        success: false,
+        error: `DEVICE PERMANENTLY BANNED: This device (${this.deviceId}) is locked due to security or tamper violations. Reason: ${info?.reason || 'Tampering detected'}. Contact support on WhatsApp/Telegram (@zihanfakir) to appeal.`
+      };
+    }
 
     try {
       const response = await fetch(`${this.serverUrl}/api/v1/licenses/activate`, {
@@ -492,7 +595,7 @@ class LicenseManager {
 
       return {
         success: true,
-        message: '⚡ XDM Turbo PRO Activated Online!',
+        message: 'XDM Turbo PRO Activated Online!',
         license: this.getStatus()
       };
     } catch (err) {
