@@ -44,13 +44,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }, (res) => {
         if (res && res.success) {
-          downloadBtn.innerHTML = '<span>✓ Sent to XDM Turbo!</span>';
+          downloadBtn.innerHTML = '<span>Sent to XDM Turbo!</span>';
           setTimeout(() => {
             window.close();
           }, 1500);
         } else {
           downloadBtn.disabled = false;
-          downloadBtn.innerHTML = '<span>⚠️ Failed to send</span>';
+          downloadBtn.innerHTML = '<span>Failed to send</span>';
         }
       });
     });

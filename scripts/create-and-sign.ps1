@@ -21,8 +21,8 @@ $filesToSign = @(
     "release\win-unpacked\XDM Turbo.exe",
     "release\win-unpacked\resources\server\bin\ffmpeg.exe",
     "release\win-unpacked\resources\elevate.exe",
-    "release\XDM Turbo Setup 1.0.10.exe",
-    "release\XDM Turbo 1.0.10.exe",
+    "release\XDM Turbo Setup 1.0.11.exe",
+    "release\XDM Turbo 1.0.11.exe",
     "D:\BILLS\XDM Turbo\XDM Turbo.exe",
     "D:\BILLS\XDM Turbo\Uninstall XDM Turbo.exe",
     "D:\BILLS\XDM Turbo\resources\elevate.exe",
@@ -46,6 +46,6 @@ foreach ($file in $filesToSign) {
 }
 
 Write-Host "`nAuthenticode Signature check for installer:"
-if (Test-Path "release\XDM Turbo Setup 1.0.10.exe") {
-    Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.10.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
+if (Test-Path "release\XDM Turbo Setup 1.0.11.exe") {
+    Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.11.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
 }

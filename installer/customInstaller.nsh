@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# XDM Turbo v1.0.10 — Premium Dark Obsidian Modern UI Theme
+# XDM Turbo v1.0.11 — Premium Dark Obsidian Modern UI Theme
 # Developed by Zihan Fakir (https://xdm.zihan.xyz)
 # Obsidian: #070B13, Surface: #161920, Emerald: #10B981, Pure White: #FFFFFF
 # -----------------------------------------------------------------------------
@@ -101,9 +101,36 @@ Function customInstFilesShow
   FindWindow $0 "#32770" "" $HWNDPARENT
   ${If} $0 != 0
     SetCtlColors $0 0xF1F5F9 0x070B13
+    GetDlgItem $1 $0 1004
+    ${If} $1 != 0
+      SetCtlColors $1 0xF1F5F9 0x070B13
+    ${EndIf}
     GetDlgItem $1 $0 1006
     ${If} $1 != 0
       SetCtlColors $1 0x10B981 0x070B13
+    ${EndIf}
+    GetDlgItem $1 $0 1027
+    ${If} $1 != 0
+      SetCtlColors $1 0x10B981 0x070B13
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
+Function customFinishShow
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  ${If} $0 != 0
+    SetCtlColors $0 0xF1F5F9 0x070B13
+    GetDlgItem $1 $0 1201
+    ${If} $1 != 0
+      SetCtlColors $1 0xFFFFFF 0x070B13
+    ${EndIf}
+    GetDlgItem $1 $0 1202
+    ${If} $1 != 0
+      SetCtlColors $1 0xCBD5E1 0x070B13
+    ${EndIf}
+    GetDlgItem $1 $0 1203
+    ${If} $1 != 0
+      SetCtlColors $1 0xF1F5F9 0x070B13
     ${EndIf}
   ${EndIf}
 FunctionEnd
@@ -136,18 +163,20 @@ FunctionEnd
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "aria2c.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
-  Sleep 600
+  Sleep 1000
 !macroend
 
 !macro customCheckAppRunning
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "aria2c.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
-  Sleep 800
+  Sleep 1000
 !macroend
 
 !macro customUnInstallCheck
@@ -177,17 +206,17 @@ FunctionEnd
   # Native browser integration configuration (Clean external extensions JSON, 100% safe & trusted)
   CreateDirectory "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
   FileClose $0
 
   # Register Windows Startup (Silent background tray launch on Windows boot)
@@ -198,6 +227,7 @@ FunctionEnd
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "aria2c.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
 

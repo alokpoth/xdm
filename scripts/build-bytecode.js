@@ -1,5 +1,5 @@
 /**
- * ⚡ XDM Turbo — V8 Bytecode Compiler (Bytenode)
+ *  XDM Turbo — V8 Bytecode Compiler (Bytenode)
  * 
  * Compiles critical proprietary JavaScript source code into native V8 bytecode (.jsc).
  * Strips plain text JavaScript from the production ASAR package so reverse-engineering
@@ -24,7 +24,7 @@ const TARGET_FILES = [
 
 async function compileAll() {
   console.log('============================================================');
-  console.log('🔒 XDM TURBO — COMPILING TO V8 BINARY BYTECODE (BYTENODE)');
+  console.log(' XDM TURBO — COMPILING TO V8 BINARY BYTECODE (BYTENODE)');
   console.log('   Target Electron Binary:', electronPath);
   console.log('============================================================\n');
 
@@ -43,7 +43,7 @@ async function compileAll() {
     fs.copyFileSync(fullPath, origPath);
 
     // Step 2: Compile original code to V8 Bytecode using Electron's exact V8 engine
-    process.stdout.write(`⚙️  Compiling ${relPath} -> ${path.basename(jscPath)} ... `);
+    process.stdout.write(`  Compiling ${relPath} -> ${path.basename(jscPath)} ... `);
     await bytenode.compileFile({
       filename: origPath,
       output: jscPath,
@@ -67,12 +67,12 @@ async function compileAll() {
     fs.writeFileSync(fullPath, loaderContent, 'utf-8');
   }
 
-  console.log('\n✅ All critical files compiled into V8 Bytecode (.jsc)!');
-  console.log('🛡️  Plain text JavaScript has been replaced with binary bytecode.');
+  console.log('\n All critical files compiled into V8 Bytecode (.jsc)!');
+  console.log('  Plain text JavaScript has been replaced with binary bytecode.');
   console.log('============================================================\n');
 }
 
 compileAll().catch(err => {
-  console.error('\n❌ Bytecode compilation error:', err);
+  console.error('\n Bytecode compilation error:', err);
   process.exit(1);
 });

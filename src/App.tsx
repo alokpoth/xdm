@@ -177,7 +177,26 @@ export const App: React.FC = () => {
             const newDownloads: DownloadItem[] = msg.payload.downloads || [];
             setDownloads(newDownloads);
             if (msg.payload.stats) setStats(msg.payload.stats);
-            if (msg.payload.license) setLicense(msg.payload.license);
+            if (msg.payload.license) {
+              setLicense((prev) => {
+                if (!prev) return msg.payload.license;
+                const next = msg.payload.license;
+                if (
+                  prev.status === next.status &&
+                  prev.isPro === next.isPro &&
+                  prev.isAdmin === next.isAdmin &&
+                  prev.isBanned === next.isBanned &&
+                  prev.maskedKey === next.maskedKey &&
+                  prev.fullKey === next.fullKey &&
+                  prev.expiresAt === next.expiresAt &&
+                  prev.customerName === next.customerName &&
+                  prev.offlineGraceRemainingHours === next.offlineGraceRemainingHours
+                ) {
+                  return prev;
+                }
+                return next;
+              });
+            }
 
             // Check if any download just finished
             const completedDownloads = newDownloads.filter(d => d.status === 'completed');
@@ -186,7 +205,14 @@ export const App: React.FC = () => {
               if (settingsRef.current.soundNotification) playCompletionSound();
 
               // Windows Native Toast Notification (PRO ONLY)!
-              const isUserPro = Boolean(licenseRef.current?.isPro || licenseRef.current?.isAdmin);
+              const isUserPro = Boolean(
+                licenseRef.current?.isPro ||
+                licenseRef.current?.isAdmin ||
+                licenseRef.current?.status === 'pro' ||
+                licenseRef.current?.status === 'grace' ||
+                licenseRef.current?.status === 'active' ||
+                licenseRef.current?.edition === 'pro'
+              );
               if (isUserPro && settingsRef.current.windowsNotifications !== false && typeof window !== 'undefined' && (window as any).electronAPI?.showNotification) {
                 const latestFinished = completedDownloads[0];
                 (window as any).electronAPI.showNotification({
@@ -561,6 +587,18 @@ export const App: React.FC = () => {
 
   // Active threads count (only downloading or connecting threads)
   const isBanned = Boolean(license?.isBanned || license?.status === 'banned');
+  const isEffectivePro = Boolean(
+    license?.isPro ||
+    license?.isAdmin ||
+    license?.status === 'pro' ||
+    license?.status === 'grace' ||
+    license?.status === 'active' ||
+    license?.edition === 'pro' ||
+    license?.edition === 'admin' ||
+    license?.edition === 'trial' ||
+    (license?.maskedKey && license.maskedKey.length > 5) ||
+    (license?.fullKey && license.fullKey.length > 5)
+  );
   const activeConnectionsCount = isBanned ? 0 : downloads
     .filter(d => d.status === 'downloading')
     .reduce((acc, d) => {
@@ -746,7 +784,7 @@ export const App: React.FC = () => {
         defaultSaveDir={settings.defaultSaveDir}
         defaultConnections={settings.defaultConnections}
         initialUrl={prefilledUrl}
-        isPro={Boolean(license?.isPro || license?.isAdmin)}
+        isPro={isEffectivePro}
         onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
       />
 
@@ -767,7 +805,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
         onSave={handleSaveSettings}
-        isPro={Boolean(license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace')}
+        isPro={isEffectivePro}
         license={license}
         onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
       />

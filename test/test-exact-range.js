@@ -33,7 +33,7 @@ async function testExactRange() {
         console.log(`Expected size: ${task.totalBytes}`);
         console.log(`Actual size on disk: ${sizeOnDisk}`);
         if (sizeOnDisk === task.totalBytes) {
-          console.log('🎉 PERFECT MATCH! Exact byte-for-byte segment stitching verified!');
+          console.log(' PERFECT MATCH! Exact byte-for-byte segment stitching verified!');
         } else {
           console.error('Mismatch: size differs!');
         }

@@ -896,7 +896,7 @@ test('Admin Delete License: Permanently removes a license key and unbinds device
       licenseKey: lic.key,
       deviceId,
       deviceName: 'Delete Test PC',
-      clientVersion: '1.0.10',
+      clientVersion: '1.0.11',
       osPlatform: 'win32'
     })
   });

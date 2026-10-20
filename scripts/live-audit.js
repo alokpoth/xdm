@@ -4,12 +4,12 @@ async function runFullAudit() {
   const results = [];
   const log = (name, pass, detail) => {
     results.push({ name, pass, detail });
-    console.log((pass ? '✅ PASS: ' : '❌ FAIL: ') + name + (detail ? ' -> ' + detail : ''));
+    console.log((pass ? '[PASS] ' : '[FAIL] ') + name + (detail ? ' -> ' + detail : ''));
   };
 
   try {
     console.log('================================================================');
-    console.log('  🔍 XDM TURBO: FULL SYSTEM & LIVE PRODUCTION AUDIT');
+    console.log('  [AUDIT] XDM TURBO: FULL SYSTEM & LIVE PRODUCTION AUDIT');
     console.log('  Target: ' + BASE);
     console.log('================================================================\n');
 
@@ -106,7 +106,7 @@ async function runFullAudit() {
         deviceId: testDeviceId1,
         deviceName: 'Audit Device 1',
         osPlatform: 'win32',
-        clientVersion: '1.0.10'
+        clientVersion: '1.0.11'
       })
     });
     const act1Data = await act1Res.json();
@@ -122,7 +122,7 @@ async function runFullAudit() {
         deviceId: testDeviceId2,
         deviceName: 'Audit Device 2',
         osPlatform: 'win32',
-        clientVersion: '1.0.10'
+        clientVersion: '1.0.11'
       })
     });
     const act2Data = await act2Res.json();

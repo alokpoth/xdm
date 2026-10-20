@@ -104,6 +104,13 @@ class DownloadManager {
       if (newSettings.maxConcurrentDownloads && newSettings.maxConcurrentDownloads > 1) {
         newSettings.maxConcurrentDownloads = 1;
       }
+    } else {
+      if (newSettings.defaultConnections !== undefined) {
+        newSettings.defaultConnections = Math.min(Math.max(parseInt(newSettings.defaultConnections, 10) || 64, 1), 64);
+      }
+      if (newSettings.maxConcurrentDownloads !== undefined) {
+        newSettings.maxConcurrentDownloads = Math.min(Math.max(parseInt(newSettings.maxConcurrentDownloads, 10) || 3, 1), 10);
+      }
     }
 
     this.settings = { ...this.settings, ...newSettings };
@@ -391,7 +398,7 @@ class DownloadManager {
         const raw = JSON.parse(fs.readFileSync(this.licenseManager.licenseFile, 'utf-8'));
         if (raw && raw.token) {
           const check = this.licenseManager.verifyTokenSignature(raw.token);
-          if (check.valid && (check.payload.edition === 'pro' || check.payload.edition === 'admin' || check.payload.edition === 'trial')) {
+          if (check.valid && (check.payload.edition === 'pro' || check.payload.edition === 'admin' || check.payload.edition === 'trial' || check.payload.features?.maxStreams === 64)) {
             return true;
           }
         }

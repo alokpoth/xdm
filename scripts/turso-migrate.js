@@ -1,5 +1,5 @@
 /**
- * ⚡ XDM TURBO: ONE-CLICK LOCAL-TO-TURSO DATABASE MIGRATION SCRIPT
+ *  XDM TURBO: ONE-CLICK LOCAL-TO-TURSO DATABASE MIGRATION SCRIPT
  * 
  * Safely copies all existing licenses, devices, security records, and audit logs
  * from the local SQLite database (licenses.db) into your hosted Turso/libSQL cloud database.
@@ -18,14 +18,14 @@ const LOCAL_DB_PATH = path.resolve(__dirname, '../license-server/data/licenses.d
 
 async function migrate() {
   console.log('================================================================');
-  console.log('  ⚡ XDM TURBO: DATABASE MIGRATION TO TURSO CLOUD');
+  console.log('   XDM TURBO: DATABASE MIGRATION TO TURSO CLOUD');
   console.log('================================================================\n');
 
   const tursoUrl = process.env.TURSO_DATABASE_URL;
   const tursoToken = process.env.TURSO_AUTH_TOKEN;
 
   if (!tursoUrl) {
-    console.error('❌ ERROR: TURSO_DATABASE_URL environment variable is missing!');
+    console.error(' ERROR: TURSO_DATABASE_URL environment variable is missing!');
     console.log('\nHow to set it:');
     console.log('  1. Create a free database at https://turso.tech (Free Forever, 9GB storage, 1B reads/mo)');
     console.log('  2. Run in PowerShell:');
@@ -114,7 +114,7 @@ async function migrate() {
   for (const sql of tableStatements) {
     await tursoClient.execute(sql);
   }
-  console.log('✅ Turso Cloud schema initialized successfully.');
+  console.log(' Turso Cloud schema initialized successfully.');
 
   // 2. Migrate data table by table
   console.log('\n[2/3] Migrating data rows...');
@@ -142,7 +142,7 @@ async function migrate() {
       }));
       await tursoClient.batch(batchStmts, 'write');
     }
-    console.log(`   ✅ ${table}: ${srcRows.length} rows migrated.`);
+    console.log(`    ${table}: ${srcRows.length} rows migrated.`);
   }
 
   // 3. Verification
@@ -153,7 +153,7 @@ async function migrate() {
     const tursoCount = Number((await tursoClient.execute(`SELECT COUNT(*) as c FROM ${table}`)).rows[0].c);
     const match = localCount === tursoCount;
     if (!match) allMatched = false;
-    console.log(`-> ${table.padEnd(16)} Local: ${String(localCount).padStart(5)} | Turso: ${String(tursoCount).padStart(5)} [${match ? 'MATCH ✅' : 'MISMATCH ❌'}]`);
+    console.log(`-> ${table.padEnd(16)} Local: ${String(localCount).padStart(5)} | Turso: ${String(tursoCount).padStart(5)} [${match ? 'MATCH ' : 'MISMATCH '}]`);
   }
 
   localClient.close();
@@ -161,15 +161,15 @@ async function migrate() {
 
   if (allMatched) {
     console.log('\n================================================================');
-    console.log('🎉 MIGRATION COMPLETE! 100% of data is now live on Turso Cloud.');
+    console.log(' MIGRATION COMPLETE! 100% of data is now live on Turso Cloud.');
     console.log('Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN to Vercel Environment Variables.');
     console.log('================================================================\n');
   } else {
-    console.warn('\n⚠️ Some row counts mismatched. Please check table differences above.');
+    console.warn('\n Some row counts mismatched. Please check table differences above.');
   }
 }
 
 migrate().catch(err => {
-  console.error('\n❌ Fatal Migration Error:', err);
+  console.error('\n Fatal Migration Error:', err);
   process.exit(1);
 });

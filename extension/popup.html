@@ -147,7 +147,9 @@
 <body>
   <div class="header">
     <div class="brand">
-      <div class="logo">⚡</div>
+      <div class="logo">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#10B981" stroke="#10B981" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
       <div class="title">XDM Turbo</div>
     </div>
     <div id="statusBadge" class="status-badge status-offline">
@@ -162,15 +164,15 @@
       <div id="videoTitle" class="video-name">Checking active tab for video streams...</div>
       
       <select id="qualitySelect">
-        <option value="best">🎬 Best Quality (Auto 1080p/720p)</option>
-        <option value="bestvideo[height<=1080]+bestaudio/best[height<=1080]">🎬 1080p Full HD</option>
-        <option value="bestvideo[height<=720]+bestaudio/best[height<=720]">🎬 720p HD</option>
-        <option value="bestvideo[height<=480]+bestaudio/best[height<=480]">🎬 480p Standard</option>
-        <option value="bestaudio/best">🎵 Audio Only (MP3)</option>
+        <option value="best">Best Quality (Auto 1080p/720p)</option>
+        <option value="bestvideo[height<=1080]+bestaudio/best[height<=1080]">1080p Full HD</option>
+        <option value="bestvideo[height<=720]+bestaudio/best[height<=720]">720p HD</option>
+        <option value="bestvideo[height<=480]+bestaudio/best[height<=480]">480p Standard</option>
+        <option value="bestaudio/best">Audio Only (MP3)</option>
       </select>
 
       <button id="downloadBtn" class="btn">
-        <span>⚡ Download Video with XDM</span>
+        <span>Download Video with XDM</span>
       </button>
     </div>
   </div>

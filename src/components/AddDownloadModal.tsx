@@ -13,7 +13,8 @@ import {
   Film,
   Music,
   Sparkles,
-  Crown
+  Crown,
+  Clock
 } from 'lucide-react';
 import { formatBytes, formatXdmFileName } from '../utils/formatters';
 import { ProbeResult, FileCategory } from '../types';
@@ -330,8 +331,9 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
                         </span>
                       )}
                       {probeResult.videoInfo.durationString && (
-                        <span className="bg-white/[0.06] text-slate-300 px-1.5 py-0.5 rounded font-mono text-[9px] border border-white/[0.04]">
-                          ⏱ {probeResult.videoInfo.durationString}
+                        <span className="bg-white/[0.06] text-slate-300 px-1.5 py-0.5 rounded font-mono text-[9px] border border-white/[0.04] inline-flex items-center">
+                          <Clock className="w-2.5 h-2.5 inline mr-1 text-slate-400" />
+                          <span>{probeResult.videoInfo.durationString}</span>
                         </span>
                       )}
                       {probeResult.videoInfo.formats?.some((f: any) => f.resolution?.includes('2160') || f.label?.includes('4K')) && (

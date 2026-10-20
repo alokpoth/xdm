@@ -24,7 +24,7 @@ class LicenseManager {
     this._cachedDeviceId = null;
     this.deviceId = options.deviceId || this.computeDeviceId();
     this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
-    this.clientVersion = '1.0.10';
+    this.clientVersion = '1.0.11';
     this.downloadManager = options.downloadManager || null;
 
     // Commercial License State: Default is Free Edition. PRO features unlock only with a valid paid license key
@@ -535,13 +535,13 @@ class LicenseManager {
         isPro: true,
         isAdmin: false,
         status: 'pro',
-        key: payload.licenseKey || '',
+        key: payload.licenseKey || raw.key || raw.licenseKey || '',
         customerName: raw.customerName || 'Valued Customer',
         customerEmail: raw.customerEmail || '',
         deviceId: this.deviceId,
         deviceName: this.deviceName,
         activatedAt: payload.issuedAt,
-        expiresAt: payload.expiresAt,
+        expiresAt: payload.expiresAt !== undefined ? payload.expiresAt : (raw.expiresAt !== undefined ? raw.expiresAt : null),
         graceUntil: payload.graceUntil,
         offlineGraceRemainingHours: graceRemainingHours,
         serverUrl: this.serverUrl,
@@ -732,8 +732,10 @@ class LicenseManager {
       // Save valid signed token locally for offline grace support
       const record = {
         token: data.token,
+        key: cleanKey,
         customerName: customerName || data.license?.customerName || 'Valued Customer',
         customerEmail: customerEmail || '',
+        expiresAt: payload.expiresAt || null,
         lastOnlineCheck: Date.now()
       };
       fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
@@ -749,13 +751,13 @@ class LicenseManager {
         isPro: true,
         isAdmin: false,
         status: 'pro',
-        key: payload.licenseKey,
+        key: payload.licenseKey || cleanKey,
         customerName: record.customerName,
         customerEmail: record.customerEmail,
         deviceId: this.deviceId,
         deviceName: this.deviceName,
         activatedAt: payload.issuedAt,
-        expiresAt: payload.expiresAt,
+        expiresAt: payload.expiresAt || null,
         graceUntil: payload.graceUntil,
         offlineGraceRemainingHours: graceHours,
         serverUrl: this.serverUrl,
@@ -834,6 +836,7 @@ class LicenseManager {
 
           this.license = Object.freeze({
             ...this.license,
+            expiresAt: check.payload.expiresAt !== undefined ? check.payload.expiresAt : this.license.expiresAt,
             graceUntil: effectiveGraceUntil,
             offlineGraceRemainingHours: graceHours,
             lastOnlineCheck: Date.now()
@@ -898,7 +901,7 @@ class LicenseManager {
       isBanned: Boolean(banned),
       banReason: banInfo?.reason || (banned ? 'Device locked due to tampering' : null),
       status: banned ? 'banned' : this.license.status,
-      maskedKey: this.license.key ? this.license.key.replace(/([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$/, '****-****-****-$4') : '',
+      maskedKey: this.license.key ? this.license.key.replace(/([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$/, '****-****-****-$4') : (this.license.isPro ? 'PRO-ACTIVE-KEY' : ''),
       fullKey: this.license.key || '',
       customerName: this.license.customerName || '',
       customerEmail: this.license.customerEmail || '',

@@ -159,7 +159,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                   : isPro 
                     ? `Authenticated via Central License Server • 64 Parallel Streams • ${license?.expiresAt ? (() => {
                         const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
-                        return `${days} Days Validity`;
+                        return `${days} Days Validity (${new Date(license.expiresAt).toLocaleDateString()})`;
                       })() : 'Lifetime Access'}`
                     : 'Online Activation & Instant Multi-Threaded Unlock'}
               </p>
@@ -223,7 +223,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                 <div className="theme-modal-subcard bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
                   <div className="text-slate-500 font-mono text-[10px]">ACTIVE KEY</div>
                   <div className="font-mono font-bold truncate mt-0.5 text-slate-200 theme-text-primary">
-                    {license?.maskedKey || 'XDM-PRO-TURBO-LIFETIME'}
+                    {license?.maskedKey || (isPro ? 'PRO-ACTIVE-LICENSE' : 'UNREGISTERED')}
                   </div>
                 </div>
                 <div className="theme-modal-subcard bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
@@ -232,8 +232,13 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                     <Clock className="w-3 h-3" />
                     <span>
                       {license?.expiresAt ? (() => {
-                        const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
-                        return `${days} Days Left (${new Date(license.expiresAt).toLocaleDateString()})`;
+                        const remainingMs = license.expiresAt - Date.now();
+                        const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+                        const remainingHours = Math.max(0, Math.ceil(remainingMs / (60 * 60 * 1000)));
+                        if (remainingDays <= 1) {
+                          return `${remainingHours} Hours Left (${new Date(license.expiresAt).toLocaleDateString()})`;
+                        }
+                        return `${remainingDays} Days Left (${new Date(license.expiresAt).toLocaleDateString()})`;
                       })() : 'Lifetime Perpetual Access'}
                     </span>
                   </div>
@@ -257,11 +262,12 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                   <span className="font-mono text-slate-300 theme-text-primary">
                     {license?.offlineGraceRemainingHours ? (() => {
                       const shieldDays = Math.max(1, Math.ceil(license.offlineGraceRemainingHours / 24));
-                      return `${shieldDays} Days Protection Cached`;
+                      return `${shieldDays} Days Offline Grace Available`;
                     })() : (license?.expiresAt ? (() => {
-                      const maxDays = Math.max(1, Math.min(7, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))));
-                      return `${maxDays} Days Active`;
-                    })() : '7 Days Active')}
+                      const remainingDays = Math.max(1, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                      const maxDays = Math.min(7, remainingDays);
+                      return `${maxDays} Days Offline Grace (Capped to Expiry)`;
+                    })() : '7 Days Offline Grace Period')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-400 theme-text-secondary">
@@ -540,7 +546,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
             <span className="text-slate-600 font-mono text-xs">|</span>
-            <span className="text-xs text-slate-400 theme-text-secondary font-mono">v1.0.10</span>
+            <span className="text-xs text-slate-400 theme-text-secondary font-mono">v1.0.11</span>
           </div>
           <button
             type="button"

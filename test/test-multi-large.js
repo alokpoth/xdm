@@ -32,7 +32,7 @@ async function testLargeMulti() {
       console.log(`Progress: ${mbDownloaded} / ${totalMb} MB (${task.toJSON().progress}%) | Speed: ${speedMb} MB/s | Threads: ${task.segments.length}`);
 
       if (task.status === 'completed') {
-        console.log(`🎉 10MB DOWNLOAD COMPLETED! Peak Speed: ${(task.peakSpeed / (1024*1024)).toFixed(2)} MB/s`);
+        console.log(` 10MB DOWNLOAD COMPLETED! Peak Speed: ${(task.peakSpeed / (1024*1024)).toFixed(2)} MB/s`);
         clearInterval(int);
         try {
           fs.unlinkSync(task.filePath);

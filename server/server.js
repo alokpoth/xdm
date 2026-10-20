@@ -72,7 +72,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.10' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.11' });
 });
 
 app.get('/api/default-dir', (req, res) => {
@@ -277,11 +277,11 @@ function compareSemver(v1, v2) {
 }
 
 app.get('/api/check-update', (req, res) => {
-  const currentVersion = '1.0.10';
+  const currentVersion = '1.0.11';
   const https = require('https');
   const ghReq = https.get('https://api.github.com/repos/zihanfakir/xdm/releases/latest', {
     headers: {
-      'User-Agent': 'XDM-Turbo-Client/1.0.10',
+      'User-Agent': 'XDM-Turbo-Client/1.0.11',
       'Accept': 'application/vnd.github.v3+json'
     },
     timeout: 7000
@@ -377,7 +377,7 @@ app.get('/api/extension/status', (req, res) => {
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.10',
+    version: '1.0.11',
     path: extPath,
     extensionDir: extPath
   });
@@ -450,13 +450,26 @@ try {
   console.log('[Licensing Server] Running in external mode');
 }
 
-// Serve compiled static UI files if present
-const distPath = path.join(__dirname, '../dist');
-if (require('fs').existsSync(distPath)) {
-  app.use(express.static(distPath));
+// Serve compiled static UI files if present (supports dev, standalone, and packaged Electron asar)
+const candidateDistPaths = [
+  path.join(__dirname, '../dist'),
+  path.join(__dirname, 'dist'),
+  path.join(process.resourcesPath || '', 'app.asar', 'dist'),
+  path.join(process.resourcesPath || '', 'dist')
+];
+let activeDistPath = null;
+const fsCore = require('fs');
+for (const p of candidateDistPaths) {
+  if (p && fsCore.existsSync(p) && fsCore.existsSync(path.join(p, 'index.html'))) {
+    activeDistPath = p;
+    break;
+  }
+}
+if (activeDistPath) {
+  app.use(express.static(activeDistPath));
   app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/extension') && !req.path.startsWith('/ws')) {
-      return res.sendFile(path.join(distPath, 'index.html'));
+      return res.sendFile(path.join(activeDistPath, 'index.html'));
     }
     next();
   });

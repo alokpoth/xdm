@@ -22,7 +22,7 @@ async function debug() {
     console.log(summary);
 
     if (task.status === 'completed') {
-      console.log('✅ ALL DONE SUCCESSFULLY!');
+      console.log(' ALL DONE SUCCESSFULLY!');
       clearInterval(int);
       try {
         fs.unlinkSync(task.filePath);

@@ -38,7 +38,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   license,
   onOpenLicenseModal
 }) => {
-  const isEffectivePro = Boolean(isPro || license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace');
+  const isEffectivePro = Boolean(
+    isPro ||
+    license?.isPro ||
+    license?.isAdmin ||
+    license?.status === 'pro' ||
+    license?.status === 'grace' ||
+    license?.status === 'active' ||
+    license?.edition === 'pro' ||
+    license?.edition === 'admin' ||
+    license?.edition === 'trial' ||
+    (license?.maskedKey && license.maskedKey.length > 5) ||
+    (license?.fullKey && license.fullKey.length > 5)
+  );
 
   const [form, setForm] = useState<SettingsType>({
     defaultSaveDir: '',
@@ -238,10 +250,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     key={preset.val}
                     type="button"
                     onClick={() => {
-                      if (isLocked) {
-                        if (onOpenLicenseModal) onOpenLicenseModal();
-                      } else {
-                        setForm({ ...form, defaultConnections: preset.val });
+                      setForm(prev => ({ ...prev, defaultConnections: preset.val }));
+                      if (isLocked && onOpenLicenseModal) {
+                        onOpenLicenseModal();
                       }
                     }}
                     className={`px-2 py-2 rounded-xl border text-center transition-all cursor-pointer relative group ${
@@ -276,11 +287,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   const steps = [1, 2, 4, 8, 16, 32, 64];
                   const idx = parseInt(e.target.value, 10);
                   const targetStreams = steps[idx] || 4;
-                  if (!isEffectivePro && targetStreams > 4) {
-                    setForm({ ...form, defaultConnections: 4 });
-                    if (onOpenLicenseModal) onOpenLicenseModal();
-                  } else {
-                    setForm({ ...form, defaultConnections: targetStreams });
+                  setForm(prev => ({ ...prev, defaultConnections: targetStreams }));
+                  if (!isEffectivePro && targetStreams > 4 && onOpenLicenseModal) {
+                    onOpenLicenseModal();
                   }
                 }}
                 className="w-full accent-emerald-500 cursor-pointer h-2.5 rounded-lg bg-black/40"
@@ -330,20 +339,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <input
               type="range"
               min="1"
-              max={isEffectivePro ? 10 : 1}
+              max={10}
               step="1"
               value={form.maxConcurrentDownloads}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10) || 1;
-                if (!isEffectivePro && val > 1) {
-                  setForm({ ...form, maxConcurrentDownloads: 1 });
-                  if (onOpenLicenseModal) onOpenLicenseModal();
-                } else {
-                  setForm({ ...form, maxConcurrentDownloads: val });
+                setForm(prev => ({ ...prev, maxConcurrentDownloads: val }));
+                if (!isEffectivePro && val > 1 && onOpenLicenseModal) {
+                  onOpenLicenseModal();
                 }
               }}
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg disabled:opacity-40"
-              disabled={!isEffectivePro}
+              className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg"
             />
 
             {!isEffectivePro && (

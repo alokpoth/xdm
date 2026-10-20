@@ -229,7 +229,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
             <span className="text-rose-400 font-bold group-hover:translate-x-0.5 transition-transform flex items-center">Info &rarr;</span>
           </div>
         </div>
-      ) : license?.isPro ? (
+      ) : (license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace' || license?.edition === 'pro') ? (
         <div 
           onClick={onOpenLicenseModal}
           className="theme-sidebar-pro-card shrink-0 mt-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-[#0d1525] to-[#0a0f1a] border border-emerald-500/30 shadow-lg shadow-emerald-950/20 cursor-pointer hover:border-emerald-500/60 transition-all duration-200 select-none group"
@@ -311,7 +311,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
       {/* Brand & Author Info */}
       <div className="shrink-0 mt-3 px-1 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-        <span>XDM Turbo v1.0.10</span>
+        <span>XDM Turbo v1.0.11</span>
         <a
           href="https://xdm.zihan.xyz"
           target="_blank"

@@ -17,18 +17,15 @@ function getIconPath(fileName = 'icon.ico') {
   return path.join(__dirname, '../public', fileName);
 }
 
-// Disable hardware acceleration to completely eliminate GPU process crashes & black screens on Windows
-app.disableHardwareAcceleration();
-
-// Performance & Memory flags for Chromium - Turbo launch & sub-1s cold start
+// Performance & Memory flags for Chromium - Turbo launch & 60fps GPU acceleration
 app.commandLine.appendSwitch('disable-site-isolation-trials');
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
 app.commandLine.appendSwitch('v8-cache-options', 'code');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('enable-fast-unload');
 app.commandLine.appendSwitch('disable-breakpad');
 app.commandLine.appendSwitch('disable-component-update');
 app.commandLine.appendSwitch('renderer-process-limit', '2');
+app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
 
 // Ignore EADDRINUSE silently if already running
 process.on('uncaughtException', (err) => {
@@ -122,17 +119,19 @@ function createWindow() {
   if (!isHidden) {
     let windowShown = false;
     const revealWindow = () => {
-      if (!windowShown && mainWindow) {
+      if (!windowShown && mainWindow && !mainWindow.isDestroyed()) {
         windowShown = true;
         mainWindow.show();
         mainWindow.focus();
       }
     };
 
-    mainWindow.once('ready-to-show', revealWindow);
-    mainWindow.webContents.once('did-finish-load', revealWindow);
-    // Safe fallback guarantee so window always appears even if load event delays
-    setTimeout(revealWindow, 1500);
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(revealWindow, 60);
+    });
+    mainWindow.webContents.once('dom-ready', () => {
+      setTimeout(revealWindow, 120);
+    });
   }
 
   // Security: Lock down DevTools in production packaged builds
@@ -160,25 +159,18 @@ function createWindow() {
   const maxAttempts = 60;
 
   const tryLoad = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
     // In dev mode, probe Vite dev server first
     if (!app.isPackaged && process.env.NODE_ENV !== 'production') {
       http.get('http://127.0.0.1:5173', () => {
-        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:5173');
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL('http://127.0.0.1:5173');
       }).on('error', () => {
-        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL('http://127.0.0.1:19684');
       });
     } else {
-      // In production packaged app, verify backend engine has bound port 19684 before loading URL
-      http.get('http://127.0.0.1:19684/api/stats', () => {
-        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
-      }).on('error', () => {
-        loadAttempts++;
-        if (loadAttempts < maxAttempts) {
-          setTimeout(tryLoad, 100);
-        } else {
-          if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
-        }
-      });
+      // In production packaged app, load the internal server directly
+      mainWindow.loadURL('http://127.0.0.1:19684').catch(() => {});
     }
   };
 
@@ -188,8 +180,10 @@ function createWindow() {
     if (loadAttempts < maxAttempts) {
       loadAttempts++;
       setTimeout(() => {
-        if (mainWindow) tryLoad();
-      }, 250);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          tryLoad();
+        }
+      }, 150);
     }
   });
 

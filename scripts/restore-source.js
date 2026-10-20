@@ -1,5 +1,5 @@
 /**
- * ⚡ XDM Turbo — Source Restoration Utility
+ *  XDM Turbo — Source Restoration Utility
  * 
  * Restores original plain JavaScript files from .orig backups after production
  * packaging, and removes temporary .jsc files from the working directory.
@@ -21,7 +21,7 @@ const TARGET_FILES = [
 
 function restoreAll() {
   console.log('\n============================================================');
-  console.log('🔄 XDM TURBO — RESTORING SOURCE CODE FROM BACKUP');
+  console.log(' XDM TURBO — RESTORING SOURCE CODE FROM BACKUP');
   console.log('============================================================\n');
 
   for (const relPath of TARGET_FILES) {
@@ -42,7 +42,7 @@ function restoreAll() {
     }
   }
 
-  console.log('\n✅ Source code restored to clean editable state.');
+  console.log('\n Source code restored to clean editable state.');
   console.log('============================================================\n');
 }
 

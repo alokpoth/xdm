@@ -149,7 +149,7 @@ const SUITES = {
       const allPassed = checks.every(c => c.passed);
       console.log('\n  [Security Suite Details]');
       checks.forEach(c => {
-        console.log(`  ${c.passed ? '✓' : '✗'} ${c.name}${c.error ? ` (${c.error})` : ''}`);
+        console.log(`  ${c.passed ? '' : ''} ${c.name}${c.error ? ` (${c.error})` : ''}`);
       });
       console.log('');
 
@@ -213,7 +213,7 @@ async function main() {
   console.log('║                          EXECUTION SUMMARY                            ║');
   console.log('╠═══════════════════════════════════════════════════════════════════════╣');
   for (const res of results) {
-    const statusIcon = res.passed ? '✓ PASS' : '✗ FAIL';
+    const statusIcon = res.passed ? ' PASS' : ' FAIL';
     const durStr = `${res.duration}ms`.padStart(8, ' ');
     const namePadded = res.name.padEnd(52, ' ');
     console.log(`║  ${statusIcon}  │ ${namePadded} │ ${durStr} ║`);
@@ -224,10 +224,10 @@ async function main() {
   console.log('╚═══════════════════════════════════════════════════════════════════════╝');
 
   if (isAllPassed) {
-    console.log('\n🎉 ALL SUITES COMPLETED SUCCESSFULLY! READY FOR PRODUCTION.');
+    console.log('\n ALL SUITES COMPLETED SUCCESSFULLY! READY FOR PRODUCTION.');
     process.exit(0);
   } else {
-    console.error('\n❌ ONE OR MORE SUITES FAILED. SEE DETAILS ABOVE.');
+    console.error('\n ONE OR MORE SUITES FAILED. SEE DETAILS ABOVE.');
     process.exit(1);
   }
 }

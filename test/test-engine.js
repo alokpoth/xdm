@@ -35,7 +35,7 @@ async function runTest() {
 
       if (task.status === 'completed') {
         clearInterval(timer);
-        console.log('✅ Download completed successfully!');
+        console.log(' Download completed successfully!');
         const downloadedPath = path.join(testDir, task.fileName);
         const stats = fs.statSync(downloadedPath);
         console.log(`File on disk: ${downloadedPath} (${(stats.size / (1024*1024)).toFixed(2)} MB)`);

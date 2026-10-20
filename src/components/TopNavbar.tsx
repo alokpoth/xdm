@@ -281,7 +281,7 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span className="font-mono text-[11px] font-extrabold tracking-wide">BANNED</span>
           </button>
-        ) : license?.isPro ? (
+        ) : (license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace' || license?.edition === 'pro') ? (
           <button
             type="button"
             onClick={(e) => {
