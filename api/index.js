@@ -1,5 +1,5 @@
 /**
- * ⚡ XDM Turbo Official Vercel Serverless Functions Handler
+ * XDM Turbo Official Vercel Serverless Functions Handler
  * Routes all /api/* requests to the unified Express licensing & governance server.
  */
 
