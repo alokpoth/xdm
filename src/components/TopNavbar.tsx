@@ -304,7 +304,7 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             title="Activate XDM Turbo PRO (64 streams & 4K video)"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="text-[11px] font-bold whitespace-nowrap">PRO</span>
+            <span className="text-[11px] font-bold whitespace-nowrap">Upgrade to PRO</span>
           </button>
         )}
 

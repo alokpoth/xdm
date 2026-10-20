@@ -11,12 +11,11 @@ class DownloadManager {
     this.storageFile = path.join(this.storageDir, 'state.json');
     this.settingsFile = path.join(this.storageDir, 'settings.json');
     
-    // Default settings
-    const isProDefault = process.env.NODE_ENV !== 'test';
+    // Default settings: Commercial Free Tier (PRO unlocks 64 threads & 10 concurrent)
     this.settings = {
       defaultSaveDir: path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Downloads'),
-      maxConcurrentDownloads: isProDefault ? 5 : 1, // Free default: 1 task at a time (PRO unlocks up to 10)
-      defaultConnections: isProDefault ? 64 : 4, // Free default: 4 threads (PRO unlocks up to 64 threads)
+      maxConcurrentDownloads: 1, // Free default: 1 task at a time (PRO unlocks up to 10)
+      defaultConnections: 4, // Free default: 4 threads (PRO unlocks up to 64 threads)
       autoStart: true,
       soundNotification: true,
       speedLimit: 0, // 0 = unlimited turbo (in KB/s)

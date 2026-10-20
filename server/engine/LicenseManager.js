@@ -24,23 +24,23 @@ class LicenseManager {
     this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
     this.clientVersion = '1.0.9';
 
-    // Default license state: In production packaged app, full XDM Turbo PRO features are unlocked out of the box
-    const defaultPro = !isTestMode;
+    // Commercial License State: Default is Free Edition. PRO features unlock only with a valid paid license key
+    const defaultPro = false;
     this.license = Object.freeze({
-      isPro: defaultPro,
+      isPro: false,
       isAdmin: false,
-      status: defaultPro ? 'pro' : 'free', // 'free', 'pro', 'grace', 'expired', 'revoked'
-      key: defaultPro ? 'XDM-PRO-TURBO-LIFETIME' : '',
-      customerName: defaultPro ? 'XDM Turbo PRO User' : '',
-      customerEmail: defaultPro ? 'pro@xdm.zihan.uk' : '',
+      status: 'free', // 'free', 'pro', 'grace', 'expired', 'revoked'
+      key: '',
+      customerName: '',
+      customerEmail: '',
       deviceId: this.deviceId,
       deviceName: this.deviceName,
-      activatedAt: defaultPro ? 1729382400000 : null,
+      activatedAt: null,
       expiresAt: null,
       graceUntil: null,
-      offlineGraceRemainingHours: defaultPro ? 999999 : 0,
+      offlineGraceRemainingHours: 0,
       serverUrl: this.serverUrl,
-      lastOnlineCheck: defaultPro ? Date.now() : null
+      lastOnlineCheck: null
     });
 
     this.onStatusChange = null;
@@ -390,9 +390,6 @@ class LicenseManager {
   }
 
   resetToFree() {
-    if (process.env.NODE_ENV !== 'test') {
-      return this.resetToProUnlocked();
-    }
     this.license = Object.freeze({
       isPro: false,
       isAdmin: false,
