@@ -489,42 +489,81 @@ const handleAdminLogout = (req, res) => {
 app.post('/api/v1/admin/logout', requireAdminAuth, handleAdminLogout);
 app.post('/api/admin/logout', requireAdminAuth, handleAdminLogout);
 
-// Admin Change Password
-const handleAdminChangePassword = async (req, res) => {
+// Admin Change Credentials (Username and/or Password)
+const handleAdminChangeCredentials = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Current password and new password are required' });
-    }
-    if (typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: 'New password must be at least 6 characters long' });
+    const { currentPassword, newUsername, newPassword } = req.body;
+    if (!currentPassword) {
+      return res.status(400).json({ success: false, error: 'Current password is required' });
     }
 
-    const username = req.admin.username;
-    const admin = await db.getAdminByUsername(username);
+    if (!newUsername && !newPassword) {
+      return res.status(400).json({ success: false, error: 'Must provide newUsername or newPassword to update' });
+    }
+
+    const currentAdminUsername = req.admin.username;
+    const admin = await db.getAdminByUsername(currentAdminUsername);
     if (!admin || !crypto.verifyPassword(currentPassword, admin.password_hash)) {
-      await db.logEvent('admin_password_change_failed', null, null, getClientIp(req), { username, reason: 'invalid_current_password' });
+      await db.logEvent('admin_credentials_change_failed', null, null, getClientIp(req), {
+        username: currentAdminUsername,
+        reason: 'invalid_current_password'
+      });
       return res.status(400).json({ success: false, error: 'Incorrect current password' });
     }
 
-    const newPasswordHash = crypto.hashPassword(newPassword);
-    await db.updateAdminPassword(username, newPasswordHash);
-    await db.logEvent('admin_password_changed', null, null, getClientIp(req), { username });
+    let trimmedNewUsername = null;
+    if (newUsername && typeof newUsername === 'string' && newUsername.trim()) {
+      trimmedNewUsername = newUsername.trim();
+      if (trimmedNewUsername.length < 3 || trimmedNewUsername.length > 32) {
+        return res.status(400).json({ success: false, error: 'Username must be between 3 and 32 characters' });
+      }
+      if (!/^[a-zA-Z0-9_\-\.]+$/.test(trimmedNewUsername)) {
+        return res.status(400).json({ success: false, error: 'Username may only contain letters, numbers, hyphens, and underscores' });
+      }
 
-    const newSession = createAdminSession({ ...admin, password_hash: newPasswordHash });
+      // Check uniqueness if changing
+      if (trimmedNewUsername !== currentAdminUsername) {
+        const existing = await db.getAdminByUsername(trimmedNewUsername);
+        if (existing) {
+          return res.status(400).json({ success: false, error: 'Username is already taken' });
+        }
+      }
+    }
+
+    let newPasswordHash = null;
+    if (newPassword) {
+      if (typeof newPassword !== 'string' || newPassword.length < 6) {
+        return res.status(400).json({ success: false, error: 'New password must be at least 6 characters long' });
+      }
+      newPasswordHash = crypto.hashPassword(newPassword);
+    }
+
+    const updatedAdmin = await db.updateAdminCredentials(currentAdminUsername, {
+      newUsername: trimmedNewUsername,
+      newPasswordHash
+    });
+
+    const newSession = createAdminSession(updatedAdmin);
 
     res.json({
       success: true,
-      message: 'Admin password changed successfully!',
+      message: 'Admin credentials updated successfully!',
       token: newSession.token,
-      expiresAt: newSession.expiresAt
+      expiresAt: newSession.expiresAt,
+      admin: {
+        id: updatedAdmin.id,
+        username: updatedAdmin.username,
+        role: updatedAdmin.role
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };
-app.post('/api/v1/admin/change-password', requireAdminAuth, handleAdminChangePassword);
-app.post('/api/admin/change-password', requireAdminAuth, handleAdminChangePassword);
+app.post('/api/v1/admin/change-credentials', requireAdminAuth, handleAdminChangeCredentials);
+app.post('/api/admin/change-credentials', requireAdminAuth, handleAdminChangeCredentials);
+app.post('/api/v1/admin/change-password', requireAdminAuth, handleAdminChangeCredentials);
+app.post('/api/admin/change-password', requireAdminAuth, handleAdminChangeCredentials);
 
 // Admin System Overview Metrics
 const handleAdminOverview = async (req, res) => {

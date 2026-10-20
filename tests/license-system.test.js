@@ -795,6 +795,77 @@ test('Admin Password Change: Validates current password, updates hash, and requi
   assert.equal(restoreRes.status, 200);
 });
 
+test('Admin Username & Credentials Change: Updates username, requires new username on login, and restores cleanly', async () => {
+  // 1. Login with current username admin
+  const loginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  const { token } = await loginRes.json();
+
+  // 2. Reject short or invalid username
+  const badUserRes = await fetch(`${SERVER_URL}/api/v1/admin/change-credentials`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ currentPassword: 'zihan2026', newUsername: 'a' })
+  });
+  assert.equal(badUserRes.status, 400);
+
+  // 3. Update username from 'admin' to 'zihan_master'
+  const updateRes = await fetch(`${SERVER_URL}/api/v1/admin/change-credentials`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ currentPassword: 'zihan2026', newUsername: 'zihan_master' })
+  });
+  assert.equal(updateRes.status, 200);
+  const updateData = await updateRes.json();
+  assert.equal(updateData.success, true);
+  assert.equal(updateData.admin.username, 'zihan_master');
+
+  // 4. Old username fails login
+  const oldUserLogin = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  assert.equal(oldUserLogin.status, 401);
+
+  // 5. New username succeeds login
+  const newUserLogin = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'zihan_master', password: 'zihan2026' })
+  });
+  assert.equal(newUserLogin.status, 200);
+  const newUserData = await newUserLogin.json();
+
+  // 6. Restore username back to 'admin'
+  const restoreUserRes = await fetch(`${SERVER_URL}/api/v1/admin/change-credentials`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${newUserData.token}`
+    },
+    body: JSON.stringify({ currentPassword: 'zihan2026', newUsername: 'admin' })
+  });
+  assert.equal(restoreUserRes.status, 200);
+
+  // 7. Verify login works with 'admin' again
+  const finalLogin = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  assert.equal(finalLogin.status, 200);
+});
+
 test('Admin Delete License: Permanently removes a license key and unbinds devices', async () => {
   // 1. Login
   const loginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {

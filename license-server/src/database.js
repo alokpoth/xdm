@@ -673,13 +673,30 @@ class LicenseDatabase {
     return res.rows[0] || null;
   }
 
-  async updateAdminPassword(username, newPasswordHash) {
+  async updateAdminCredentials(currentUsername, { newUsername, newPasswordHash }) {
+    await this.ready();
+    const admin = await this.getAdminByUsername(currentUsername);
+    if (!admin) return null;
+
+    const targetUsername = (newUsername && typeof newUsername === 'string' && newUsername.trim()) ? newUsername.trim() : admin.username;
+    const targetHash = newPasswordHash || admin.password_hash;
+
     await this.client.execute({
-      sql: 'UPDATE admin_users SET password_hash = ? WHERE username = ?',
-      args: [newPasswordHash, username]
+      sql: 'UPDATE admin_users SET username = ?, password_hash = ? WHERE id = ?',
+      args: [targetUsername, targetHash, admin.id]
     });
-    await this.logEvent('admin_password_changed', null, null, 'admin', { username });
-    return true;
+
+    await this.logEvent('admin_credentials_updated', null, null, 'admin', {
+      oldUsername: currentUsername,
+      newUsername: targetUsername,
+      passwordChanged: !!newPasswordHash
+    });
+
+    return await this.getAdminByUsername(targetUsername);
+  }
+
+  async updateAdminPassword(username, newPasswordHash) {
+    return await this.updateAdminCredentials(username, { newPasswordHash });
   }
 }
 
