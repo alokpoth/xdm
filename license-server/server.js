@@ -852,6 +852,18 @@ const handleAdminOptimizeDatabase = async (req, res) => {
 app.post('/api/v1/admin/database/optimize', requireAdminAuth, handleAdminOptimizeDatabase);
 app.post('/api/admin/database/optimize', requireAdminAuth, handleAdminOptimizeDatabase);
 
+// Admin Database Storage Capacity Stats
+const handleAdminGetDatabaseStats = async (req, res) => {
+  try {
+    const stats = await db.getDatabaseStorageStats();
+    res.json({ success: true, stats });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.get('/api/v1/admin/database/stats', requireAdminAuth, handleAdminGetDatabaseStats);
+app.get('/api/admin/database/stats', requireAdminAuth, handleAdminGetDatabaseStats);
+
 // Serve Admin UI statically when running standalone
 app.get(/^\/admin(\/.*)?$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));

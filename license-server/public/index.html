@@ -29,6 +29,8 @@
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #0b1120; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col bg-[#060911] text-slate-100">
@@ -72,21 +74,21 @@
   <!-- ==================== MAIN DASHBOARD ==================== -->
   <div id="dashboardView" class="hidden min-h-screen flex flex-col">
     <!-- Navbar -->
-    <header class="border-b border-slate-800/80 bg-[#0a0f1d]/90 backdrop-blur sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black font-extrabold shadow-md shadow-emerald-500/20">
+    <header class="border-b border-slate-800/80 bg-[#0a0f1d]/90 backdrop-blur sticky top-0 z-40 px-3 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5 sm:space-x-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black font-extrabold shadow-md shadow-emerald-500/20 shrink-0">
           <i data-lucide="shield" class="w-4 h-4 text-black"></i>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
-            <span>XDM Turbo License Governance</span>
+          <h2 class="text-xs sm:text-sm font-bold text-white flex items-center space-x-1.5 sm:space-x-2">
+            <span>XDM Turbo Governance</span>
             <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">ONLINE</span>
           </h2>
-          <p class="text-[10px] text-slate-400 font-mono">Publisher: Zihan Fakir • Asymmetric Ed25519 Authority</p>
+          <p class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate max-w-[200px] sm:max-w-none">Zihan Fakir • Ed25519 Central Authority</p>
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
+      <!-- Desktop Navigation Tabs -->
       <nav class="hidden md:flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
         <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="overview">
           <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 inline mr-1"></i>Overview
@@ -106,47 +108,165 @@
       </nav>
 
       <!-- Right Profile & Logout -->
-      <div class="flex items-center space-x-2 sm:space-x-3">
+      <div class="flex items-center space-x-1.5 sm:space-x-3">
         <button id="refreshBtn" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors" title="Refresh Live Data">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
         </button>
-        <button id="openChangePassBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all cursor-pointer" title="Change Admin Username / Password">
+        <button id="openChangePassBtn" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all cursor-pointer" title="Change Admin Credentials">
           <i data-lucide="user-cog" class="w-3.5 h-3.5 text-emerald-400"></i>
-          <span class="hidden sm:inline">Change Credentials</span>
+          <span class="hidden sm:inline">Credentials</span>
         </button>
-        <button id="logoutBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-all">
+        <button id="logoutBtn" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-all">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-          <span>Logout</span>
+          <span class="hidden sm:inline">Logout</span>
         </button>
       </div>
     </header>
 
+    <!-- Mobile Sub-Navigation Tabs Bar (Touch-Friendly Horizontal Scroll) -->
+    <div class="md:hidden border-b border-slate-800 bg-[#070d19]/95 px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-1.5 sticky top-[57px] z-30">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="overview">
+        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+        <span>Overview</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="licenses">
+        <i data-lucide="key" class="w-3.5 h-3.5"></i>
+        <span>Licenses</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="devices">
+        <i data-lucide="laptop" class="w-3.5 h-3.5"></i>
+        <span>Devices</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="users">
+        <i data-lucide="users" class="w-3.5 h-3.5"></i>
+        <span>Users</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="audit">
+        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+        <span>Audit Logs</span>
+      </button>
+    </div>
+
     <!-- Subheader Notification Banner -->
-    <div class="bg-slate-950/90 border-b border-slate-800/60 px-6 py-2 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+    <div class="bg-slate-950/90 border-b border-slate-800/60 px-3 sm:px-6 py-2 text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 font-mono">
       <div class="flex items-center space-x-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Active Heartbeat Monitor • Live Users calculated via last-seen timestamp (&lt; 15 mins)</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+        <span class="truncate">Active Heartbeat Monitor • Live Users calculated via last-seen timestamp (&lt; 15m)</span>
       </div>
       <div>Offline Grace Period: <strong class="text-emerald-400">7 Days</strong></div>
     </div>
 
     <!-- Content Sections Container -->
-    <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+    <main class="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6">
 
       <!-- ================= TAB: OVERVIEW ================= -->
-      <section id="tab-overview" class="space-y-6">
+      <section id="tab-overview" class="space-y-4 sm:space-y-6">
         <!-- Metric Cards Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          <div class="p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
             <div class="flex items-center justify-between text-slate-400 text-xs">
-              <span>ACTIVE NOW (LIVE)</span>
+              <span class="text-[10px] sm:text-xs">ACTIVE NOW</span>
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
             </div>
-            <div class="text-3xl font-bold font-mono text-emerald-400" id="statOnlineNow">0</div>
-            <p class="text-[10px] text-slate-500 font-mono">1-min real-time heartbeat</p>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400" id="statOnlineNow">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">1-min real-time</p>
           </div>
 
-          <div class="p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">TOTAL LICENSES</span>
+              <i data-lucide="key" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-white" id="statTotalLicenses">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono"><span id="statActiveLicenses" class="text-emerald-400">0</span> active</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">BOUND DEVICES</span>
+              <i data-lucide="laptop" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-purple-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-purple-300" id="statTotalDevices">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono"><span id="statSeen24h">0</span> in 24h</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">REGISTERED USERS</span>
+              <i data-lucide="user-check" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-amber-200" id="statTotalUsers">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Consented</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1 col-span-2 sm:col-span-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">BANNED DEVICES</span>
+              <i data-lucide="shield-alert" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-rose-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-rose-400" id="statBannedDevices">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">10+ brute attempts</p>
+          </div>
+        </div>
+
+        <!-- Database Storage & Disk Capacity Meter (Real-Time Health & Usage) -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-slate-800/80 pb-3">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <i data-lucide="database" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-xs sm:text-sm text-white flex items-center space-x-2">
+                  <span>Database Capacity &amp; Storage Usage</span>
+                  <span id="dbHealthStatusBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full border text-emerald-400 bg-emerald-500/10 border-emerald-500/30">Healthy (Optimal)</span>
+                </h3>
+                <p class="text-[10px] sm:text-[11px] text-slate-400">Real-time disk consumption, storage fullness, and table row counts</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <button id="quickOptimizeDbBtn" class="px-3 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/50 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center space-x-1.5 cursor-pointer">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Optimize Now</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Capacity Progress Bar -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] sm:text-xs font-mono">
+              <span class="text-slate-400">Disk Used: <strong id="dbSizeText" class="text-white">0 KB</strong> of <span id="dbQuotaText" class="text-slate-400">1.00 GB</span></span>
+              <span id="dbPercentText" class="text-emerald-400 font-bold">0.01% Capacity</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div id="dbProgressBar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500" style="width: 1%"></div>
+            </div>
+          </div>
+
+          <!-- Breakdown Chips -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 font-mono text-[11px]">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Audit Events</span>
+              <span id="dbCountAudit" class="text-white font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Licenses</span>
+              <span id="dbCountLicenses" class="text-emerald-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Active Devices</span>
+              <span id="dbCountDevices" class="text-purple-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Users</span>
+              <span id="dbCountUsers" class="text-amber-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 col-span-2 sm:col-span-1">
+              <span class="text-slate-500 text-[10px] block uppercase">Security Tracked</span>
+              <span id="dbCountSecurity" class="text-rose-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+          </div>
+        </div>
             <div class="flex items-center justify-between text-slate-400 text-xs">
               <span>TOTAL LICENSES</span>
               <i data-lucide="key" class="w-4 h-4 text-blue-400"></i>
@@ -242,10 +362,10 @@
 
       <!-- ================= TAB: LICENSES ================= -->
       <section id="tab-licenses" class="hidden space-y-4">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div class="flex items-center space-x-2 w-full sm:w-auto">
-            <input type="text" id="licenseSearchInput" placeholder="Search by key, customer, email..." class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 w-full sm:w-72 font-mono">
-            <select id="licenseStatusFilter" class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <input type="text" id="licenseSearchInput" placeholder="Search by key, customer, email..." class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 w-full sm:w-72 font-mono">
+            <select id="licenseStatusFilter" class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none">
               <option value="">All Statuses</option>
               <option value="active">Active</option>
               <option value="suspended">Suspended</option>
@@ -253,15 +373,15 @@
               <option value="expired">Expired</option>
             </select>
           </div>
-          <button id="openIssueModalBtn2" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center space-x-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer shrink-0">
+          <button id="openIssueModalBtn2" class="px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer w-full sm:w-auto shrink-0">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>Create License</span>
           </button>
         </div>
 
         <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[680px]">
               <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
                 <tr>
                   <th class="py-3 px-4">Key</th>
@@ -285,12 +405,12 @@
       <!-- ================= TAB: DEVICES ================= -->
       <section id="tab-devices" class="hidden space-y-4">
         <div class="flex items-center justify-between">
-          <input type="text" id="deviceSearchInput" placeholder="Search devices by ID, name, or key..." class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 w-full sm:w-80 font-mono">
+          <input type="text" id="deviceSearchInput" placeholder="Search devices by ID, name, or key..." class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 w-full sm:w-80 font-mono">
         </div>
 
         <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[680px]">
               <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
                 <tr>
                   <th class="py-3 px-4">Device ID</th>
@@ -312,12 +432,12 @@
 
       <!-- ================= TAB: USERS & PRIVACY ================= -->
       <section id="tab-users" class="hidden space-y-6">
-        <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
+        <div class="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
           <div class="font-bold text-white flex items-center space-x-2">
             <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
             <span>Privacy &amp; Data Collection Disclosure</span>
           </div>
-          <p class="text-slate-400 leading-relaxed">
+          <p class="text-slate-400 leading-relaxed text-xs">
             XDM Turbo implements strict data minimization. We collect only what is strictly required to enforce single-device and multi-seat licensing:
           </p>
           <ul class="list-disc list-inside text-slate-400 space-y-1 font-mono text-[11px]">
@@ -332,8 +452,8 @@
         </div>
 
         <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[620px]">
               <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
                 <tr>
                   <th class="py-3 px-4">User ID</th>
@@ -356,11 +476,11 @@
       <section id="tab-audit" class="hidden space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="space-y-0.5">
-            <h2 class="text-base font-bold text-white flex items-center space-x-2">
+            <h2 class="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
               <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
               <span>System &amp; Security Audit Trail</span>
             </h2>
-            <p class="text-[11px] text-slate-400">Chronological immutable security events, activation attempts, and device updates</p>
+            <p class="text-[10px] sm:text-[11px] text-slate-400">Chronological immutable security events, activation attempts, and device updates</p>
           </div>
           <div class="flex items-center space-x-2">
             <button id="optimizeDbAuditBtn" class="px-3 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/50 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center space-x-1.5 cursor-pointer">
@@ -374,8 +494,8 @@
           </div>
         </div>
         <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[680px]">
               <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
                 <tr>
                   <th class="py-3 px-4">Timestamp</th>
@@ -398,18 +518,18 @@
   </div>
 
   <!-- ==================== MODAL: CREATE LICENSE ==================== -->
-  <div id="createLicenseModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="w-full max-w-lg rounded-2xl bg-[#0b1120] border border-slate-800 p-6 shadow-2xl space-y-4">
+  <div id="createLicenseModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-lg rounded-2xl bg-[#0b1120] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="font-bold text-sm text-white flex items-center space-x-2">
           <i data-lucide="key" class="w-4 h-4 text-emerald-400"></i>
           <span>Issue New Product License</span>
         </h3>
-        <button id="closeIssueModalBtn" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button id="closeIssueModalBtn" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <form id="createLicenseForm" class="space-y-3 text-xs">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Edition</label>
             <select id="newEdition" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
@@ -424,7 +544,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Customer Name</label>
             <input type="text" id="newCustomerName" placeholder="e.g. Rahim Uddin" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
@@ -464,8 +584,8 @@
   </div>
 
   <!-- Change Admin Credentials Modal -->
-  <div id="changePasswordModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-    <div class="w-full max-w-sm rounded-2xl bg-[#0c1222] border border-slate-800 p-6 shadow-2xl space-y-4">
+  <div id="changePasswordModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-[#0c1222] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
         <h3 class="text-sm font-bold text-white flex items-center space-x-2">
           <i data-lucide="user-cog" class="w-4 h-4 text-emerald-400"></i>
@@ -691,6 +811,31 @@
         document.getElementById('statTotalUsers').textContent = m.totalUsers;
         if (document.getElementById('statBannedDevices')) {
           document.getElementById('statBannedDevices').textContent = m.bannedDevices || 0;
+        }
+
+        // Real-Time Database Storage Capacity & Health
+        if (m.storage) {
+          const s = m.storage;
+          const sizeEl = document.getElementById('dbSizeText');
+          if (sizeEl) sizeEl.textContent = s.sizeFormatted;
+          const quotaEl = document.getElementById('dbQuotaText');
+          if (quotaEl) quotaEl.textContent = s.maxQuotaFormatted || '1.00 GB';
+          const percentEl = document.getElementById('dbPercentText');
+          if (percentEl) percentEl.textContent = `${s.usagePercent}% Capacity (${s.sizeFormatted} used)`;
+          const barEl = document.getElementById('dbProgressBar');
+          if (barEl) barEl.style.width = `${Math.max(1, s.usagePercent)}%`;
+          const badgeEl = document.getElementById('dbHealthStatusBadge');
+          if (badgeEl) {
+            badgeEl.textContent = s.status;
+            badgeEl.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${s.statusClass || 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'}`;
+          }
+          if (s.tableCounts) {
+            if (document.getElementById('dbCountAudit')) document.getElementById('dbCountAudit').textContent = s.tableCounts.auditLogs;
+            if (document.getElementById('dbCountLicenses')) document.getElementById('dbCountLicenses').textContent = s.tableCounts.licenses;
+            if (document.getElementById('dbCountDevices')) document.getElementById('dbCountDevices').textContent = s.tableCounts.devices;
+            if (document.getElementById('dbCountUsers')) document.getElementById('dbCountUsers').textContent = s.tableCounts.users;
+            if (document.getElementById('dbCountSecurity')) document.getElementById('dbCountSecurity').textContent = s.tableCounts.securityEvents;
+          }
         }
       }
 
@@ -1153,6 +1298,8 @@
     if (optimizeDbBtn) optimizeDbBtn.addEventListener('click', handleOptimizeDatabase);
     const optimizeDbAuditBtn = document.getElementById('optimizeDbAuditBtn');
     if (optimizeDbAuditBtn) optimizeDbAuditBtn.addEventListener('click', handleOptimizeDatabase);
+    const quickOptimizeDbBtn = document.getElementById('quickOptimizeDbBtn');
+    if (quickOptimizeDbBtn) quickOptimizeDbBtn.addEventListener('click', handleOptimizeDatabase);
 
     // Clear Audit Logs Handler
     async function handleClearAuditLogs() {
