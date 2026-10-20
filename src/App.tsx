@@ -223,6 +223,8 @@ export const App: React.FC = () => {
               }
             }
             prevCompletedCountRef.current = completedCount;
+          } else if (msg.type === 'SETTINGS_UPDATE') {
+            if (msg.payload) setSettings(msg.payload);
           } else if (msg.type === 'LICENSE_UPDATE') {
             if (msg.payload) setLicense(msg.payload);
           } else if (msg.type === 'DEVICE_BANNED') {

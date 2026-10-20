@@ -52,14 +52,10 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
   const [fileName, setFileName] = useState('');
   const [saveDir, setSaveDir] = useState(defaultSaveDir);
   const [connections, setConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('xdm_connections');
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        return isPro ? parsed : Math.min(parsed, 4);
-      }
-    } catch (e) {}
-    return isPro ? (defaultConnections || 64) : Math.min(defaultConnections || 4, 4);
+    if (defaultConnections && defaultConnections > 0) {
+      return isPro ? defaultConnections : Math.min(defaultConnections, 4);
+    }
+    return isPro ? 64 : 4;
   });
   const [selectedFormat, setSelectedFormat] = useState<string>('best');
   const [autoStart, setAutoStart] = useState(true);
@@ -97,18 +93,10 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setSaveDir(defaultSaveDir);
-      try {
-        const saved = localStorage.getItem('xdm_connections');
-        const defaultConn = isPro ? (defaultConnections || 64) : Math.min(defaultConnections || 4, 4);
-        if (saved) {
-          const parsed = parseInt(saved, 10);
-          setConnections(isPro ? parsed : Math.min(parsed, 4));
-        } else {
-          setConnections(defaultConn);
-        }
-      } catch (e) {
-        setConnections(isPro ? (defaultConnections || 64) : 4);
-      }
+      const chosen = (defaultConnections && defaultConnections > 0)
+        ? (isPro ? defaultConnections : Math.min(defaultConnections, 4))
+        : (isPro ? 64 : 4);
+      setConnections(chosen);
       if (initialUrl && (initialUrl.startsWith('http://') || initialUrl.startsWith('https://'))) {
         setUrl(initialUrl);
         triggerProbe(initialUrl);
@@ -232,7 +220,7 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
   if (!isOpen) return null;
 
   const isVideoUrl = /youtube\.com|youtu\.be|facebook\.com|fb\.watch|instagram\.com|tiktok\.com|twitter\.com|x\.com|vimeo\.com|\.(mp4|mkv|webm|avi|mov)$/i.test(url);
-  const connectionPresets = isPro ? [1, 4, 8, 16, 32, 64] : [1, 2, 4];
+  const connectionPresets = isPro ? [1, 2, 4, 8, 16, 32, 64] : [1, 2, 4];
 
   return (
     <div 
@@ -558,7 +546,7 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
               </span>
             </div>
 
-            <div className={`grid ${isPro ? 'grid-cols-6' : 'grid-cols-3'} gap-1.5 mb-2`}>
+            <div className={`grid ${isPro ? 'grid-cols-4 sm:grid-cols-7' : 'grid-cols-3'} gap-1.5 mb-2`}>
               {connectionPresets.map((cnt) => (
                 <button
                   key={cnt}

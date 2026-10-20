@@ -251,9 +251,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="button"
                     onClick={() => {
                       setForm(prev => ({ ...prev, defaultConnections: preset.val }));
-                      if (isLocked && onOpenLicenseModal) {
-                        onOpenLicenseModal();
-                      }
                     }}
                     className={`px-2 py-2 rounded-xl border text-center transition-all cursor-pointer relative group ${
                       isSelected
@@ -288,9 +285,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   const idx = parseInt(e.target.value, 10);
                   const targetStreams = steps[idx] || 4;
                   setForm(prev => ({ ...prev, defaultConnections: targetStreams }));
-                  if (!isEffectivePro && targetStreams > 4 && onOpenLicenseModal) {
-                    onOpenLicenseModal();
-                  }
                 }}
                 className="w-full accent-emerald-500 cursor-pointer h-2.5 rounded-lg bg-black/40"
               />
@@ -345,9 +339,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10) || 1;
                 setForm(prev => ({ ...prev, maxConcurrentDownloads: val }));
-                if (!isEffectivePro && val > 1 && onOpenLicenseModal) {
-                  onOpenLicenseModal();
-                }
               }}
               className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg"
             />

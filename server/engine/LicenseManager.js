@@ -534,6 +534,7 @@ class LicenseManager {
       this.license = Object.freeze({
         isPro: true,
         isAdmin: false,
+        edition: payload.edition || 'pro',
         status: 'pro',
         key: payload.licenseKey || raw.key || raw.licenseKey || '',
         customerName: raw.customerName || 'Valued Customer',
@@ -898,6 +899,7 @@ class LicenseManager {
     return {
       isPro: Boolean(!banned && this.license.isPro),
       isAdmin: false,
+      edition: this.license.edition || (this.license.isPro ? 'pro' : 'free'),
       isBanned: Boolean(banned),
       banReason: banInfo?.reason || (banned ? 'Device locked due to tampering' : null),
       status: banned ? 'banned' : this.license.status,

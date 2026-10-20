@@ -151,6 +151,11 @@ FunctionEnd
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW customInstFilesShow
 !macroend
 
+!macro customFinishPage
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW customFinishShow
+  !insertmacro MUI_PAGE_FINISH
+!macroend
+
 !endif
 
 # Enforce per-user installation without showing the ugly white multiuser mode dialog

@@ -126,10 +126,14 @@ function createWindow() {
       }
     };
 
+    const safetyRevealTimeout = setTimeout(revealWindow, 2500);
+
     mainWindow.webContents.once('did-finish-load', () => {
+      clearTimeout(safetyRevealTimeout);
       setTimeout(revealWindow, 60);
     });
     mainWindow.webContents.once('dom-ready', () => {
+      clearTimeout(safetyRevealTimeout);
       setTimeout(revealWindow, 120);
     });
   }

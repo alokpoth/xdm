@@ -121,6 +121,12 @@ class DownloadManager {
       fs.renameSync(tmpFile, this.settingsFile);
     } catch (e) {}
 
+    // Broadcast updated settings to all UI windows immediately
+    this.broadcast({
+      type: 'SETTINGS_UPDATE',
+      payload: this.settings
+    });
+
     // Instantly apply speed limit to all active tasks
     if (newSettings.speedLimit !== undefined) {
       const limitInBytes = (this.settings.speedLimit || 0) * 1024;
@@ -404,7 +410,7 @@ class DownloadManager {
         }
       }
     } catch (e) {}
-    return Boolean(this.licenseManager && (this.licenseManager.isPro() || this.licenseManager.license?.status === 'pro' || this.licenseManager.license?.status === 'grace'));
+    return Boolean(this.licenseManager && (this.licenseManager.isPro() || this.licenseManager.license?.status === 'pro' || this.licenseManager.license?.status === 'grace' || this.licenseManager.license?.status === 'active' || this.licenseManager.license?.edition === 'pro'));
   }
 
   async addVideoDownload(options) {

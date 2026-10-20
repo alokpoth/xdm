@@ -117,6 +117,7 @@ export interface ProbeResult {
 export interface LicenseInfo {
   isPro: boolean;
   isAdmin?: boolean;
+  edition?: string;
   isBanned?: boolean;
   banReason?: string | null;
   status: 'free' | 'pro' | 'admin' | 'expired' | 'trial' | 'grace_expired' | 'banned';
