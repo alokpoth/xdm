@@ -1,43 +1,65 @@
-# ⚡ XDM Turbo - Next-Gen Internet Download Manager
+# XDM Turbo - Next-Gen Internet Download Manager
 
 [![Version](https://img.shields.io/badge/version-1.0.10-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
 [![Website](https://img.shields.io/badge/website-xdm.zihan.xyz-blue.svg)](https://xdm.zihan.xyz)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://github.com/zihanfakir/xdm/releases)
 
-> **Full IDM (Internet Download Manager) Clone with Ultra-Modern Minimalist UI & Bandwidth Saturation Turbo Engine**
+> **High-Performance Internet Download Manager with Minimalist Dark UI & 64-Stream Bandwidth Saturation Turbo Engine**
 > 
-> 🌐 **Official Website & Downloads:** [https://xdm.zihan.xyz](https://xdm.zihan.xyz)  
-> 👤 **Author:** [Zihan Fakir](https://xdm.zihan.xyz) (@zihanfakir)
+> - **Official Website & Downloads:** [https://xdm.zihan.xyz](https://xdm.zihan.xyz)  
+> - **Author:** [Zihan Fakir](https://xdm.zihan.xyz) (@zihanfakir)  
+> - **PRO Activation Support:** WhatsApp: `@zihanfakir` | Telegram: `@zihanfakir`
 
-XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging 32-connection HTTP Range streaming, dynamic segment subdivision (work-stealing), direct disk pre-allocation, and universal browser video capture.
+XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging up to 64 concurrent HTTP Range connections, dynamic segment subdivision (work-stealing), direct pre-allocated disk writes, and universal browser 4K media interception.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 1. 🔥 Full Bandwidth Saturation (IDM Engine)
-- **1 to 32 Parallel Connections:** Splits large files into up to 32 concurrent HTTP Range connections to bypass single-stream ISP caps and latency bottlenecks.
-- **Dynamic Segment Subdivision (Adaptive Work Stealing):** When one segment finishes downloading early, XDM automatically slices the largest remaining unfinished segment in half and assigns the idle connection to it immediately. This guarantees all connection pipes stay 100% busy until the last byte!
+### 1. Full Bandwidth Saturation (64-Stream Turbo Engine)
+- **1 to 64 Parallel Connections:** Splits large files into up to 64 concurrent HTTP Range byte streams to bypass single-stream ISP limits and server-side connection caps.
+- **Dynamic Segment Subdivision (Adaptive Work Stealing):** When one stream finishes downloading early, XDM actively subdivides the largest remaining unfinished segment and re-assigns idle connections instantly, keeping all pipes 100% saturated until the last byte.
 - **Zero Disk-Thrashing Assembly:** Writes data directly to pre-allocated file byte offsets, eliminating tedious post-download file joining delays.
 - **Full Pause & Resume Support:** Persists exact byte positions per segment in `.meta` state files. Resume interrupted downloads instantly.
 
-### 2. 🎨 Minimalist & Modern UI
-- **Dark Glassmorphic Theme:** Built with React, Tailwind CSS, and Lucide icons.
-- **IDM Segment Visualizer:** Live interactive visual progress bar showing each active thread, its start/end byte range, and individual transfer speed.
+### 2. Modern Glassmorphic UI
+- **Dark Obsidian Theme:** Built with React, Tailwind CSS, Lucide vector icons, and GSAP/Lenis animations.
+- **Segment Visualizer:** Real-time visual progress bar showing each active thread, its start/end byte range, and individual transfer speed.
 - **Real-Time Speed Chart:** Live SVG speed graph tracking throughput second-by-second (Current Speed, Peak Speed, Average Speed, ETA).
 - **Auto-Categorization:** Automatically sorts files into `Compressed`, `Video`, `Audio`, `Documents`, `Programs`, and `Others`.
-- **Speed Limiter:** Toggle between Unlimited Turbo and custom limits (50 MB/s, 20 MB/s, 10 MB/s, 5 MB/s).
+- **Speed Limiter:** Dial in exact bandwidth limits (2 MB/s, 10 MB/s, 50 MB/s) or run on Unlimited Turbo.
 
-### 3. 🌐 Browser Integration & Desktop Shell
-- **Desktop Window & System Tray:** Run natively as an Electron desktop application with custom frameless titlebar and Windows tray minimization.
-- **Browser Interceptor (Tampermonkey / Violentmonkey):** Includes a built-in Userscript hook (`http://127.0.0.1:19684/extension/xdm-helper.user.js`) that automatically intercepts download clicks in Chrome, Edge, Brave, and Firefox!
-- **1-Click Bookmarklet:** Drag to your browser bookmarks bar to send any page's link to XDM instantly.
+### 3. Browser Integration & Background Tray Lifecycle
+- **Universal Video Grabber:** Injects a floating download button over YouTube, Reels, TikTok, Vimeo, and web video players with 1080p, 4K, and MP3 extraction.
+- **System Tray Background Operation:** Minimizes to the Windows system notification area on window close, ensuring background downloads never interrupt.
+- **Browser Interceptor (Tampermonkey / Violentmonkey):** Includes a built-in Userscript companion (`http://127.0.0.1:19684/extension/xdm-helper.user.js`) that automatically intercepts download clicks across Chrome, Edge, Brave, and Firefox.
 - **Local REST & WebSocket API:** Fully scriptable via `curl` and WebSocket telemetry.
 
 ---
 
-## 💻 How to Run
+## Commercial PRO Licensing
+
+Upgrade to **XDM Turbo PRO** to unlock:
+- 64 Parallel Turbo Streams (Max ISP Throughput)
+- Universal 4K UHD & 60 FPS Video Sniffer
+- Automatic DASH & HLS Video Muxing (FFmpeg)
+- Dynamic Work-Stealing Multi-Threading
+- Speed Throttle & Unlimited Turbo Bandwidth
+- Up to 10 Simultaneous Download Tasks
+
+### How to Purchase & Activate:
+1. Contact developer **Zihan Fakir** directly:
+   - **WhatsApp:** `@zihanfakir` ([https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License](https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License))
+   - **Telegram:** `@zihanfakir` ([https://t.me/zihanfakir](https://t.me/zihanfakir))
+   - **Email:** `zihanfakir@gmail.com`
+2. Payment methods accepted: **bKash / Nagad / Rocket / Binance USDT / International Card**.
+3. Receive your official 20-character license key within 5 minutes.
+4. In XDM Turbo, click **"Upgrade to PRO"**, enter your key, and activate instantly.
+
+---
+
+## How to Run
 
 ### Option 1: Native Desktop Application (Electron)
 ```powershell
@@ -57,7 +79,7 @@ npm run dev
 
 ---
 
-## 🛠 Project Structure
+## Project Structure
 
 ```
 E:\XDM\
@@ -78,7 +100,8 @@ E:\XDM\
 │   │   ├── SegmentProgressBar.tsx   # IDM multi-thread segment visualizer
 │   │   ├── AddDownloadModal.tsx     # Add URL modal with auto-probe & thread slider
 │   │   ├── DownloadDetailsModal.tsx # Speed curve graph & thread inspector
-│   │   ├── SettingsModal.tsx        # Preferences & download directories
+│   │   ├── SettingsModal.tsx        # Preferences, 64-stream stepped slider
+│   │   ├── LicenseModal.tsx         # PRO activation & contact links
 │   │   └── BrowserIntegrationModal.tsx # Browser hook & Userscript guide
 │   ├── types/index.ts       # TypeScript interfaces
 │   ├── utils/formatters.ts  # Speed, bytes, and time formatters
