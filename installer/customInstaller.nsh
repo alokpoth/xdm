@@ -171,6 +171,7 @@ FunctionEnd
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "aria2c.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c for /d %i in ("%TEMP%\ns*.tmp") do rd /s /q "%i"'
   Sleep 1000
 !macroend
 
@@ -181,6 +182,7 @@ FunctionEnd
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "aria2c.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
   nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c for /d %i in ("%TEMP%\ns*.tmp") do rd /s /q "%i"'
   Sleep 1000
 !macroend
 
