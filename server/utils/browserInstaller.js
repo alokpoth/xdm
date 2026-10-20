@@ -68,7 +68,7 @@ class BrowserInstaller {
 
     for (const [key, valName, valData] of regEntries) {
       try {
-        execFileSync('reg.exe', ['add', key, '/v', valName, '/t', 'REG_SZ', '/d', valData, '/f'], { windowsHide: true });
+        execFileSync('reg.exe', ['add', key, '/v', valName, '/t', 'REG_SZ', '/d', valData, '/f'], { windowsHide: true, stdio: 'ignore' });
       } catch (e) {}
     }
 

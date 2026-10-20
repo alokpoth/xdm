@@ -16,29 +16,17 @@ if (-not $cert) {
     Write-Host "Found existing Code Signing Certificate: $($cert.Thumbprint) ($($cert.Subject))"
 }
 
-# Trust this certificate in CurrentUser\Root and CurrentUser\TrustedPublisher
-try {
-    $rootStore = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::Root, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
-    $rootStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-    $rootStore.Add($cert)
-    $rootStore.Close()
-
-    $pubStore = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::TrustedPublisher, [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser)
-    $pubStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-    $pubStore.Add($cert)
-    $pubStore.Close()
-    Write-Host "Successfully registered Zihan Fakir certificate into Trusted Root & Trusted Publishers!"
-} catch {
-    Write-Warning "Could not register into cert store: $_"
-}
-
 # Files to sign
 $filesToSign = @(
     "release\win-unpacked\XDM Turbo.exe",
     "release\win-unpacked\resources\server\bin\ffmpeg.exe",
     "release\win-unpacked\resources\elevate.exe",
     "release\XDM Turbo Setup 1.0.10.exe",
-    "release\XDM Turbo 1.0.10.exe"
+    "release\XDM Turbo 1.0.10.exe",
+    "D:\BILLS\XDM Turbo\XDM Turbo.exe",
+    "D:\BILLS\XDM Turbo\Uninstall XDM Turbo.exe",
+    "D:\BILLS\XDM Turbo\resources\elevate.exe",
+    "D:\BILLS\XDM Turbo\resources\server\bin\ffmpeg.exe"
 )
 
 $timestampServer = "http://timestamp.digicert.com"

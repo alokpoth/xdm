@@ -186,73 +186,134 @@ function createWindow() {
     if (app.isQuitting) {
       return;
     }
-    if (tray) {
-      event.preventDefault();
-      mainWindow.hide();
-    } else {
-      app.isQuitting = true;
-      app.quit();
-    }
+    // Always intercept close and hide to system tray so downloads continue in background
+    event.preventDefault();
+    mainWindow.hide();
   });
 }
 
 function createTray() {
+  if (tray) return;
+
   const iconPath = getIconPath('icon.ico');
   const pngIcon = getIconPath('icon.png');
   const trayIcon = fs.existsSync(iconPath) ? iconPath : pngIcon;
 
-  // Simple tray menu
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Open XDM Turbo',
-      click: () => {
-        if (mainWindow) {
+  const updateContextMenu = () => {
+    let isAutoStart = false;
+    try {
+      isAutoStart = Boolean(app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin);
+    } catch (e) {}
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show XDM Turbo',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        }
+      },
+      {
+        label: 'Add New Download...',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+            if (mainWindow.webContents) {
+              mainWindow.webContents.send('tray:open-add-modal');
+            }
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Pause All Downloads',
+        click: () => {
+          http.request({
+            hostname: '127.0.0.1',
+            port: 19684,
+            path: '/api/downloads/pause-all',
+            method: 'POST'
+          }).end();
+        }
+      },
+      {
+        label: 'Resume All Downloads',
+        click: () => {
+          http.request({
+            hostname: '127.0.0.1',
+            port: 19684,
+            path: '/api/downloads/resume-all',
+            method: 'POST'
+          }).end();
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Start with Windows (Background)',
+        type: 'checkbox',
+        checked: isAutoStart,
+        click: (menuItem) => {
+          try {
+            app.setLoginItemSettings({
+              openAtLogin: menuItem.checked,
+              openAsHidden: true,
+              path: process.execPath,
+              args: ['--hidden']
+            });
+          } catch (e) {}
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit XDM Turbo',
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        }
+      }
+    ]);
+
+    if (tray) tray.setContextMenu(contextMenu);
+  };
+
+  try {
+    tray = new Tray(trayIcon);
+    tray.setToolTip('XDM Turbo (Active in Background)');
+    updateContextMenu();
+
+    // Single-click on system tray toggles or shows main window
+    tray.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          if (mainWindow.isFocused()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.focus();
+          }
+        } else {
+          if (mainWindow.isMinimized()) mainWindow.restore();
           mainWindow.show();
           mainWindow.focus();
         }
       }
-    },
-    {
-      label: 'Pause All',
-      click: () => {
-        http.request({
-          hostname: '127.0.0.1',
-          port: 19684,
-          path: '/api/downloads/pause-all',
-          method: 'POST'
-        }).end();
-      }
-    },
-    {
-      label: 'Resume All',
-      click: () => {
-        http.request({
-          hostname: '127.0.0.1',
-          port: 19684,
-          path: '/api/downloads/resume-all',
-          method: 'POST'
-        }).end();
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit XDM Turbo',
-      click: () => {
-        app.isQuitting = true;
-        app.quit();
-      }
-    }
-  ]);
+    });
 
-  try {
-    tray = new Tray(trayIcon);
-    tray.setToolTip('XDM Turbo Download Manager');
-    tray.setContextMenu(contextMenu);
+    // Double-click opens & focuses main window
     tray.on('double-click', () => {
       if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
         mainWindow.show();
         mainWindow.focus();
       }
+    });
+
+    tray.on('right-click', () => {
+      updateContextMenu();
     });
   } catch (e) {
     console.error('Tray creation failed:', e.message);
@@ -280,12 +341,8 @@ ipcMain.handle('window:isMaximized', () => {
 
 ipcMain.handle('window:close', () => {
   if (mainWindow) {
-    if (tray) {
-      mainWindow.hide();
-    } else {
-      app.isQuitting = true;
-      app.quit();
-    }
+    // Always hide to tray so app stays active in background
+    mainWindow.hide();
   }
 });
 
@@ -440,12 +497,17 @@ app.whenReady().then(() => {
     app.setAppUserModelId('com.xdm.turbomanager');
   }
   if (!gotTheLock) return;
-  createWindow();
   createTray();
+  createWindow();
   startClipboardMonitor();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 });
 
@@ -461,7 +523,8 @@ app.on('will-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (app.isQuitting || !tray) {
+  if (app.isQuitting) {
     app.quit();
   }
+  // In XDM Turbo, closing all windows keeps the background download engine and tray active!
 });

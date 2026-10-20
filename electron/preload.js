@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('clipboard:url-detected', handler);
     return () => ipcRenderer.removeListener('clipboard:url-detected', handler);
   },
+  onTrayOpenAddModal: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('tray:open-add-modal', handler);
+    return () => ipcRenderer.removeListener('tray:open-add-modal', handler);
+  },
   setClipboardMonitoring: (enabled) => ipcRenderer.invoke('clipboard:set-monitoring', enabled),
   isElectron: true
 });

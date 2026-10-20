@@ -251,6 +251,18 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  // Tray action listener
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.onTrayOpenAddModal) {
+      const unsub = (window as any).electronAPI.onTrayOpenAddModal(() => {
+        setIsAddModalOpen(true);
+      });
+      return () => {
+        if (typeof unsub === 'function') unsub();
+      };
+    }
+  }, []);
+
   // In-App update check
   useEffect(() => {
     const timer = setTimeout(() => {

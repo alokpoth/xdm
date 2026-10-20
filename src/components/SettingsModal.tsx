@@ -131,7 +131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md select-none animate-fadeIn"
     >
-      <div className="w-full max-w-2xl sm:max-w-3xl rounded-3xl liquid-modal-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden backdrop-blur-2xl">
+      <div className="w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl rounded-3xl liquid-modal-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden backdrop-blur-2xl">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
@@ -248,25 +248,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               })}
             </div>
 
-            {/* Range Slider matching actual scale */}
-            <div>
+            {/* Range Slider aligned with 7 discrete stream points */}
+            <div className="space-y-2 pt-1">
               <input
                 type="range"
-                min="1"
-                max={isPro ? 64 : 4}
+                min="0"
+                max={6}
                 step="1"
-                value={isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)}
+                value={[1, 2, 4, 8, 16, 32, 64].findIndex(s => s >= (isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)))}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  setForm({ ...form, defaultConnections: isPro ? val : Math.min(val, 4) });
+                  const steps = [1, 2, 4, 8, 16, 32, 64];
+                  const idx = parseInt(e.target.value, 10);
+                  const targetStreams = steps[idx] || 4;
+                  if (!isPro && targetStreams > 4) {
+                    setForm({ ...form, defaultConnections: 4 });
+                    if (onOpenLicenseModal) onOpenLicenseModal();
+                  } else {
+                    setForm({ ...form, defaultConnections: targetStreams });
+                  }
                 }}
-                className="w-full accent-emerald-500 cursor-pointer h-2 rounded-lg bg-black/40"
+                className="w-full accent-emerald-500 cursor-pointer h-2.5 rounded-lg bg-black/40"
               />
-              <div className="flex justify-between text-[11px] text-slate-400 theme-text-secondary mt-1 font-mono">
-                <span>1 (Single Stream)</span>
-                <span>2 (Standard)</span>
-                <span className="text-emerald-400 font-bold">4 (Maximum Free Limit)</span>
-                {isPro && <span className="text-emerald-400 font-bold">64 (Turbo PRO Max)</span>}
+              <div className="grid grid-cols-7 text-[10px] text-center font-mono">
+                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 1 ? "text-emerald-400 font-bold" : "text-slate-400"}>1</span>
+                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 2 ? "text-emerald-400 font-bold" : "text-slate-400"}>2</span>
+                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 4 ? "text-emerald-400 font-bold" : "text-slate-400"}>4 (Free)</span>
+                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 8 ? "text-emerald-400 font-bold" : "text-slate-400"}>8 PRO</span>
+                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 16 ? "text-emerald-400 font-bold" : "text-slate-400"}>16 PRO</span>
+                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 32 ? "text-emerald-400 font-bold" : "text-slate-400"}>32 PRO</span>
+                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 64 ? "text-emerald-400 font-bold" : "text-slate-400"}>64 Turbo</span>
               </div>
             </div>
 
