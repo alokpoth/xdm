@@ -1043,7 +1043,11 @@ app.get('/api/v1/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdm
 app.get('/api/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdminLicenses);
 
 // Serve Admin & Owner UI statically when running standalone
-app.get(/^\/(admin|owner)(\/.*)?$/, (req, res) => {
+app.get(/^\/owner(\/.*)?$/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/owner.html'));
+});
+
+app.get(/^\/admin(\/.*)?$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 

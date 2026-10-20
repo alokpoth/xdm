@@ -90,6 +90,9 @@
 
       <!-- Desktop Navigation Tabs -->
       <nav class="hidden md:flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <button id="navTabAdmins" class="nav-tab px-3 py-1.5 rounded-lg transition-all bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 cursor-pointer" data-tab="admins">
+          <i data-lucide="crown" class="w-3.5 h-3.5 inline mr-1 text-amber-400"></i>Owner Panel
+        </button>
         <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="overview">
           <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 inline mr-1"></i>Overview
         </button>
@@ -104,9 +107,6 @@
         </button>
         <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="audit">
           <i data-lucide="history" class="w-3.5 h-3.5 inline mr-1"></i>Audit Logs
-        </button>
-        <button id="navTabAdmins" class="nav-tab hidden px-3 py-1.5 rounded-lg transition-all text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 cursor-pointer" data-tab="admins">
-          <i data-lucide="crown" class="w-3.5 h-3.5 inline mr-1 text-amber-400"></i>Owner Panel
         </button>
       </nav>
 
@@ -132,29 +132,29 @@
 
     <!-- Mobile Sub-Navigation Tabs Bar (Touch-Friendly Horizontal Scroll) -->
     <div class="md:hidden border-b border-slate-800 bg-[#070d19]/95 px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-1.5 sticky top-[57px] z-30">
-      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="overview">
+      <button id="navTabAdminsMobile" class="nav-tab shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="admins">
+        <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span>Owner Panel</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="overview">
         <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
         <span>Overview</span>
       </button>
-      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="licenses">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="licenses">
         <i data-lucide="key" class="w-3.5 h-3.5"></i>
         <span>Licenses</span>
       </button>
-      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="devices">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="devices">
         <i data-lucide="laptop" class="w-3.5 h-3.5"></i>
         <span>Devices</span>
       </button>
-      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="users">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="users">
         <i data-lucide="users" class="w-3.5 h-3.5"></i>
         <span>Users</span>
       </button>
-      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="audit">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer" data-tab="audit">
         <i data-lucide="history" class="w-3.5 h-3.5"></i>
         <span>Audit Logs</span>
-      </button>
-      <button id="navTabAdminsMobile" class="nav-tab shrink-0 hidden px-3 py-1.5 rounded-lg text-amber-400 hover:text-amber-300 text-xs font-semibold items-center space-x-1.5 transition-all cursor-pointer" data-tab="admins">
-        <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i>
-        <span>Owner Panel</span>
       </button>
     </div>
 
@@ -862,15 +862,25 @@
     }
 
     // Init View
-    if (window.location.pathname.includes('/owner')) {
-      const loginTitle = document.querySelector('#loginView h1');
-      const loginSub = document.querySelector('#loginView p');
-      if (loginTitle) loginTitle.textContent = 'XDM Turbo Master Owner Portal';
-      if (loginSub) loginSub.textContent = 'Master Governance & Admin Management';
-    }
+    const loginTitle = document.querySelector('#loginView h1');
+    const loginSub = document.querySelector('#loginView p');
+    if (loginTitle) loginTitle.textContent = 'XDM Turbo Master Owner Portal';
+    if (loginSub) loginSub.textContent = 'Master Governance & Admin Management';
 
     if (authToken) {
-      showDashboard();
+      if (currentUserRole && currentUserRole !== 'owner' && currentUserRole !== 'superadmin') {
+        authToken = null;
+        currentUserRole = null;
+        currentUsername = null;
+        sessionStorage.removeItem('xdm_admin_token');
+        sessionStorage.removeItem('xdm_admin_role');
+        sessionStorage.removeItem('xdm_admin_username');
+        showLogin();
+        loginErrorMsg.textContent = 'Access Denied: Owner Portal requires Master Owner credentials. Regular admins please use /admin';
+        loginError.classList.remove('hidden');
+      } else {
+        showDashboard();
+      }
     } else {
       showLogin();
     }
@@ -886,9 +896,7 @@
       dashboardView.classList.remove('hidden');
       updateUserBadge();
       const urlParams = new URLSearchParams(window.location.search);
-      const isOwnerPath = window.location.pathname.includes('/owner');
-      const isOwnerRole = currentUserRole === 'owner' || currentUserRole === 'superadmin';
-      const targetTab = urlParams.get('tab') || (isOwnerPath && isOwnerRole ? 'admins' : 'overview');
+      const targetTab = urlParams.get('tab') || 'admins';
       switchTab(targetTab);
       loadAllData();
       lucide.createIcons();
@@ -921,6 +929,11 @@
           }
         }
         if (data.success && data.token) {
+          if (data.admin && data.admin.role !== 'owner' && data.admin.role !== 'superadmin') {
+            loginErrorMsg.textContent = 'Access Denied: Owner Portal requires Master Owner credentials. Regular admins please use /admin';
+            loginError.classList.remove('hidden');
+            return;
+          }
           authToken = data.token;
           sessionStorage.setItem('xdm_admin_token', authToken);
           if (data.admin) {
@@ -977,22 +990,27 @@
     function switchTab(tabName) {
       activeTab = tabName;
       document.querySelectorAll('.nav-tab').forEach(b => {
-        if (b.dataset.tab === tabName) {
-          if (tabName === 'admins') {
-            b.className = 'nav-tab px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30';
+        const isSelected = b.dataset.tab === tabName;
+        const isAdmins = b.dataset.tab === 'admins';
+
+        let cls = 'nav-tab shrink-0 px-3 py-1.5 rounded-lg flex items-center space-x-1.5 cursor-pointer transition-all ';
+        if (isSelected) {
+          if (isAdmins) {
+            cls += 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30';
           } else {
-            b.className = 'nav-tab px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30';
+            cls += 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30';
           }
         } else {
-          if (b.dataset.tab === 'admins') {
-            b.className = 'nav-tab px-3 py-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all';
+          if (isAdmins) {
+            cls += 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent';
           } else {
-            b.className = 'nav-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all';
+            cls += 'text-slate-400 hover:text-white border border-transparent';
           }
         }
+        b.className = cls;
       });
 
-      ['overview', 'licenses', 'devices', 'users', 'audit', 'admins'].forEach(t => {
+      ['admins', 'overview', 'licenses', 'devices', 'users', 'audit'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         if (el) {
           if (t === tabName) el.classList.remove('hidden');
