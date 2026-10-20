@@ -6,14 +6,43 @@ const path = require('path');
 const os = require('os');
 const DownloadManager = require('./engine/DownloadManager');
 
+const allowedOrigins = [
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /^chrome-extension:\/\//,
+  /^moz-extension:\/\//,
+  /^vscode-webview:\/\//
+];
+
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+
+// WebSocket telemetry connection with CSWSH protection
+const wss = new WebSocketServer({
+  server,
+  verifyClient: (info, callback) => {
+    const origin = info.origin || (info.req && info.req.headers && info.req.headers.origin);
+    if (!origin) return callback(true); // Direct Electron / native IPC connection
+    const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+    if (isAllowed) return callback(true);
+    console.warn(`[Security] Blocked unauthorized WebSocket connection from origin: ${origin}`);
+    return callback(false, 403, 'Forbidden Origin');
+  }
+});
 
 const manager = new DownloadManager();
 
-app.use(cors());
-app.use(express.json());
+// Strict CORS: Only allow localhost, local dev server, and official browser extensions
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+    if (isAllowed) return callback(null, true);
+    return callback(new Error('Cross-Origin Access Denied: External websites cannot control local XDM engine.'));
+  },
+  credentials: true
+}));
+app.use(express.json({ limit: '2mb' }));
 
 // WebSocket telemetry connection
 wss.on('connection', (ws) => {
@@ -22,12 +51,17 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.6' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.9' });
 });
 
 app.get('/api/default-dir', (req, res) => {
-  const defaultDir = path.join(os.homedir(), 'Downloads');
-  res.json({ defaultDir });
+  try {
+    const home = os.homedir() || process.env.USERPROFILE || process.env.HOME || '.';
+    const defaultDir = path.join(home, 'Downloads');
+    res.json({ defaultDir });
+  } catch (e) {
+    res.json({ defaultDir: '.' });
+  }
 });
 
 app.get('/api/downloads', (req, res) => {
@@ -64,20 +98,38 @@ app.post('/api/video/download', async (req, res) => {
     const { url, formatId, title, saveDir, connections } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
+    const isFromExtension = req.headers['x-xdm-source'] === 'extension' || 
+                            req.body.isFromExtension || 
+                            (req.headers['origin'] && req.headers['origin'].includes('chrome-extension://'));
+
+    if (isFromExtension && !manager.isProVerified()) {
+      manager.broadcast({ type: 'PRO_REQUIRED', feature: 'extension' });
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Browser Video Sniffer & 4K Grabber is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to download videos directly from browsers.' 
+      });
+    }
+
     // If url is a direct media stream (e.g. from Instagram CDN, Facebook CDN, or raw MP4), route to Turbo engine
     if (url.includes('.mp4') || url.includes('cdninstagram.com') || url.includes('fbcdn.net') || url.includes('mime=video') || url.includes('bytestart=')) {
       const cleanTitle = (title || 'Video_Download').replace(/[<>:"/\\|?*]+/g, '_').trim();
       const task = await manager.addDownload({
         url,
         fileName: `${cleanTitle}.mp4`,
-        connections: parseInt(connections, 10) || 32,
+        connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4),
         saveDir,
         autoStart: true
       });
       return res.json(task);
     }
 
-    const task = await manager.addVideoDownload({ url, formatId, title, saveDir, connections: parseInt(connections, 10) || 32 });
+    const task = await manager.addVideoDownload({ 
+      url, 
+      formatId, 
+      title, 
+      saveDir, 
+      connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4) 
+    });
     res.json(task);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to start video download' });
@@ -86,16 +138,29 @@ app.post('/api/video/download', async (req, res) => {
 
 app.post('/api/downloads', async (req, res) => {
   try {
-    const { url, fileName, connections, saveDir, autoStart, category } = req.body;
+    const { url, fileName, connections, saveDir, autoStart, category, formatId } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    const isFromExtension = req.headers['x-xdm-source'] === 'extension' || 
+                            req.body.isFromExtension || 
+                            (req.headers['origin'] && req.headers['origin'].includes('chrome-extension://'));
+
+    if (isFromExtension && !manager.isProVerified()) {
+      manager.broadcast({ type: 'PRO_REQUIRED', feature: 'extension' });
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Browser Extension download capture is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to unlock seamless 1-click browser integration.' 
+      });
+    }
 
     const task = await manager.addDownload({
       url,
       fileName,
-      connections: parseInt(connections, 10) || 16,
+      connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4),
       saveDir,
       autoStart,
-      category
+      category,
+      formatId
     });
 
     res.json(task);
@@ -171,25 +236,93 @@ app.get('/api/stats', (req, res) => {
   res.json(manager.getGlobalStats());
 });
 
+app.post('/api/shutdown/cancel', (req, res) => {
+  const success = manager.cancelAutoShutdown();
+  res.json({ success });
+});
+
+function compareSemver(v1, v2) {
+  const p1 = (v1 || '').replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = (v2 || '').replace(/^[^\d]*/, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
+app.get('/api/check-update', (req, res) => {
+  const currentVersion = '1.0.9';
+  const https = require('https');
+  const ghReq = https.get('https://api.github.com/repos/zihanfakir/xdm/releases/latest', {
+    headers: {
+      'User-Agent': 'XDM-Turbo-Client/1.0.9',
+      'Accept': 'application/vnd.github.v3+json'
+    },
+    timeout: 7000
+  }, (ghRes) => {
+    let raw = '';
+    ghRes.on('data', chunk => raw += chunk);
+    ghRes.on('end', () => {
+      try {
+        if (ghRes.statusCode === 200) {
+          const release = JSON.parse(raw);
+          const latestTag = (release.tag_name || '').replace(/^v/i, '');
+          const isNewer = compareSemver(latestTag, currentVersion) > 0;
+          const exeAsset = (release.assets || []).find(a => a.name && a.name.endsWith('.exe'));
+          return res.json({
+            updateAvailable: isNewer,
+            currentVersion,
+            latestVersion: latestTag || currentVersion,
+            releaseName: release.name || `Version ${latestTag}`,
+            releaseNotes: release.body || '',
+            downloadUrl: exeAsset ? exeAsset.browser_download_url : (release.html_url || 'https://github.com/zihanfakir/xdm/releases'),
+            publishedAt: release.published_at
+          });
+        }
+        return res.json({
+          updateAvailable: false,
+          currentVersion,
+          latestVersion: currentVersion,
+          message: 'Up to date'
+        });
+      } catch (e) {
+        return res.json({ updateAvailable: false, currentVersion, error: e.message });
+      }
+    });
+  });
+
+  ghReq.on('error', (err) => {
+    res.json({ updateAvailable: false, currentVersion, offline: true, error: err.message });
+  });
+
+  ghReq.on('timeout', () => {
+    ghReq.destroy();
+    res.json({ updateAvailable: false, currentVersion, timeout: true });
+  });
+});
+
 // License API Endpoints
 app.get('/api/license', (req, res) => {
   res.json(manager.licenseManager.getStatus());
 });
 
-app.post('/api/license/activate', (req, res) => {
+app.post('/api/license/activate', async (req, res) => {
   try {
-    const { key, customerName } = req.body;
+    const { key, customerName, email } = req.body;
     if (!key) return res.status(400).json({ success: false, error: 'License key is required' });
-    const result = manager.licenseManager.activate(key, customerName);
+    const result = await manager.licenseManager.activate(key, customerName, email);
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post('/api/license/deactivate', (req, res) => {
+app.post('/api/license/deactivate', async (req, res) => {
   try {
-    const result = manager.licenseManager.deactivate();
+    const result = await manager.licenseManager.deactivate();
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -199,11 +332,13 @@ app.post('/api/license/deactivate', (req, res) => {
 const browserInstaller = require('./utils/browserInstaller');
 
 app.get('/api/extension/status', (req, res) => {
+  const extPath = path.resolve(__dirname, '../extension');
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.7',
-    path: path.resolve(__dirname, '../extension')
+    version: '1.0.9',
+    path: extPath,
+    extensionDir: extPath
   });
 });
 
@@ -214,7 +349,10 @@ app.post('/api/extension/auto-install', async (req, res) => {
 
 app.post('/api/extension/launch-browser', (req, res) => {
   const { browser } = req.body;
-  browserInstaller.openBrowserWithExtension(browser);
+  const safeBrowser = ['chrome', 'edge', 'brave'].includes(String(browser || '').toLowerCase())
+    ? String(browser).toLowerCase()
+    : 'chrome';
+  browserInstaller.openBrowserWithExtension(safeBrowser);
   res.json({ success: true });
 });
 
@@ -262,6 +400,14 @@ app.get('/extension/xdm-helper.user.js', (req, res) => {
 })();
 `);
 });
+
+// Start Central Licensing Service on port 19685 in local dev/standalone mode
+try {
+  const { startServer } = require('../license-server/server');
+  startServer(process.env.LICENSE_SERVER_PORT || 19685).catch(() => {});
+} catch (e) {
+  console.log('[Licensing Server] Running in external mode');
+}
 
 // Serve compiled static UI files if present
 const distPath = path.join(__dirname, '../dist');

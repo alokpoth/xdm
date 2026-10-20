@@ -11,7 +11,11 @@ import {
   Zap,
   ChevronDown,
   Crown,
-  Sparkles
+  Sparkles,
+  Command,
+  Sun,
+  Moon,
+  AlertTriangle
 } from 'lucide-react';
 import { LicenseInfo } from '../types';
 
@@ -28,6 +32,10 @@ interface TopNavbarProps {
   onSearchChange: (q: string) => void;
   speedLimit: number;
   onSpeedLimitChange: (limit: number) => void;
+  updateAvailable?: boolean;
+  onOpenUpdateModal?: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 const TopNavbarComponent: React.FC<TopNavbarProps> = ({
@@ -42,7 +50,11 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
   searchQuery,
   onSearchChange,
   speedLimit,
-  onSpeedLimitChange
+  onSpeedLimitChange,
+  updateAvailable,
+  onOpenUpdateModal,
+  theme,
+  onToggleTheme
 }) => {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const speedMenuRef = useRef<HTMLDivElement>(null);
@@ -64,15 +76,17 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
 
   const speedOptions = [
     { label: 'Turbo (Unlimited)', value: 0 },
-    { label: '50 MB/s', value: 50 * 1024 * 1024 },
-    { label: '20 MB/s', value: 20 * 1024 * 1024 },
-    { label: '10 MB/s', value: 10 * 1024 * 1024 },
-    { label: '5 MB/s', value: 5 * 1024 * 1024 },
-    { label: '2 MB/s', value: 2 * 1024 * 1024 },
+    { label: '50 MB/s', value: 50 * 1024 },
+    { label: '20 MB/s', value: 20 * 1024 },
+    { label: '10 MB/s', value: 10 * 1024 },
+    { label: '5 MB/s', value: 5 * 1024 },
+    { label: '2 MB/s', value: 2 * 1024 },
+    { label: '1 MB/s', value: 1024 },
+    { label: '512 KB/s', value: 512 }
   ];
 
   return (
-    <header className="h-14 min-h-[56px] shrink-0 bg-[#0d121d]/90 border-b border-slate-800/80 px-3 sm:px-4 flex items-center justify-between gap-2 backdrop-blur-md z-40 select-none overflow-visible">
+    <header className="h-13 min-h-[52px] shrink-0 border-b border-white/[0.06] px-4 sm:px-5 flex items-center justify-between gap-3 backdrop-blur-xl z-40 select-none overflow-visible">
       {/* Left: Quick Actions */}
       <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
         <button
@@ -81,14 +95,14 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onOpenAddModal();
           }}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 shrink-0 cursor-pointer focus:outline-none select-none"
-          title="Add New Download Link"
+          className="btn-emerald-glow flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold shrink-0 cursor-pointer select-none"
+          title="Add New Download Link (Ctrl+N or Ctrl+V)"
         >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span className="font-bold whitespace-nowrap">Add URL</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span className="whitespace-nowrap tracking-tight">Add URL</span>
         </button>
 
-        <div className="h-4 w-[1px] bg-slate-800 mx-0.5 sm:mx-1 shrink-0" />
+        <div className="h-4 w-[1px] bg-white/[0.08] mx-0.5 sm:mx-1 shrink-0" />
 
         <button
           type="button"
@@ -96,10 +110,10 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onResumeAll();
           }}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 hover:text-white text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
           title="Resume All Downloads"
         >
-          <Play className="w-3.5 h-3.5 fill-current text-emerald-400 shrink-0" />
+          <Play className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400 shrink-0" />
           <span className="hidden xl:inline whitespace-nowrap">Resume All</span>
         </button>
 
@@ -109,10 +123,10 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onPauseAll();
           }}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 hover:text-white text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
           title="Pause All Downloads"
         >
-          <Pause className="w-3.5 h-3.5 fill-current text-amber-400 shrink-0" />
+          <Pause className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
           <span className="hidden xl:inline whitespace-nowrap">Pause All</span>
         </button>
 
@@ -122,7 +136,7 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onClearFinished();
           }}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-rose-400 text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.06] hover:border-rose-500/30 text-slate-400 hover:text-rose-300 text-xs font-medium transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
           title="Clear Completed Tasks from List"
         >
           <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -131,17 +145,25 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
       </div>
 
       {/* Right: Search, Speed Throttle, Browser Extension, Settings */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
-        {/* Search input */}
-        <div className="relative w-32 sm:w-44 md:w-52 transition-all">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="flex items-center space-x-2 shrink-0">
+        {/* Search input with Command indicator */}
+        <div className="relative w-36 sm:w-48 md:w-56 transition-all group">
+          <Search className="w-3.5 h-3.5 text-slate-500 group-focus-within:text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors" />
           <input
             type="text"
-            placeholder="Search tasks..."
+            placeholder="Search downloads..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-8 pr-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-slate-800 focus:border-emerald-500/50 focus:outline-none text-xs text-slate-200 placeholder-slate-500 transition-all select-text"
+            className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-[#0b101c] theme-input border border-white/[0.08] focus:border-emerald-500/50 text-xs text-slate-200 theme-text-primary placeholder-slate-500 transition-all select-text shadow-inner"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-[10px] font-mono cursor-pointer"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Speed Limiter selector */}
@@ -152,46 +174,64 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
               e.stopPropagation();
               setShowSpeedMenu(!showSpeedMenu);
             }}
-            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95 cursor-pointer focus:outline-none select-none ${
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all active:scale-95 cursor-pointer focus:outline-none select-none ${
               speedLimit === 0 
-                ? 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700' 
-                : 'bg-amber-950/40 text-amber-400 border-amber-500/30'
+                ? 'bg-white/[0.05] text-slate-300 border-white/[0.06] hover:border-white/[0.12]' 
+                : 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
             }`}
             title="Download Speed Throttle"
           >
             {speedLimit === 0 ? (
-              <Zap className="w-3.5 h-3.5 text-emerald-400 fill-emerald-500/30" />
+              <Zap className="w-3.5 h-3.5 text-emerald-400 fill-emerald-500/40" />
             ) : (
               <Gauge className="w-3.5 h-3.5 text-amber-400" />
             )}
-            <span className="hidden sm:inline font-mono text-[11px] font-semibold">
-              {speedLimit === 0 ? 'Turbo' : `${Math.round(speedLimit / (1024*1024))}M/s`}
+            <span className="hidden sm:inline font-mono text-[11px] font-semibold tabular-nums">
+              {speedLimit === 0 ? 'Turbo' : speedLimit >= 1024 ? `${Math.round(speedLimit / 1024)}M/s` : `${speedLimit}K/s`}
             </span>
             <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showSpeedMenu ? 'rotate-180' : ''}`} />
           </button>
 
           {showSpeedMenu && (
-            <div className="absolute right-0 mt-1 w-48 rounded-xl bg-[#121826] border border-slate-800 shadow-2xl py-1.5 z-50 animate-fadeIn">
-              <div className="px-3 py-1 text-[10px] uppercase font-mono tracking-wider text-slate-500 font-semibold border-b border-slate-800/80 mb-1">
-                Bandwidth Throttle
+            <div className="absolute right-0 mt-2 w-52 rounded-2xl liquid-modal-panel border border-white/[0.1] shadow-2xl py-2 z-50 animate-fadeIn backdrop-blur-2xl">
+              <div className="px-3.5 py-1 text-[10px] uppercase font-mono tracking-wider text-slate-400 theme-text-secondary font-bold border-b border-white/[0.06] mb-1.5 flex items-center justify-between">
+                <span>Speed Limiter</span>
+                <span className="text-emerald-400 font-normal">Active</span>
               </div>
-              {speedOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSpeedLimitChange(opt.value);
-                    setShowSpeedMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors cursor-pointer focus:outline-none select-none ${
-                    speedLimit === opt.value ? 'text-emerald-400 font-semibold bg-emerald-500/10' : 'text-slate-300'
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  {speedLimit === opt.value && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>}
-                </button>
-              ))}
+              {speedOptions.map((opt) => {
+                const isProUser = Boolean(license?.isPro);
+                const isLocked = !isProUser && opt.value > 0;
+
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isLocked) {
+                        onOpenLicenseModal();
+                        setShowSpeedMenu(false);
+                        return;
+                      }
+                      onSpeedLimitChange(opt.value);
+                      setShowSpeedMenu(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-1.5 text-xs flex items-center justify-between hover:bg-white/[0.06] transition-colors cursor-pointer focus:outline-none select-none ${
+                      speedLimit === opt.value ? 'text-emerald-300 font-bold bg-emerald-500/10' : 'text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="tabular-nums font-mono">{opt.label}</span>
+                      {isLocked && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30">
+                          PRO
+                        </span>
+                      )}
+                    </div>
+                    {speedLimit === opt.value && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]"></span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -203,26 +243,42 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onOpenBrowserModal();
           }}
-          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 hover:text-white transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
-          title="Browser Extension Integration"
+          className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/[0.12] text-xs font-medium text-slate-300 hover:text-white transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          title="Browser Extension Integration (Chrome, Edge, Firefox, Brave)"
         >
-          <Globe className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+          <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
           <span className="hidden lg:inline text-[11px] whitespace-nowrap">Extension</span>
         </button>
 
-        {/* License PRO Status / Admin / Upgrade Button */}
-        {license?.isAdmin ? (
+        {/* Update Available Badge */}
+        {updateAvailable && onOpenUpdateModal && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenUpdateModal();
+            }}
+            className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-400/50 text-emerald-300 text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer focus:outline-none animate-bounce"
+            title="A new version of XDM Turbo is available! Click to update."
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[11px] font-bold whitespace-nowrap">Update</span>
+          </button>
+        )}
+
+        {/* License PRO Status / Banned / Upgrade Button */}
+        {license?.isBanned || license?.status === 'banned' ? (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onOpenLicenseModal();
             }}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/25 to-yellow-500/20 hover:from-amber-500/35 hover:to-yellow-500/30 border border-amber-400/60 text-amber-200 text-xs font-bold transition-all shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
-            title="👑 Master Admin Active (Unlimited Devices & 64 Streams)"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-rose-300 text-xs font-bold transition-all shadow-md shadow-rose-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
+            title="⛔ Hardware Locked due to Security / Tamper Detection"
           >
-            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-            <span className="font-mono text-[11px] font-bold tracking-wide">ADMIN</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            <span className="font-mono text-[11px] font-extrabold tracking-wide">BANNED</span>
           </button>
         ) : license?.isPro ? (
           <button
@@ -231,11 +287,11 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
               e.stopPropagation();
               onOpenLicenseModal();
             }}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
-            title="PRO Lifetime Active (Hardware-Locked to this PC)"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
+            title="PRO Lifetime Active (64 Turbo Streams & 4K Video Unlocked)"
           >
             <Crown className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 shrink-0" />
-            <span className="font-mono text-[11px] font-bold tracking-wide">PRO</span>
+            <span className="font-mono text-[11px] font-extrabold tracking-wide">PRO</span>
           </button>
         ) : (
           <button
@@ -244,13 +300,27 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
               e.stopPropagation();
               onOpenLicenseModal();
             }}
-            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer focus:outline-none select-none animate-pulse"
-            title="Activate XDM Turbo PRO (32 streams & 4K video)"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer focus:outline-none select-none animate-pulse"
+            title="Activate XDM Turbo PRO (64 streams & 4K video)"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="text-[11px] font-bold whitespace-nowrap">Activate PRO</span>
+            <span className="text-[11px] font-bold whitespace-nowrap">PRO</span>
           </button>
         )}
+
+        {/* Theme Toggle Button (Light & Dark Liquid Glass Mode) */}
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="w-8.5 h-8.5 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/[0.12] text-slate-400 hover:text-amber-300 transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          title={theme === 'dark' ? 'Switch to Light Glass Theme' : 'Switch to Dark Liquid Glass Theme'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+          ) : (
+            <Moon className="w-4 h-4 text-sky-400 shrink-0" />
+          )}
+        </button>
 
         {/* Settings Button */}
         <button
@@ -259,7 +329,7 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
             e.stopPropagation();
             onOpenSettingsModal();
           }}
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
+          className="w-8.5 h-8.5 flex items-center justify-center rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.06] hover:border-white/[0.12] text-slate-400 hover:text-white transition-all shrink-0 active:scale-95 cursor-pointer focus:outline-none select-none"
           title="Settings & Preferences"
         >
           <Settings className="w-4 h-4 shrink-0" />

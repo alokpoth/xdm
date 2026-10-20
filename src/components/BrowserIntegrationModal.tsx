@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Copy, Check, ExternalLink, Code, Zap } from 'lucide-react';
+import { X, Globe, Check, Zap, ExternalLink, ShieldCheck } from 'lucide-react';
 
 interface BrowserIntegrationModalProps {
   isOpen: boolean;
@@ -10,28 +10,17 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
   isOpen,
   onClose
 }) => {
-  const [copiedScript, setCopiedScript] = useState(false);
-  const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
-  const [copiedExtPath, setCopiedExtPath] = useState(false);
   const [autoInstalled, setAutoInstalled] = useState(false);
-  const [extensionPath, setExtensionPath] = useState('E:\\XDM\\extension');
 
   useEffect(() => {
-    if (isOpen) {
-      fetch('/api/extension/status')
-        .then(res => res.json())
-        .then(data => {
-          if (data.extensionDir) setExtensionPath(data.extensionDir);
-        })
-        .catch(() => {});
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onClose();
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, onClose]);
+  if (!isOpen) return null;
 
   const handleAutoInstall = async () => {
     try {
@@ -52,171 +41,103 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
     });
   };
 
-  if (!isOpen) return null;
-
-  const scriptUrl = 'http://127.0.0.1:19684/extension/xdm-helper.user.js';
-  const bookmarkletCode = `javascript:(function(){const u=prompt('Enter or confirm download URL:', window.location.href);if(u){fetch('http://127.0.0.1:19684/api/downloads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:u,autoStart:true})}).then(()=>alert('Sent to XDM Turbo!')).catch(()=>alert('Could not connect to XDM engine'));}})();`;
-
-  const handleCopyScriptUrl = () => {
-    navigator.clipboard.writeText(scriptUrl);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 2000);
-  };
-
-  const handleCopyBookmarklet = () => {
-    navigator.clipboard.writeText(bookmarkletCode);
-    setCopiedBookmarklet(true);
-    setTimeout(() => setCopiedBookmarklet(false), 2000);
-  };
-
-  const handleCopyExtPath = () => {
-    navigator.clipboard.writeText(extensionPath);
-    setCopiedExtPath(true);
-    setTimeout(() => setCopiedExtPath(false), 2000);
-  };
-
   return (
     <div 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md select-none animate-fadeIn"
     >
-      <div className="w-full max-w-xl rounded-2xl bg-[#0f1422] border border-slate-800 shadow-2xl overflow-hidden">
+      <div className="w-full max-w-lg rounded-3xl liquid-modal-panel border shadow-2xl overflow-hidden backdrop-blur-2xl">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-              <Globe className="w-4 h-4" />
+        <div className="px-6 py-4.5 border-b border-white/[0.08] flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-sky-500/25 to-blue-400/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-sm">
+              <Globe className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h2 className="font-semibold text-sm text-white">Browser Integration</h2>
-              <p className="text-[11px] text-slate-400">Automatic Extension Installer & Video Grabber</p>
+              <h2 className="font-bold text-sm text-white theme-text-primary tracking-tight">Browser Integration</h2>
+              <p className="text-[11px] text-slate-400 theme-text-secondary">Automatic Extension & 1-Click Video Grabber</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none select-none"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white theme-text-secondary hover:bg-white/[0.08] transition-colors cursor-pointer focus:outline-none"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
-          {/* Method 1: Official Native Chrome / Edge / Brave Extension */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30 space-y-2.5">
+        <div className="p-6 space-y-4 text-xs">
+          {/* Main Extension Card */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/30 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-emerald-300 font-mono text-[12px] flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Automatic Extension Integration</span>
-              </span>
-              <span className="text-[10px] bg-emerald-500 text-black px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                IDM Auto Mode
+              <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400">
+                <Zap className="w-4 h-4" />
+                <span>Automatic Browser Integration</span>
+              </div>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                Active
               </span>
             </div>
-            <p className="text-slate-200 leading-relaxed text-[11px]">
-              When XDM is installed or run, it automatically registers with Chrome, Edge, and Brave via Windows Registry!
+
+            <p className="text-slate-300 theme-text-secondary leading-relaxed text-[11px]">
+              XDM Turbo automatically intercepts downloads in Google Chrome, Microsoft Edge, and Brave Browser. Simply click any download link on the web to accelerate it.
             </p>
-            
+
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 onClick={handleAutoInstall}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all flex items-center space-x-1.5 shadow-md shadow-emerald-500/20 cursor-pointer focus:outline-none select-none"
+                className="btn-emerald-glow px-4 py-2 rounded-xl text-xs font-bold text-black transition-all flex items-center space-x-1.5 cursor-pointer shadow-md active:scale-95"
               >
-                {autoInstalled ? <Check className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
-                <span>{autoInstalled ? 'Registered in Windows Registry!' : 'Auto-Register in Windows Registry'}</span>
+                {autoInstalled ? <Check className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                <span>{autoInstalled ? 'Integration Active!' : 'Sync Browser Integration'}</span>
               </button>
 
               <button
                 onClick={() => handleLaunchBrowser('chrome')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer focus:outline-none select-none"
+                className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white font-medium text-xs cursor-pointer active:scale-95"
               >
                 Open Chrome
               </button>
 
               <button
                 onClick={() => handleLaunchBrowser('edge')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer focus:outline-none select-none"
+                className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white font-medium text-xs cursor-pointer active:scale-95"
               >
                 Open Edge
               </button>
 
               <button
-                onClick={handleCopyExtPath}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-all flex items-center space-x-1 cursor-pointer focus:outline-none select-none"
-                title="Copy folder path"
+                onClick={() => handleLaunchBrowser('brave')}
+                className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white font-medium text-xs cursor-pointer active:scale-95"
               >
-                {copiedExtPath ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedExtPath ? 'Path Copied!' : 'Copy Path'}</span>
+                Open Brave
               </button>
             </div>
           </div>
 
-          {/* Method 2: Tampermonkey Userscript */}
-          <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-emerald-400 font-mono text-[11px]">
-                Option 2: 1-Click Tampermonkey Userscript
-              </span>
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
-                Alternative
-              </span>
-            </div>
-            <p className="text-slate-300 leading-relaxed text-[11px]">
-              Install the official XDM Userscript via <strong>Tampermonkey</strong> or <strong>Violentmonkey</strong>. Any download link you click in your browser will automatically open in XDM!
+          {/* Video Grabber Feature Card */}
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+            <h4 className="text-xs font-bold text-slate-200 theme-text-primary flex items-center space-x-1.5">
+              <span>🎬 4K & Ultra HD Video Grabber</span>
+            </h4>
+            <p className="text-slate-400 theme-text-secondary text-[11px] leading-relaxed">
+              When playing videos on YouTube, Facebook, Vimeo, or web video players, a floating <strong>Download Video</strong> button appears above the player so you can save videos in up to 4K resolution with 1 click.
             </p>
-            <div className="flex items-center space-x-2 pt-1">
-              <a
-                href={scriptUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition-all flex items-center space-x-1"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Install Userscript</span>
-              </a>
-              <button
-                onClick={handleCopyScriptUrl}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1 transition-all cursor-pointer focus:outline-none select-none"
-              >
-                {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedScript ? 'Copied Link!' : 'Copy Script URL'}</span>
-              </button>
-            </div>
           </div>
 
-          {/* Method 2: 1-Click Bookmarklet */}
-          <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
-            <span className="font-semibold text-blue-400 font-mono text-[11px]">
-              Option 2: Browser Bookmarklet
-            </span>
-            <p className="text-slate-300 leading-relaxed text-[11px]">
-              Drag or copy this bookmarklet to your browser's bookmarks bar. Click it on any page to immediately download files with XDM!
-            </p>
-            <button
-              onClick={handleCopyBookmarklet}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5 transition-all cursor-pointer focus:outline-none select-none"
-            >
-              {copiedBookmarklet ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Code className="w-3.5 h-3.5" />}
-              <span>{copiedBookmarklet ? 'Bookmarklet Copied!' : 'Copy Bookmarklet Code'}</span>
-            </button>
-          </div>
-
-          {/* Method 3: REST API */}
-          <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-1.5 font-mono text-[11px]">
-            <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-              Developer & CLI Hook
-            </span>
-            <div className="p-2 rounded bg-black/60 text-slate-300 break-all select-text">
-              curl -X POST http://127.0.0.1:19684/api/downloads -H &quot;Content-Type: application/json&quot; -d &apos;&#123;&quot;url&quot;: &quot;https://example.com/file.zip&quot;, &quot;connections&quot;: 16&#125;&apos;
-            </div>
+          {/* Seamless Experience Info */}
+          <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-300 flex items-center space-x-2 text-[11px]">
+            <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>Fully secured, ad-free, and approved for all Chromium browsers.</span>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 bg-slate-900/60 border-t border-slate-800 flex justify-end">
+        <div className="px-6 py-3.5 border-t border-white/[0.08] flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer focus:outline-none select-none"
+            className="px-5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer active:scale-95"
           >
             Close
           </button>

@@ -1,0 +1,488 @@
+const path = require('path');
+const fs = require('fs');
+const { DatabaseSync } = require('node:sqlite');
+const crypto = require('./crypto');
+
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, '../data/licenses.db');
+
+class LicenseDatabase {
+  constructor() {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    this.db = new DatabaseSync(DB_PATH);
+    this.initTables();
+    this.ensureDefaultAdmin();
+  }
+
+  initTables() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE,
+        consent_telemetry INTEGER DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS licenses (
+        id TEXT PRIMARY KEY,
+        key TEXT UNIQUE NOT NULL,
+        edition TEXT NOT NULL DEFAULT 'pro',
+        user_id TEXT,
+        customer_name TEXT,
+        customer_email TEXT,
+        max_devices INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'active',
+        issued_at INTEGER NOT NULL,
+        expires_at INTEGER,
+        notes TEXT,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(key);
+      CREATE INDEX IF NOT EXISTS idx_licenses_status ON licenses(status);
+
+      CREATE TABLE IF NOT EXISTS devices (
+        id TEXT NOT NULL,
+        license_id TEXT NOT NULL,
+        user_id TEXT,
+        device_name TEXT,
+        os_platform TEXT,
+        client_version TEXT,
+        ip_address TEXT,
+        activated_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (id, license_id),
+        FOREIGN KEY (license_id) REFERENCES licenses(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_devices_license ON devices(license_id);
+      CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen_at);
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        event_type TEXT NOT NULL,
+        license_id TEXT,
+        device_id TEXT,
+        ip_address TEXT,
+        details TEXT,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_logs(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS device_security (
+        device_id TEXT PRIMARY KEY,
+        ip_address TEXT,
+        failed_attempts INTEGER NOT NULL DEFAULT 0,
+        is_banned INTEGER NOT NULL DEFAULT 0,
+        banned_at INTEGER,
+        ban_reason TEXT,
+        last_attempt_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_device_security_banned ON device_security(is_banned);
+
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'superadmin',
+        created_at INTEGER NOT NULL
+      );
+    `);
+  }
+
+  ensureDefaultAdmin() {
+    const check = this.db.prepare('SELECT COUNT(*) as count FROM admin_users').get();
+    if (check.count === 0) {
+      if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+        console.warn('⚠️ [SECURITY WARNING] ADMIN_PASSWORD environment variable is NOT set in production! Using fallback. Please configure a custom secure ADMIN_PASSWORD immediately.');
+      }
+      const defaultPass = process.env.ADMIN_PASSWORD || 'zihan2026';
+      const passwordHash = crypto.hashPassword(defaultPass);
+      this.db.prepare(`
+        INSERT INTO admin_users (id, username, password_hash, role, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('admin_root', 'admin', passwordHash, 'superadmin', Date.now());
+      console.log('[Database] Initialized default admin account: "admin"');
+    }
+  }
+
+  // --- Audit Logging ---
+  logEvent(eventType, licenseId, deviceId, ipAddress, details = {}) {
+    const id = crypto.generateId('log');
+    const now = Date.now();
+    this.db.prepare(`
+      INSERT INTO audit_logs (id, event_type, license_id, device_id, ip_address, details, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, eventType, licenseId || null, deviceId || null, ipAddress || null, JSON.stringify(details), now);
+  }
+
+  getAuditLogs(limit = 100, offset = 0) {
+    return this.db.prepare(`
+      SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?
+    `).all(limit, offset);
+  }
+
+  // --- User Operations ---
+  getOrCreateUser(email, consentTelemetry = true) {
+    if (!email) return null;
+    const existing = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const now = Date.now();
+    if (existing) {
+      this.db.prepare('UPDATE users SET last_seen_at = ? WHERE id = ?').run(now, existing.id);
+      return existing;
+    }
+    const id = crypto.generateId('usr');
+    this.db.prepare(`
+      INSERT INTO users (id, email, consent_telemetry, created_at, last_seen_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, email, consentTelemetry ? 1 : 0, now, now);
+    return { id, email, consent_telemetry: consentTelemetry ? 1 : 0, created_at: now, last_seen_at: now };
+  }
+
+  getAllUsers(limit = 50, offset = 0) {
+    return this.db.prepare(`
+      SELECT u.*, 
+        (SELECT COUNT(DISTINCT d.id) FROM devices d WHERE d.user_id = u.id AND d.is_active = 1) as active_devices_count,
+        (SELECT COUNT(*) FROM licenses l WHERE l.user_id = u.id) as licenses_count
+      FROM users u ORDER BY u.last_seen_at DESC LIMIT ? OFFSET ?
+    `).all(limit, offset);
+  }
+
+  // --- License Operations ---
+  createLicense(options = {}) {
+    const id = crypto.generateId('lic');
+    const key = options.key || crypto.generateLicenseKey(options.edition || 'PRO');
+    const edition = options.edition || 'pro';
+    const maxDevices = parseInt(options.maxDevices, 10) || 1;
+    const issuedAt = Date.now();
+    const expiresAt = options.expiresAt ? parseInt(options.expiresAt, 10) : null;
+    const customerName = options.customerName || null;
+    const customerEmail = options.customerEmail || null;
+    const notes = options.notes || null;
+    let userId = options.userId || null;
+
+    if (customerEmail && !userId) {
+      const user = this.getOrCreateUser(customerEmail, true);
+      userId = user ? user.id : null;
+    }
+
+    this.db.prepare(`
+      INSERT INTO licenses (id, key, edition, user_id, customer_name, customer_email, max_devices, status, issued_at, expires_at, notes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+    `).run(id, key, edition, userId, customerName, customerEmail, maxDevices, issuedAt, expiresAt, notes, issuedAt);
+
+    this.logEvent('license_created', id, null, 'server', { key, edition, maxDevices, customerName, customerEmail });
+    return this.getLicenseById(id);
+  }
+
+  getLicenseByKey(key) {
+    if (!key) return null;
+    const cleanKey = key.trim().toUpperCase();
+    return this.db.prepare('SELECT * FROM licenses WHERE key = ?').get(cleanKey);
+  }
+
+  getLicenseById(id) {
+    return this.db.prepare('SELECT * FROM licenses WHERE id = ?').get(id);
+  }
+
+  getAllLicenses(options = {}) {
+    let query = 'SELECT l.*, (SELECT COUNT(*) FROM devices d WHERE d.license_id = l.id AND d.is_active = 1) as active_devices FROM licenses l WHERE 1=1';
+    const params = [];
+
+    if (options.status) {
+      query += ' AND l.status = ?';
+      params.push(options.status);
+    }
+    if (options.edition) {
+      query += ' AND l.edition = ?';
+      params.push(options.edition);
+    }
+    if (options.search) {
+      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ?)';
+      const s = `%${options.search}%`;
+      params.push(s, s, s, s);
+    }
+
+    query += ' ORDER BY l.created_at DESC';
+
+    if (options.limit) {
+      query += ' LIMIT ? OFFSET ?';
+      params.push(options.limit, options.offset || 0);
+    }
+
+    return this.db.prepare(query).all(...params);
+  }
+
+  getLicensesCount(options = {}) {
+    let query = 'SELECT COUNT(*) as count FROM licenses l WHERE 1=1';
+    const params = [];
+
+    if (options.status) {
+      query += ' AND l.status = ?';
+      params.push(options.status);
+    }
+    if (options.edition) {
+      query += ' AND l.edition = ?';
+      params.push(options.edition);
+    }
+    if (options.search) {
+      query += ' AND (l.key LIKE ? OR l.customer_name LIKE ? OR l.customer_email LIKE ? OR l.notes LIKE ?)';
+      const s = `%${options.search}%`;
+      params.push(s, s, s, s);
+    }
+
+    const res = this.db.prepare(query).get(...params);
+    return res ? res.count : 0;
+  }
+
+  updateLicenseStatus(id, newStatus, reason = '') {
+    this.db.prepare('UPDATE licenses SET status = ? WHERE id = ?').run(newStatus, id);
+    this.logEvent(`license_${newStatus}`, id, null, 'admin', { reason });
+    return this.getLicenseById(id);
+  }
+
+  updateLicenseMaxDevices(id, maxDevices) {
+    this.db.prepare('UPDATE licenses SET max_devices = ? WHERE id = ?').run(parseInt(maxDevices, 10), id);
+    this.logEvent('license_max_devices_changed', id, null, 'admin', { maxDevices });
+    return this.getLicenseById(id);
+  }
+
+  // --- Device Operations ---
+  getDevicesForLicense(licenseId) {
+    return this.db.prepare(`
+      SELECT * FROM devices WHERE license_id = ? ORDER BY activated_at DESC
+    `).all(licenseId);
+  }
+
+  getActiveDeviceCount(licenseId) {
+    const res = this.db.prepare(`
+      SELECT COUNT(*) as count FROM devices WHERE license_id = ? AND is_active = 1
+    `).get(licenseId);
+    return res ? res.count : 0;
+  }
+
+  getDevice(deviceId, licenseId) {
+    return this.db.prepare(`
+      SELECT * FROM devices WHERE id = ? AND license_id = ?
+    `).get(deviceId, licenseId);
+  }
+
+  registerOrUpdateDevice(deviceId, licenseId, options = {}) {
+    const existing = this.getDevice(deviceId, licenseId);
+    const now = Date.now();
+
+    if (existing) {
+      this.db.prepare(`
+        UPDATE devices 
+        SET is_active = 1, last_seen_at = ?, device_name = coalesce(?, device_name), 
+            os_platform = coalesce(?, os_platform), client_version = coalesce(?, client_version),
+            ip_address = coalesce(?, ip_address)
+        WHERE id = ? AND license_id = ?
+      `).run(now, options.deviceName || null, options.osPlatform || null, options.clientVersion || null, options.ipAddress || null, deviceId, licenseId);
+      return this.getDevice(deviceId, licenseId);
+    }
+
+    this.db.prepare(`
+      INSERT INTO devices (id, license_id, user_id, device_name, os_platform, client_version, ip_address, activated_at, last_seen_at, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(
+      deviceId,
+      licenseId,
+      options.userId || null,
+      options.deviceName || 'Desktop PC',
+      options.osPlatform || 'Windows',
+      options.clientVersion || '1.0.8',
+      options.ipAddress || null,
+      now,
+      now
+    );
+
+    return this.getDevice(deviceId, licenseId);
+  }
+
+  updateDeviceHeartbeat(deviceId, licenseId, ipAddress = null) {
+    const now = Date.now();
+    this.db.prepare(`
+      UPDATE devices SET last_seen_at = ?, ip_address = coalesce(?, ip_address)
+      WHERE id = ? AND license_id = ?
+    `).run(now, ipAddress, deviceId, licenseId);
+  }
+
+  deactivateDevice(deviceId, licenseId, reason = 'user_requested') {
+    this.db.prepare(`
+      UPDATE devices SET is_active = 0 WHERE id = ? AND license_id = ?
+    `).run(deviceId, licenseId);
+    this.logEvent('device_deactivated', licenseId, deviceId, 'client', { reason });
+    return true;
+  }
+
+  getAllDevices(limit = 100, offset = 0, search = '') {
+    let query = `
+      SELECT d.id, d.license_id, d.user_id, d.device_name, d.os_platform, d.client_version, d.ip_address,
+             d.activated_at, d.last_seen_at, d.is_active,
+             l.key as license_key, l.edition, l.customer_name,
+             coalesce(s.is_banned, 0) as is_banned,
+             s.ban_reason,
+             coalesce(s.failed_attempts, 0) as failed_attempts,
+             s.banned_at
+      FROM devices d
+      JOIN licenses l ON d.license_id = l.id
+      LEFT JOIN device_security s ON d.id = s.device_id
+      UNION ALL
+      SELECT s.device_id as id, 'NONE' as license_id, NULL as user_id, 'Blocked PC / Intruder' as device_name,
+             'Unknown' as os_platform, '—' as client_version, s.ip_address,
+             s.banned_at as activated_at, s.last_attempt_at as last_seen_at, 0 as is_active,
+             '—' as license_key, 'UNREGISTERED' as edition, 'Banned Intruder' as customer_name,
+             1 as is_banned, s.ban_reason, s.failed_attempts, s.banned_at
+      FROM device_security s
+      WHERE s.is_banned = 1 AND s.device_id NOT IN (SELECT id FROM devices)
+    `;
+    const params = [];
+    if (search) {
+      query = `SELECT * FROM (${query}) WHERE id LIKE ? OR device_name LIKE ? OR license_key LIKE ? OR customer_name LIKE ?`;
+      const s = `%${search}%`;
+      params.push(s, s, s, s);
+    }
+    query += ' ORDER BY last_seen_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+    return this.db.prepare(query).all(...params);
+  }
+
+  // --- Device Security & Anti-Brute Force Protection ---
+  isDeviceBanned(deviceId) {
+    if (!deviceId) return false;
+    const row = this.db.prepare('SELECT is_banned, ban_reason, banned_at, failed_attempts FROM device_security WHERE device_id = ?').get(deviceId);
+    if (!row) return false;
+    return row.is_banned === 1 ? row : false;
+  }
+
+  recordFailedAttempt(deviceId, ip, attemptedKey, threshold = 10) {
+    if (!deviceId) return { banned: false, failedAttempts: 0, remainingAttempts: threshold };
+    const now = Date.now();
+    const existing = this.db.prepare('SELECT failed_attempts, is_banned FROM device_security WHERE device_id = ?').get(deviceId);
+
+    let newCount = 1;
+    let isBanned = 0;
+    let banReason = null;
+    let bannedAt = null;
+
+    if (existing) {
+      if (existing.is_banned === 1) {
+        return { banned: true, failedAttempts: existing.failed_attempts, remainingAttempts: 0 };
+      }
+      newCount = existing.failed_attempts + 1;
+    }
+
+    if (newCount >= threshold) {
+      isBanned = 1;
+      banReason = `Exceeded ${threshold} invalid key activation attempts (Anti-Brute Force Protection)`;
+      bannedAt = now;
+      this.logEvent('device_auto_banned', null, deviceId, ip, {
+        attemptedKey,
+        failedAttempts: newCount,
+        threshold
+      });
+    }
+
+    this.db.prepare(`
+      INSERT INTO device_security (device_id, ip_address, failed_attempts, is_banned, banned_at, ban_reason, last_attempt_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(device_id) DO UPDATE SET
+        failed_attempts = excluded.failed_attempts,
+        ip_address = coalesce(excluded.ip_address, device_security.ip_address),
+        is_banned = excluded.is_banned,
+        banned_at = coalesce(excluded.banned_at, device_security.banned_at),
+        ban_reason = coalesce(excluded.ban_reason, device_security.ban_reason),
+        last_attempt_at = excluded.last_attempt_at
+    `).run(deviceId, ip, newCount, isBanned, bannedAt, banReason, now);
+
+    return {
+      banned: isBanned === 1,
+      failedAttempts: newCount,
+      remainingAttempts: Math.max(0, threshold - newCount)
+    };
+  }
+
+  clearFailedAttempts(deviceId) {
+    if (!deviceId) return;
+    this.db.prepare('UPDATE device_security SET failed_attempts = 0 WHERE device_id = ? AND is_banned = 0').run(deviceId);
+  }
+
+  unbanDevice(deviceId, adminUsername = 'admin') {
+    if (!deviceId) return false;
+    this.db.prepare(`
+      UPDATE device_security 
+      SET is_banned = 0, failed_attempts = 0, banned_at = NULL, ban_reason = NULL, last_attempt_at = ?
+      WHERE device_id = ?
+    `).run(Date.now(), deviceId);
+    this.logEvent('device_unbanned', null, deviceId, 'admin', { unbannedBy: adminUsername });
+    return true;
+  }
+
+  banDeviceManually(deviceId, reason = 'Manually banned by admin', adminUsername = 'admin') {
+    if (!deviceId) return false;
+    const now = Date.now();
+    this.db.prepare(`
+      INSERT INTO device_security (device_id, ip_address, failed_attempts, is_banned, banned_at, ban_reason, last_attempt_at)
+      VALUES (?, NULL, 10, 1, ?, ?, ?)
+      ON CONFLICT(device_id) DO UPDATE SET
+        is_banned = 1,
+        banned_at = excluded.banned_at,
+        ban_reason = excluded.ban_reason,
+        last_attempt_at = excluded.last_attempt_at
+    `).run(deviceId, now, reason, now);
+    this.logEvent('device_manual_banned', null, deviceId, 'admin', { bannedBy: adminUsername, reason });
+    return true;
+  }
+
+  getAllBannedDevices() {
+    return this.db.prepare(`
+      SELECT * FROM device_security WHERE is_banned = 1 ORDER BY banned_at DESC
+    `).all();
+  }
+
+  // --- Metrics Overview ---
+  getOverviewMetrics() {
+    const now = Date.now();
+    const twoMinutesAgo = now - (2 * 60 * 1000); // 1-minute heartbeat interval gives real-time active users
+    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+
+    const totalUsers = this.db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    const totalLicenses = this.db.prepare('SELECT COUNT(*) as count FROM licenses').get().count;
+    const activeLicenses = this.db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'").get().count;
+    const revokedLicenses = this.db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'revoked'").get().count;
+    const suspendedLicenses = this.db.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'suspended'").get().count;
+    const totalDevices = this.db.prepare('SELECT COUNT(*) as count FROM devices WHERE is_active = 1').get().count;
+    const bannedDevices = this.db.prepare('SELECT COUNT(*) as count FROM device_security WHERE is_banned = 1').get().count;
+    
+    // An active device is accurately measured by last-seen heartbeat within 2 minutes
+    const onlineDevicesNow = this.db.prepare('SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?').get(twoMinutesAgo).count;
+    const devicesSeen24h = this.db.prepare('SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?').get(oneDayAgo).count;
+
+    return {
+      totalUsers,
+      totalLicenses,
+      activeLicenses,
+      revokedLicenses,
+      suspendedLicenses,
+      totalDevices,
+      bannedDevices,
+      onlineDevicesNow,
+      devicesSeen24h
+    };
+  }
+
+  // --- Admin User Auth ---
+  getAdminByUsername(username) {
+    return this.db.prepare('SELECT * FROM admin_users WHERE username = ?').get(username);
+  }
+}
+
+module.exports = new LicenseDatabase();

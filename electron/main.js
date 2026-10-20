@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, Notification, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -91,11 +91,32 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false,
+      webSecurity: true,
       spellcheck: false, // Saves 30-50MB RAM
       backgroundThrottling: true // Reduce CPU/RAM when minimized
     },
     icon: fs.existsSync(iconPath) ? iconPath : pngIcon
+  });
+
+  // Security: Prevent window navigation to arbitrary external sites
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    try {
+      const parsed = new URL(navigationUrl);
+      if (parsed.origin !== 'http://127.0.0.1:5173' && parsed.origin !== 'http://127.0.0.1:19684' && parsed.origin !== 'http://localhost:19684') {
+        event.preventDefault();
+        shell.openExternal(navigationUrl);
+      }
+    } catch (e) {
+      event.preventDefault();
+    }
+  });
+
+  // Security: Prevent unconstrained child windows from opening
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
   });
 
   // Ultra-fast sub-second display: show on dom-ready with dark canvas, or ready-to-show
@@ -113,6 +134,13 @@ function createWindow() {
     mainWindow.once('ready-to-show', revealWindow);
     // Instant fallback guarantee
     setTimeout(revealWindow, 350);
+  }
+
+  // Security: Lock down DevTools in production packaged builds
+  if (app.isPackaged) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow.webContents.closeDevTools();
+    });
   }
 
   // Track maximize state and send to renderer
@@ -273,7 +301,27 @@ ipcMain.handle('dialog:open-directory', async (event, defaultPath) => {
 });
 
 ipcMain.handle('shell:open-path', async (event, filePath) => {
-  return await shell.openPath(filePath);
+  if (!filePath || typeof filePath !== 'string') return 'Invalid file path';
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    const dangerousExts = ['.bat', '.cmd', '.vbs', '.ps1', '.reg'];
+    if (dangerousExts.includes(ext) && mainWindow) {
+      const response = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Cancel', 'Run Script'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'Security Notice',
+        message: `The file "${path.basename(filePath)}" contains executable script code. Are you sure you want to run it?`
+      });
+      if (response.response !== 1) {
+        return 'Execution cancelled by user';
+      }
+    }
+    return await shell.openPath(filePath);
+  } catch (e) {
+    return e.message;
+  }
 });
 
 ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
@@ -282,10 +330,14 @@ ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
 });
 
 ipcMain.handle('shell:open-external', async (event, url) => {
-  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
-    await shell.openExternal(url);
-    return true;
-  }
+  try {
+    if (!url || typeof url !== 'string') return false;
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      await shell.openExternal(parsed.href);
+      return true;
+    }
+  } catch (e) {}
   return false;
 });
 
@@ -314,10 +366,83 @@ ipcMain.handle('app:set-auto-start', (event, openAtLogin) => {
   }
 });
 
+ipcMain.handle('app:show-notification', (event, { title, body, filePath }) => {
+  try {
+    if (Notification.isSupported()) {
+      const iconPath = getIconPath('icon.png');
+      const notif = new Notification({
+        title: title || 'XDM Turbo',
+        body: body || 'Download completed!',
+        icon: fs.existsSync(iconPath) ? iconPath : undefined
+      });
+      if (filePath) {
+        notif.on('click', () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+          }
+          try {
+            if (fs.existsSync(filePath)) {
+              shell.showItemInFolder(filePath);
+            } else {
+              const parentDir = path.dirname(filePath);
+              if (fs.existsSync(parentDir)) shell.openPath(parentDir);
+            }
+          } catch (e) {}
+        });
+      }
+      notif.show();
+      return true;
+    }
+  } catch (e) {
+    console.error('Notification error:', e);
+  }
+  return false;
+});
+
+let clipboardMonitoringEnabled = true;
+let lastClipboardText = '';
+
+const DOWNLOAD_EXTS_REGEX = /\.(zip|rar|7z|tar|gz|bz2|iso|xz|tgz|exe|msi|dmg|pkg|deb|rpm|apk|pdf|doc|docx|xls|xlsx|ppt|pptx|mp4|mkv|avi|mov|flv|wmv|webm|mp3|wav|flac|aac|ogg|m4a|epub)(\?.*)?$/i;
+const MEDIA_URL_REGEX = /(youtube\.com\/watch\?v=|youtu\.be\/|facebook\.com\/.*\/videos|fb\.watch\/|instagram\.com\/(reel|p)\/|tiktok\.com\/@.*\/video|twitter\.com\/.*\/status|x\.com\/.*\/status|vimeo\.com\/\d+)/i;
+
+function startClipboardMonitor() {
+  try {
+    lastClipboardText = clipboard.readText().trim();
+  } catch (e) {}
+
+  setInterval(() => {
+    if (!clipboardMonitoringEnabled || !mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      const text = clipboard.readText().trim();
+      if (!text || text === lastClipboardText) return;
+      lastClipboardText = text;
+
+      if (/^https?:\/\//i.test(text)) {
+        if (DOWNLOAD_EXTS_REGEX.test(text) || MEDIA_URL_REGEX.test(text)) {
+          if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send('clipboard:url-detected', { url: text });
+          }
+        }
+      }
+    } catch (e) {}
+  }, 1000);
+}
+
+ipcMain.handle('clipboard:set-monitoring', (event, enabled) => {
+  clipboardMonitoringEnabled = Boolean(enabled);
+  return clipboardMonitoringEnabled;
+});
+
 app.whenReady().then(() => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.xdm.turbomanager');
+  }
   if (!gotTheLock) return;
   createWindow();
   createTray();
+  startClipboardMonitor();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

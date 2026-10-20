@@ -95,7 +95,6 @@ class VideoDownloader {
         '--dump-json',
         '--no-playlist',
         '--no-warnings',
-        '--no-check-certificates',
         '--geo-bypass',
         '--extractor-args', 'youtube:player_client=android,web,tv'
       ];
@@ -107,7 +106,8 @@ class VideoDownloader {
         args.push('--ffmpeg-location', ffmpegPath);
       }
 
-      args.push(url.trim());
+      // Prepend '--' so flags starting with '-' in URL are never parsed as options
+      args.push('--', url.trim());
 
       const child = spawn(execInfo.cmd, args, { windowsHide: true });
       let stdout = '';
@@ -126,7 +126,12 @@ class VideoDownloader {
         }
 
         try {
-          const data = JSON.parse(stdout);
+          const firstBrace = stdout.indexOf('{');
+          const lastBrace = stdout.lastIndexOf('}');
+          if (firstBrace === -1 || lastBrace === -1) {
+            throw new Error('Valid JSON metadata was not returned by video engine: ' + (stderr.trim() || stdout.trim()));
+          }
+          const data = JSON.parse(stdout.substring(firstBrace, lastBrace + 1));
           
           // Parse formats into clean user-friendly choices
           const formats = [];
@@ -224,7 +229,7 @@ class VideoDownloader {
 
     const outTemplate = path.join(saveDir, `${safeTitle}.%(ext)s`);
     const ffmpegPath = this.getFfmpegPath();
-    const fragments = String(Math.min(Math.max(options.connections || 32, 1), 64));
+    const fragments = String(Math.min(Math.max(options.connections || 64, 1), 64));
     const execInfo = this.getYtDlpExecution();
     const nodePath = this.getNodePath();
 
@@ -232,10 +237,9 @@ class VideoDownloader {
       ...execInfo.baseArgs,
       '--newline',
       '--no-playlist',
-      '--no-check-certificates',
       '--geo-bypass',
       '--extractor-args', 'youtube:player_client=android,web,tv',
-      '--concurrent-fragments', fragments, // User selected or 32 parallel threads for turbo video segment download!
+      '--concurrent-fragments', fragments, // User selected or up to 64 parallel threads for turbo video segment download!
       '--progress-template', 'DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes_estimate)s',
       '-o', outTemplate
     ];
@@ -249,15 +253,18 @@ class VideoDownloader {
     }
 
     // Format selection with seamless fallback so downloads NEVER fail if a specific resolution is missing
-    const isAudioOnly = !/video|height/i.test(formatId || '') && /audio|mp3|m4a|aac|flac|wav|opus/i.test(formatId || '');
+    // Sanitize formatId to avoid option injection into -f while preserving valid yt-dlp selector characters
+    let cleanFormatId = String(formatId || 'best').replace(/[^a-zA-Z0-9_\-+*/[\]<>=,:]/g, '');
+    if (cleanFormatId.startsWith('-')) cleanFormatId = 'best';
+    const isAudioOnly = !/video|height/i.test(cleanFormatId) && /audio|mp3|m4a|aac|flac|wav|opus/i.test(cleanFormatId);
 
     let robustFormat = '';
-    if (!formatId || formatId === 'best') {
+    if (!cleanFormatId || cleanFormatId === 'best') {
       robustFormat = 'bestvideo*+bestaudio/best';
     } else if (isAudioOnly) {
       robustFormat = 'bestaudio/best';
     } else {
-      robustFormat = `${formatId}/bestvideo*+bestaudio/best`;
+      robustFormat = `${cleanFormatId}/bestvideo*+bestaudio/best`;
     }
 
     if (isAudioOnly) {
@@ -266,7 +273,8 @@ class VideoDownloader {
       args.push('-f', robustFormat, '--merge-output-format', 'mp4');
     }
 
-    args.push(url);
+    // Prepend '--' so flags starting with '-' in URL are never parsed as options
+    args.push('--', url);
 
     const child = spawn(execInfo.cmd, args, { windowsHide: true });
 

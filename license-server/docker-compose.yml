@@ -1,0 +1,24 @@
+services:
+  xdm-license-authority:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xdm-license-server
+    restart: unless-stopped
+    ports:
+      - "19685:19685"
+    environment:
+      - NODE_ENV=production
+      - LICENSE_SERVER_PORT=19685
+      - DATABASE_PATH=/app/data/licenses.db
+      - ED25519_KEY_DIR=/app/data
+      - DEFAULT_ADMIN_USER=admin
+      - DEFAULT_ADMIN_PASS=zihan2026
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:19685/api/v1/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

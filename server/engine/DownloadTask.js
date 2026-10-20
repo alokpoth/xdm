@@ -10,15 +10,29 @@ const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 2048, maxFreeS
 
 function formatXdmFileName(originalName) {
   if (!originalName || typeof originalName !== 'string') {
-    return `download_${Date.now()} XDM by Zihan`;
+    return `download_${Date.now()}`;
   }
-  const clean = originalName.replace(/[<>:"/\\|?*]+/g, '_').trim();
+  let clean = originalName.replace(/[<>:"/\\|?*]+/g, '_').trim();
+  // Strip trailing dots and spaces (illegal in Windows file systems)
+  clean = clean.replace(/[.\s]+$/, '');
+  if (!clean) clean = `download_${Date.now()}`;
+
   const ext = path.extname(clean);
-  const base = clean.slice(0, clean.length - ext.length);
-  if (/xdm\s+by\s+zihan/i.test(base)) {
-    return clean;
+  let base = clean.slice(0, clean.length - ext.length).trim();
+  if (!base) base = `file_${Date.now()}`;
+
+  // Guard against Windows DOS reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+  const DOS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+  if (DOS_RESERVED.test(base)) {
+    base = `${base}_file`;
   }
-  return `${base} XDM by Zihan${ext}`;
+
+  // Prevent Windows MAX_PATH overflows by clamping base length to 120 chars
+  if (base.length > 120) {
+    base = base.substring(0, 120).trim();
+  }
+
+  return `${base}${ext}`;
 }
 
 class DownloadTask {
@@ -31,7 +45,7 @@ class DownloadTask {
     this.totalBytes = options.totalBytes || 0;
     this.downloadedBytes = options.downloadedBytes || 0;
     this.status = options.status || 'queued'; // queued, probing, downloading, paused, completed, error
-    this.connections = Math.min(Math.max(options.connections || 32, 1), 64);
+    this.connections = Math.min(Math.max(options.connections || 64, 1), 64);
     this.resumable = options.resumable ?? false;
     this.contentType = options.contentType || 'application/octet-stream';
     this.category = options.category || 'others';
@@ -40,7 +54,8 @@ class DownloadTask {
     this.averageSpeed = 0;
     this.speedHistory = []; // last 30 speed data points for graph
     this.eta = 0; // seconds remaining
-    this.error = null;
+    this.error = options.error || options.errorMessage || null;
+    this.errorMessage = this.error;
     this.createdAt = options.createdAt || Date.now();
     this.completedAt = options.completedAt || null;
     this.segments = options.segments || [];
@@ -57,7 +72,15 @@ class DownloadTask {
     this.dynamicSplitInterval = null;
     this.staggerTimers = [];
     this.pendingWrites = 0;
-    this.speedLimit = options.speedLimit || 0;
+    this.isPro = Boolean(options.isPro);
+    if (!this.isPro) {
+      this.connections = Math.min(this.connections, 4);
+    }
+    this.speedLimit = this.isPro ? (options.speedLimit || 0) : 0;
+    this._bytesInWindow = 0;
+    this._windowStart = Date.now();
+    this._isThrottled = false;
+    this._throttleTimer = null;
     this.lastBytes = this.downloadedBytes;
     this.isPaused = false;
     this.isCancelled = false;
@@ -102,6 +125,9 @@ class DownloadTask {
       const doProbe = (targetUrl) => {
         try {
           const parsed = new URL(targetUrl);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return reject(new Error(`Invalid protocol '${parsed.protocol}'. Only http: and https: are allowed.`));
+          }
           const isHttps = parsed.protocol === 'https:';
           const client = isHttps ? https : http;
           const agent = isHttps ? httpsAgent : httpAgent;
@@ -171,7 +197,7 @@ class DownloadTask {
               }
             }
 
-            this.fileName = baseSanitized;
+            this.fileName = path.basename(baseSanitized);
             this.category = this.detectCategory(ext);
             
             const acceptRanges = res.headers['accept-ranges'];
@@ -179,7 +205,14 @@ class DownloadTask {
 
             this.log(`File: ${this.fileName} | Size: ${(this.totalBytes / (1024*1024)).toFixed(2)} MB | Resumable: ${this.resumable}`);
             
-            this.filePath = path.join(this.saveDir, this.fileName);
+            const resolvedSaveDir = path.resolve(this.saveDir);
+            const targetPath = path.resolve(resolvedSaveDir, this.fileName);
+            if (!targetPath.startsWith(resolvedSaveDir)) {
+              this.fileName = `safe_${Date.now()}_${path.extname(this.fileName)}`;
+              this.filePath = path.join(resolvedSaveDir, this.fileName);
+            } else {
+              this.filePath = targetPath;
+            }
             this.metaPath = this.filePath + '.xdm.meta';
 
             try { res.destroy(); } catch (e) {}
@@ -223,6 +256,9 @@ class DownloadTask {
       const doProbeGet = (currentUrl) => {
         try {
           const parsed = new URL(currentUrl);
+          if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return reject(new Error(`Invalid protocol '${parsed.protocol}'. Only http: and https: are allowed.`));
+          }
           const isHttps = parsed.protocol === 'https:';
           const client = isHttps ? https : http;
           const agent = isHttps ? httpsAgent : httpAgent;
@@ -265,10 +301,18 @@ class DownloadTask {
             }
 
             let guessedName = path.basename(parsed.pathname) || 'download_' + Date.now();
-            this.fileName = this.sanitizeFileName(this.fileName || guessedName);
+            this.fileName = path.basename(this.sanitizeFileName(this.fileName || guessedName));
             this.totalBytes = totalBytes;
             this.resumable = resumable;
-            this.filePath = path.join(this.saveDir, this.fileName);
+
+            const resolvedSaveDir = path.resolve(this.saveDir);
+            const targetPath = path.resolve(resolvedSaveDir, this.fileName);
+            if (!targetPath.startsWith(resolvedSaveDir)) {
+              this.fileName = `safe_${Date.now()}_${path.extname(this.fileName)}`;
+              this.filePath = path.join(resolvedSaveDir, this.fileName);
+            } else {
+              this.filePath = targetPath;
+            }
             this.metaPath = this.filePath + '.xdm.meta';
             this.category = this.detectCategory(path.extname(this.fileName));
 
@@ -321,7 +365,9 @@ class DownloadTask {
           status: s.status
         }))
       };
-      fs.writeFileSync(this.metaPath, JSON.stringify(data, null, 2), 'utf-8');
+      const tmpPath = this.metaPath + '.tmp';
+      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+      fs.renameSync(tmpPath, this.metaPath);
     } catch (e) {
       // Ignore meta save errors
     }
@@ -527,12 +573,23 @@ class DownloadTask {
           }
         }
       } else if (res.statusCode !== 206) {
+        if (res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 408 && res.statusCode !== 429) {
+          seg.status = 'error';
+          this.log(`Segment #${seg.id} fatal HTTP client error: ${res.statusCode}`, 'error');
+          this.pause();
+          this.status = 'error';
+          this.error = `HTTP ${res.statusCode} Error: Server rejected request`;
+          this.errorMessage = this.error;
+          if (this.onProgressCallback) this.onProgressCallback(this);
+          return;
+        }
         seg.status = 'error';
         this.log(`Segment #${seg.id} HTTP error: ${res.statusCode}`, 'warn');
         this.retrySegment(seg);
         return;
       }
 
+      req._res = res;
       seg.status = 'downloading';
 
       res.on('data', (chunk) => {
@@ -564,6 +621,38 @@ class DownloadTask {
           this.downloadedBytes = this.totalBytes;
         }
 
+        // Speed Limiter Rate-Limiting Backpressure
+        if (this.speedLimit > 0) {
+          const now = Date.now();
+          if (now - this._windowStart >= 1000) {
+            this._bytesInWindow = 0;
+            this._windowStart = now;
+          }
+          this._bytesInWindow += bytesToWrite;
+          if (this._bytesInWindow >= this.speedLimit && !this._isThrottled) {
+            this._isThrottled = true;
+            const remainingMs = Math.max(25, 1000 - (now - this._windowStart));
+            for (const activeReq of this.activeStreams.values()) {
+              if (activeReq && activeReq._res) {
+                try { activeReq._res.pause(); } catch (e) {}
+              }
+            }
+            if (this._throttleTimer) clearTimeout(this._throttleTimer);
+            this._throttleTimer = setTimeout(() => {
+              this._isThrottled = false;
+              this._bytesInWindow = 0;
+              this._windowStart = Date.now();
+              if (!this.isPaused && !this.isCancelled) {
+                for (const activeReq of this.activeStreams.values()) {
+                  if (activeReq && activeReq._res) {
+                    try { activeReq._res.resume(); } catch (e) {}
+                  }
+                }
+              }
+            }, remainingMs);
+          }
+        }
+
         // Non-blocking asynchronous file write with safe sub-array slice
         if (this.fileFd) {
           this.pendingWrites = (this.pendingWrites || 0) + 1;
@@ -572,6 +661,13 @@ class DownloadTask {
             this.pendingWrites = Math.max(0, (this.pendingWrites || 1) - 1);
             if (writeErr && writeErr.code !== 'EBADF') {
               this.log(`Disk write error on segment #${seg.id}: ${writeErr.message}`, 'error');
+              if (writeErr.code === 'ENOSPC' || writeErr.code === 'EACCES' || writeErr.code === 'EIO') {
+                this.pause();
+                this.status = 'error';
+                this.error = `Disk write error (${writeErr.code}): ${writeErr.message}`;
+                this.errorMessage = this.error;
+                if (this.onProgressCallback) this.onProgressCallback(this);
+              }
             }
           });
         }
@@ -639,6 +735,19 @@ class DownloadTask {
   retrySegment(seg) {
     if (this.isPaused || this.isCancelled) return;
     if (seg._retryTimer) clearTimeout(seg._retryTimer);
+    seg.retryCount = (seg.retryCount || 0) + 1;
+    if (seg.retryCount > 10) {
+      seg.status = 'error';
+      this.log(`Segment #${seg.id} exceeded maximum retries (10).`, 'error');
+      const anyActive = this.segments.some(s => s.status === 'downloading' || s.status === 'connecting' || s.status === 'retrying');
+      if (!anyActive) {
+        this.status = 'error';
+        this.error = `Download failed: connection dropped repeatedly.`;
+        this.errorMessage = this.error;
+        if (this.onProgressCallback) this.onProgressCallback(this);
+      }
+      return;
+    }
     seg.status = 'retrying';
     seg._retryTimer = setTimeout(() => {
       seg._retryTimer = null;
@@ -651,7 +760,7 @@ class DownloadTask {
   // IDM's Key Feature: Dynamic Segment Subdivision (Work-Stealing)
   // When connections complete early or one segment is lagging, split large unfinished chunks!
   startDynamicSplitter() {
-    if (!this.resumable || this.totalBytes <= 0) return;
+    if (!this.resumable || this.totalBytes <= 0 || !this.isPro) return;
 
     this.dynamicSplitInterval = setInterval(() => {
       if (this.status !== 'downloading' || this.isPaused) return;
@@ -660,14 +769,14 @@ class DownloadTask {
       const activeCount = Array.from(this.activeStreams.values()).length;
       if (activeCount >= this.connections) return; // All channels occupied
 
-      // Find the segment with the largest remaining byte count > 1MB
+      // Find the segment with the largest remaining byte count > 2MB
       let maxRemaining = 0;
       let targetSegment = null;
 
       for (const seg of this.segments) {
         if (seg.status === 'downloading') {
           const remaining = seg.end - seg.current;
-          if (remaining > maxRemaining && remaining > 1024 * 1024) {
+          if (remaining > maxRemaining && remaining > 2 * 1024 * 1024) {
             maxRemaining = remaining;
             targetSegment = seg;
           }
@@ -677,13 +786,17 @@ class DownloadTask {
       if (targetSegment) {
         // Split this segment in two!
         const remaining = targetSegment.end - targetSegment.current;
+        if (remaining <= 2 * 1024 * 1024) return;
         const half = Math.floor(remaining / 2);
         const originalEnd = targetSegment.end;
 
         const newStart = targetSegment.current + half;
+        if (newStart <= targetSegment.current + 65536 || newStart >= originalEnd) return;
+
         targetSegment.end = newStart - 1;
 
-        const newSegId = this.segments.length;
+        const maxId = this.segments.reduce((max, s) => Math.max(max, s.id), -1);
+        const newSegId = maxId + 1;
         const newSegment = {
           id: newSegId,
           start: newStart,
@@ -840,7 +953,9 @@ class DownloadTask {
   }
 
   restart() {
-    this.pause();
+    this.isPaused = true;
+    this.status = 'paused';
+    this.cleanup();
     this.downloadedBytes = 0;
     this.progress = 0;
     this.lastReportedProgress = 0;
@@ -855,7 +970,7 @@ class DownloadTask {
 
   cancel(deleteFile = false) {
     this.isCancelled = true;
-    this.pause();
+    this.isPaused = true;
     this.status = 'cancelled';
     this.cleanup();
 
@@ -867,7 +982,32 @@ class DownloadTask {
     }
   }
 
+  setSpeedLimit(limit) {
+    if (!this.isPro) {
+      this.speedLimit = 0;
+      return;
+    }
+    this.speedLimit = Math.max(0, limit || 0);
+    if (this.speedLimit === 0 && this._isThrottled) {
+      this._isThrottled = false;
+      if (this._throttleTimer) {
+        clearTimeout(this._throttleTimer);
+        this._throttleTimer = null;
+      }
+      for (const activeReq of this.activeStreams.values()) {
+        if (activeReq && activeReq._res) {
+          try { activeReq._res.resume(); } catch (e) {}
+        }
+      }
+    }
+  }
+
   cleanup() {
+    if (this._throttleTimer) {
+      clearTimeout(this._throttleTimer);
+      this._throttleTimer = null;
+    }
+    this._isThrottled = false;
     if (this.speedTrackerInterval) {
       clearInterval(this.speedTrackerInterval);
       this.speedTrackerInterval = null;
@@ -951,7 +1091,7 @@ class DownloadTask {
       formatId: this.formatId,
       createdAt: this.createdAt,
       completedAt: this.completedAt,
-      error: this.error,
+      error: this.error || this.errorMessage || null,
       segments: this.segments.map(s => ({
         id: s.id,
         start: s.start,

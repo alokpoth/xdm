@@ -1,17 +1,19 @@
 const XDM_BASE = 'http://127.0.0.1:19684';
 
-// Setup context menus
+// Setup context menus safely without duplicate id conflicts
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'xdm-download-link',
-    title: 'Download with XDM Turbo',
-    contexts: ['link', 'image', 'video', 'audio']
-  });
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'xdm-download-link',
+      title: 'Download with XDM Turbo',
+      contexts: ['link', 'image', 'video', 'audio']
+    });
 
-  chrome.contextMenus.create({
-    id: 'xdm-download-page-video',
-    title: 'Download Video from this page with XDM',
-    contexts: ['page']
+    chrome.contextMenus.create({
+      id: 'xdm-download-page-video',
+      title: 'Download Video from this page with XDM',
+      contexts: ['page']
+    });
   });
 });
 
@@ -185,6 +187,12 @@ if (chrome.tabs && chrome.tabs.onRemoved) {
 
 // Message handler between content scripts, popup, and local XDM engine
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Security: Verify message originates strictly from this extension's tabs or popup
+  if (sender.id !== chrome.runtime.id) {
+    console.warn('[Security] Ignored message from unauthorized extension sender:', sender);
+    return false;
+  }
+
   if (request.action === 'PING_XDM') {
     fetch(`${XDM_BASE}/api/stats`)
       .then(r => r.json())

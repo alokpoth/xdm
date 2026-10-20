@@ -40,15 +40,9 @@ export function formatDate(timestamp: number): string {
 
 export function formatXdmFileName(originalName: string): string {
   if (!originalName || typeof originalName !== 'string') {
-    return `download_${Date.now()} XDM by Zihan`;
+    return `download_${Date.now()}`;
   }
-  const clean = originalName.trim();
-  const lastDot = clean.lastIndexOf('.');
-  const base = lastDot > 0 ? clean.substring(0, lastDot) : clean;
-  const ext = lastDot > 0 ? clean.substring(lastDot) : '';
-
-  if (/xdm\s+by\s+zihan/i.test(base)) {
-    return clean;
-  }
-  return `${base} XDM by Zihan${ext}`;
+  // Sanitize illegal characters and strip any lingering legacy branding
+  const clean = originalName.trim().replace(/[<>:"/\\|?*]/g, '_');
+  return clean.replace(/\s+XDM\s+by\s+Zihan/gi, '');
 }

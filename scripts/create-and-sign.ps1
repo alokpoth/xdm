@@ -37,8 +37,8 @@ $filesToSign = @(
     "release\win-unpacked\XDM Turbo.exe",
     "release\win-unpacked\resources\server\bin\ffmpeg.exe",
     "release\win-unpacked\resources\elevate.exe",
-    "release\XDM Turbo Setup 1.0.6.exe",
-    "release\XDM Turbo 1.0.6.exe"
+    "release\XDM Turbo Setup 1.0.9.exe",
+    "release\XDM Turbo 1.0.9.exe"
 )
 
 $timestampServer = "http://timestamp.digicert.com"
@@ -58,4 +58,4 @@ foreach ($file in $filesToSign) {
 }
 
 Write-Host "`nAuthenticode Signature check for installer:"
-Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.6.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
+Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.9.exe" | Format-List Path, Status, StatusMessage, SignerCertificate

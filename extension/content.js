@@ -7,6 +7,9 @@
 
   // Intercept normal download link clicks strictly
   document.addEventListener('click', function(e) {
+    // Security: Only capture genuine user gestures, ignoring synthetic click events
+    if (!e.isTrusted) return;
+
     // If user holds Ctrl, Shift, or Alt, do not hijack click
     if (e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
 
@@ -40,7 +43,7 @@
     } catch (err) {}
   }, true);
 
-  // Floating Toast notification
+  // Floating Toast notification (safe DOM textContent to prevent DOM XSS)
   function showToast(message) {
     let toast = document.getElementById('xdm-floating-toast');
     if (!toast) {
@@ -48,12 +51,22 @@
       toast.id = 'xdm-floating-toast';
       document.body.appendChild(toast);
     }
-    toast.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;">
-        <svg viewBox="0 0 24 24" width="15" height="15" stroke="#34d399" stroke-width="2.5" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span>${message}</span>
-      </div>
-    `;
+    toast.innerHTML = '';
+    const flex = document.createElement('div');
+    flex.style.display = 'flex';
+    flex.style.alignItems = 'center';
+    flex.style.gap = '8px';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="#34d399" stroke-width="2.5" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = String(message || '');
+
+    flex.appendChild(iconSpan);
+    flex.appendChild(textSpan);
+    toast.appendChild(flex);
+
     toast.className = 'xdm-toast-show';
     setTimeout(() => {
       toast.className = '';
@@ -227,7 +240,37 @@
           e.stopImmediatePropagation();
           e.preventDefault();
         }
-        menu.classList.toggle('xdm-menu-open');
+
+        const isCurrentlyOpen = menu.classList.contains('xdm-menu-open');
+        if (!isCurrentlyOpen) {
+          // Dynamic boundary calculation: prevent any overflow clipping in narrow containers
+          try {
+            const containerRect = playerContainer.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+            const availableWidth = containerRect.width;
+
+            if (availableWidth > 0 && availableWidth < 260) {
+              const fittedWidth = Math.max(180, Math.floor(availableWidth - 16));
+              menu.style.setProperty('width', `${fittedWidth}px`, 'important');
+              menu.style.setProperty('right', '0px', 'important');
+              menu.style.setProperty('left', 'auto', 'important');
+            } else {
+              menu.style.setProperty('width', '240px', 'important');
+              // Check if 240px extending to the left from panelRect.right exceeds container's left border
+              if (panelRect.right - 240 < containerRect.left + 8) {
+                menu.style.setProperty('right', 'auto', 'important');
+                menu.style.setProperty('left', '0px', 'important');
+              } else {
+                menu.style.setProperty('right', '0px', 'important');
+                menu.style.setProperty('left', 'auto', 'important');
+              }
+            }
+          } catch (err) {}
+
+          menu.classList.add('xdm-menu-open');
+        } else {
+          menu.classList.remove('xdm-menu-open');
+        }
 
         // Instant resume guarantee if anything tried to pause
         if (keepPlayingLock && video.paused) {

@@ -3,9 +3,21 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+  }
+
   body {
-    @apply bg-[#090d16] text-slate-100 antialiased;
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    @apply bg-[#0f1115] text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-200;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    letter-spacing: -0.01em;
+  }
+
+  /* Monospace tabular numerals to prevent layout jiggle */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -18,18 +30,15 @@
   -webkit-app-region: no-drag;
 }
 
-/* Ensure no interactive element is ever dragged & set default pointer */
+/* Interactive elements are never dragged & have pointer cursor */
 button, a, input, select, textarea, [role="button"] {
   -webkit-app-region: no-drag !important;
-}
-
-button, a, [role="button"] {
   cursor: pointer !important;
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Eliminate harsh default browser outlines and focus rings completely on clicks */
+/* Clean, modern focus states without harsh browser outlines */
 button:focus, 
 button:focus-visible, 
 a:focus, 
@@ -37,14 +46,12 @@ a:focus-visible,
 input:focus,
 input:focus-visible {
   outline: none !important;
-  box-shadow: none !important;
 }
 
-
-/* Sleek custom scrollbars */
+/* Apple-style ultra-sleek custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -54,37 +61,366 @@ input:focus-visible {
 ::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.2);
   border-radius: 9999px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
 
-/* Glassmorphism effects */
-.glass-panel {
-  background: rgba(18, 24, 38, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* Apple Minimalist Button System */
+.btn-emerald-glow {
+  background: #10b981;
+  color: #ffffff;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-emerald-glow:hover {
+  background: #059669;
+  transform: translateY(-0.5px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.btn-emerald-glow:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Smooth Apple Micro-Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slideInUp {
+  animation: slideInUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Apple Refined Cards & Surfaces (Dark Mode Default) */
+.liquid-glass {
+  background: rgba(18, 20, 26, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.glass-card {
-  background: rgba(22, 30, 48, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.liquid-glass-card {
+  background: rgba(22, 24, 31, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  border-radius: 14px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-card:hover {
-  background: rgba(27, 37, 58, 0.75);
-  border-color: rgba(255, 255, 255, 0.12);
+.liquid-glass-card:hover {
+  background: rgba(28, 30, 39, 0.95);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  transform: translateY(-0.5px);
 }
 
-/* Pulsing glow */
-.glow-emerald {
-  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.35);
+.liquid-modal-panel {
+  background: rgba(20, 22, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  color: #f1f5f9;
+  border-radius: 20px;
 }
 
-.glow-blue {
-  box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.35);
+.theme-secondary-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
 }
 
+.theme-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.theme-code-box {
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+}
+
+.theme-kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.theme-border-subtle {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ========================================================================= */
+/* Apple Minimalist Light Mode (macOS Aluminum & Crisp Porcelain)            */
+/* ========================================================================= */
+html.light-theme {
+  color-scheme: light;
+}
+
+html.light-theme * {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+html.light-theme body {
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+}
+
+html.light-theme .app-root-bg,
+html.light-theme .app-main-bg {
+  background-color: #f5f5f7 !important;
+}
+
+html.light-theme .ambient-mesh {
+  background-image: none !important;
+}
+
+/* Headers and Asides (Nav & Sidebar & Titlebar) */
+html.light-theme header,
+html.light-theme aside {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #1d1d1f !important;
+}
+
+/* Glass Surfaces & Cards */
+html.light-theme .liquid-glass,
+html.light-theme .glass-surface {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light-theme .liquid-glass-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  color: #1d1d1f !important;
+}
+
+html.light-theme .liquid-glass-card:hover {
+  background: #ffffff !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Modal Panels */
+html.light-theme .liquid-modal-panel {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18) !important;
+  color: #1d1d1f !important;
+}
+
+/* Modal Footers */
+html.light-theme .liquid-modal-footer,
+html.light-theme .liquid-modal-panel > div:last-child {
+  background-color: #f8fafc !important;
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Text and Labels */
+html.light-theme .theme-text-primary {
+  color: #0f172a !important;
+}
+
+html.light-theme .theme-text-secondary {
+  color: #475569 !important;
+}
+
+html.light-theme .theme-border-subtle {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Inputs */
+html.light-theme .theme-input,
+html.light-theme input[type="text"],
+html.light-theme input[type="email"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+html.light-theme .theme-input::placeholder,
+html.light-theme input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light-theme .theme-input:focus,
+html.light-theme input:focus {
+  border-color: #10b981 !important;
+  background-color: #ffffff !important;
+}
+
+/* Secondary & Generic Buttons in Light Mode */
+html.light-theme .theme-secondary-btn,
+html.light-theme button.bg-white\/\[0\.04\],
+html.light-theme button.bg-white\/\[0\.05\],
+html.light-theme button.bg-white\/\[0\.06\],
+html.light-theme button.bg-white\/\[0\.08\],
+html.light-theme button.bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #334155 !important;
+}
+
+html.light-theme .theme-secondary-btn:hover,
+html.light-theme button.bg-white\/\[0\.04\]:hover,
+html.light-theme button.bg-white\/\[0\.05\]:hover,
+html.light-theme button.bg-white\/\[0\.06\]:hover,
+html.light-theme button.bg-white\/\[0\.08\]:hover,
+html.light-theme button.bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+/* Keyboard badge */
+html.light-theme .theme-kbd,
+html.light-theme kbd {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* Code & Mono blocks */
+html.light-theme .theme-code-box {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Modal Inner Subcards & Notice Boxes */
+html.light-theme .theme-modal-subcard {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Modal PRO Card */
+html.light-theme .theme-modal-pro-card {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.8) 0%, #ffffff 50%, rgba(240, 253, 250, 0.6) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.08) !important;
+  color: #0f172a !important;
+}
+
+/* Free vs PRO Feature Matrix */
+html.light-theme .theme-matrix-card {
+  background: linear-gradient(180deg, rgba(254, 243, 199, 0.4) 0%, #ffffff 100%) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  color: #1e293b !important;
+}
+
+/* Sidebar Navigation Items in Light Mode */
+html.light-theme aside button {
+  color: #475569 !important;
+}
+
+html.light-theme aside button:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  color: #0f172a !important;
+}
+
+/* Sidebar Active Filter States */
+html.light-theme aside button.bg-white\/\[0\.08\] {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light-theme aside button.bg-emerald-500\/12 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #047857 !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+html.light-theme aside button.bg-teal-500\/12 {
+  background-color: rgba(20, 184, 166, 0.12) !important;
+  color: #0f766e !important;
+  border-color: rgba(20, 184, 166, 0.25) !important;
+}
+
+html.light-theme aside button.bg-amber-500\/12 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #b45309 !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+html.light-theme aside button.bg-rose-500\/12 {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+  color: #be123c !important;
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+/* Sidebar Badges */
+html.light-theme aside span.tabular-nums {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #64748b !important;
+}
+
+/* Sidebar PRO Status Card */
+html.light-theme .theme-sidebar-pro-card {
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1) !important;
+}
+
+html.light-theme .theme-sidebar-pro-title {
+  color: #064e3b !important;
+}
+
+html.light-theme .theme-sidebar-pro-badge {
+  background-color: rgba(16, 185, 129, 0.18) !important;
+  color: #047857 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html.light-theme .theme-sidebar-pro-sub {
+  color: #047857 !important;
+}
+
+/* Top Navbar Search Box */
+html.light-theme header input {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light-theme header input:focus {
+  background-color: #ffffff !important;
+  border-color: #10b981 !important;
+}
+
+/* Titlebar window controls in Light Mode */
+html.light-theme header button.hover\:bg-white\/\[0\.08\] {
+  color: #475569 !important;
+}
+
+html.light-theme header button.hover\:bg-white\/\[0\.08\]:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
+/* Progress bar background in Light Mode */
+html.light-theme .bg-black\/20 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}

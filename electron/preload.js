@@ -16,5 +16,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window:maximized-changed', handler);
     return () => ipcRenderer.removeListener('window:maximized-changed', handler);
   },
+  showNotification: (options) => ipcRenderer.invoke('app:show-notification', options),
+  onClipboardUrlDetected: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('clipboard:url-detected', handler);
+    return () => ipcRenderer.removeListener('clipboard:url-detected', handler);
+  },
+  setClipboardMonitoring: (enabled) => ipcRenderer.invoke('clipboard:set-monitoring', enabled),
   isElectron: true
 });

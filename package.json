@@ -1,7 +1,7 @@
 {
   "name": "xdm",
-  "version": "1.0.7",
-  "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 32-connection streaming & browser video grabber",
+  "version": "1.0.9",
+  "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 64-stream parallel acceleration & browser video grabber",
   "author": "Zihan Fakir (https://xdm.zihan.uk)",
   "homepage": "https://xdm.zihan.uk",
   "repository": {
@@ -16,12 +16,22 @@
     "electron": "electron electron/main.js",
     "app": "concurrently -k \"vite\" \"electron electron/main.js\"",
     "build": "vite build",
-    "dist:win": "vite build && electron-builder --win"
+    "build:bytecode": "node scripts/build-bytecode.js",
+    "restore:source": "node scripts/restore-source.js",
+    "test": "node --test tests/license-system.test.js tests/download-engine.test.js",
+    "dist:win": "vite build && node scripts/build-bytecode.js && electron-builder --win && node scripts/restore-source.js"
   },
   "build": {
     "appId": "com.xdm.turbomanager",
     "productName": "XDM Turbo",
     "asar": true,
+    "electronFuses": {
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "runAsNode": false,
+      "enableNodeCliInspectArguments": false,
+      "enableNodeOptionsEnvironmentVariable": false
+    },
     "directories": {
       "output": "release"
     },
@@ -31,6 +41,8 @@
       "server/**/*",
       "!server/bin/**/*",
       "electron/**/*",
+      "!**/*.orig",
+      "!**/*.bak",
       "package.json",
       "node_modules/**/*"
     ],
@@ -59,24 +71,29 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowElevation": true,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": false,
       "shortcutName": "XDM Turbo",
       "uninstallDisplayName": "XDM Turbo Download Manager",
       "differentialPackage": false,
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
       "include": "installer/customInstaller.nsh"
     }
   },
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bytenode": "^1.7.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",

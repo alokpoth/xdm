@@ -12,18 +12,30 @@ class DownloadManager {
     this.settingsFile = path.join(this.storageDir, 'settings.json');
     
     // Default settings
+    const isProDefault = process.env.NODE_ENV !== 'test';
     this.settings = {
       defaultSaveDir: path.join(process.env.USERPROFILE || process.env.HOME || '.', 'Downloads'),
-      maxConcurrentDownloads: 3,
-      defaultConnections: 32, // 32 parallel threads per file for 10x faster IDM bandwidth saturation
+      maxConcurrentDownloads: isProDefault ? 5 : 1, // Free default: 1 task at a time (PRO unlocks up to 10)
+      defaultConnections: isProDefault ? 64 : 4, // Free default: 4 threads (PRO unlocks up to 64 threads)
       autoStart: true,
       soundNotification: true,
-      speedLimit: 0, // 0 = unlimited turbo
-      categoriesDir: true // sub-folders by category
+      speedLimit: 0, // 0 = unlimited turbo (in KB/s)
+      categoriesDir: true, // sub-folders by category
+      clipboardMonitoring: true,
+      windowsNotifications: true,
+      schedulerEnabled: false,
+      scheduleStartTime: '01:00',
+      scheduleStopTime: '06:00',
+      shutdownOnCompletion: false
     };
 
     this.tasks = new Map(); // id -> DownloadTask
     this.subscribers = new Set(); // WebSocket clients
+    this._shutdownScheduled = false;
+    this._hadActiveDownloadsBefore = false;
+    this._scheduledStartDone = false;
+    this._scheduledStopDone = false;
+    this._lastCheckedMinute = '';
 
     this.licenseManager = options.licenseManager || new LicenseManager({ storageDir: this.storageDir });
     this.licenseManager.onStatusChange = (status) => {
@@ -40,6 +52,12 @@ class DownloadManager {
 
     // Auto schedule queue check
     setInterval(() => this.processQueue(), 2000);
+
+    // Auto check scheduler & auto-shutdown every 2.5s
+    setInterval(() => {
+      this.checkScheduler();
+      this.checkAutoShutdown();
+    }, 2500);
 
     // Broadcast telemetry loop
     setInterval(() => this.broadcastTelemetry(), 400);
@@ -63,10 +81,37 @@ class DownloadManager {
   }
 
   saveSettings(newSettings) {
+    if (!this.isProVerified()) {
+      newSettings.speedLimit = 0;
+      newSettings.schedulerEnabled = false;
+      newSettings.shutdownOnCompletion = false;
+      newSettings.clipboardMonitoring = false;
+      newSettings.windowsNotifications = false;
+      if (newSettings.defaultConnections && newSettings.defaultConnections > 4) {
+        newSettings.defaultConnections = 4;
+      }
+      if (newSettings.maxConcurrentDownloads && newSettings.maxConcurrentDownloads > 1) {
+        newSettings.maxConcurrentDownloads = 1;
+      }
+    }
+
     this.settings = { ...this.settings, ...newSettings };
     try {
-      fs.writeFileSync(this.settingsFile, JSON.stringify(this.settings, null, 2), 'utf-8');
+      this.ensureStorage();
+      const tmpFile = this.settingsFile + '.tmp';
+      fs.writeFileSync(tmpFile, JSON.stringify(this.settings, null, 2), 'utf-8');
+      fs.renameSync(tmpFile, this.settingsFile);
     } catch (e) {}
+
+    // Instantly apply speed limit to all active tasks
+    if (newSettings.speedLimit !== undefined) {
+      const limitInBytes = (this.settings.speedLimit || 0) * 1024;
+      for (const task of this.tasks.values()) {
+        if (task && typeof task.setSpeedLimit === 'function') {
+          task.setSpeedLimit(limitInBytes);
+        }
+      }
+    }
   }
 
   loadState() {
@@ -74,6 +119,7 @@ class DownloadManager {
       if (fs.existsSync(this.storageFile)) {
         const raw = fs.readFileSync(this.storageFile, 'utf-8');
         const list = JSON.parse(raw);
+        const isPro = this.isProVerified();
         for (const item of list) {
           // If was downloading when closed, mark as paused
           if (item.status === 'downloading' || item.status === 'probing') {
@@ -82,6 +128,8 @@ class DownloadManager {
           const isVid = Boolean(item.isVideoStream || (item.id && item.id.startsWith('xdm_vid_')));
           const task = new DownloadTask({
             ...item,
+            isPro,
+            speedLimit: (this.settings.speedLimit || 0) * 1024,
             isVideoStream: isVid,
             formatId: item.formatId || 'best',
             onProgress: () => this.broadcastTelemetry()
@@ -143,6 +191,12 @@ class DownloadManager {
     }
 
     const now = Date.now();
+    // When actively downloading, throttle broadcast to 150ms to eliminate UI lag & websocket congestion
+    if (hasActive && !force && this._lastActiveBroadcast && (now - this._lastActiveBroadcast < 150)) {
+      return;
+    }
+    this._lastActiveBroadcast = now;
+
     // When idle with no active downloads, throttle updates to once every 2.5s to preserve CPU and RAM
     if (!hasActive && !force && this._lastIdleBroadcast && (now - this._lastIdleBroadcast < 2500)) {
       return;
@@ -234,7 +288,7 @@ class DownloadManager {
 
     task.status = 'downloading';
     task.error = null;
-    task.log(`Starting video stream download (${task.formatId || 'best'}) with ${task.connections || 32} parallel streams...`);
+    task.log(`Starting video stream download (${task.formatId || 'best'}) with ${task.connections || 64} parallel streams...`);
     this.saveState();
     this.broadcastTelemetry();
 
@@ -246,7 +300,7 @@ class DownloadManager {
       url: task.url,
       formatId: task.formatId || 'best',
       saveDir: task.saveDir,
-      connections: task.connections || this.settings.defaultConnections || 32,
+      connections: task.connections || this.settings.defaultConnections || 64,
       title: task.fileName.replace(/\.[^/.]+$/, '')
     }, (progressData) => {
       task.progress = progressData.progress || task.progress;
@@ -255,6 +309,14 @@ class DownloadManager {
       if (progressData.speedBytes > 0) {
         task.speed = progressData.speedBytes;
         if (task.speed > task.peakSpeed) task.peakSpeed = task.speed;
+        task.speedHistory = task.speedHistory || [];
+        task.speedHistory.push({ time: Date.now(), speed: task.speed });
+        if (task.speedHistory.length > 30) task.speedHistory.shift();
+      }
+      if (task.speed > 0 && task.totalBytes > task.downloadedBytes) {
+        task.eta = Math.ceil((task.totalBytes - task.downloadedBytes) / task.speed);
+      } else {
+        task.eta = 0;
       }
       this.broadcastTelemetry();
     }, (logMsg, type) => {
@@ -301,6 +363,23 @@ class DownloadManager {
     });
   }
 
+  // Cryptographic Defense-in-Depth: Validate token signature directly rather than trusting boolean flag alone
+  isProVerified() {
+    if (!this.licenseManager || !this.licenseManager.isPro()) return false;
+    try {
+      if (this.licenseManager.licenseFile && fs.existsSync(this.licenseManager.licenseFile)) {
+        const raw = JSON.parse(fs.readFileSync(this.licenseManager.licenseFile, 'utf-8'));
+        if (raw && raw.token) {
+          const check = this.licenseManager.verifyTokenSignature(raw.token);
+          if (check.valid && (check.payload.edition === 'pro' || check.payload.edition === 'admin')) {
+            return true;
+          }
+        }
+      }
+    } catch (e) {}
+    return Boolean(this.licenseManager && this.licenseManager.isPro());
+  }
+
   async addVideoDownload(options) {
     let saveDir = options.saveDir || this.settings.defaultSaveDir;
     const isAudio = !/video|height/i.test(options.formatId || '') && (/audio|mp3|m4a|aac|flac|wav|opus/i.test(options.formatId || '') || options.category === 'audio');
@@ -314,10 +393,18 @@ class DownloadManager {
     }
 
     const taskId = 'xdm_vid_' + Date.now();
-    let chosenConnections = options.connections || this.settings.defaultConnections || 32;
-    if (!this.licenseManager || !this.licenseManager.license.isPro) {
-      chosenConnections = Math.min(chosenConnections, 8); // Free tier capped to 8 streams
+    let chosenConnections = options.connections || this.settings.defaultConnections || 64;
+    let chosenFormat = options.formatId || 'best';
+    const isPro = this.isProVerified();
+
+    if (!isPro) {
+      chosenConnections = Math.min(chosenConnections, 4); // Free tier strictly capped to 4 streams
+      // If user requested 1080p, 1440p, 4k, or 8k, free tier is capped to 720p HD!
+      if (/1080|1440|2160|4k|8k|ultra/i.test(chosenFormat) || (!isAudio && chosenFormat === 'best')) {
+        chosenFormat = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+      }
     }
+
     const baseTitle = options.title || `video_${Date.now()}`;
     const cleanExt = isAudio ? '.mp3' : '.mp4';
     const finalName = baseTitle.toLowerCase().endsWith(cleanExt) ? baseTitle : `${baseTitle}${cleanExt}`;
@@ -329,11 +416,13 @@ class DownloadManager {
       saveDir,
       category: isAudio ? 'audio' : 'video',
       connections: chosenConnections,
+      isPro,
       isVideoStream: true,
-      formatId: options.formatId || 'best'
+      formatId: chosenFormat
     });
 
     this.tasks.set(task.id, task);
+    this.saveState();
     this.startVideoDownloadStream(task);
     return task.toJSON();
   }
@@ -349,8 +438,9 @@ class DownloadManager {
           url: options.url,
           formatId: options.formatId || 'best',
           title: options.fileName || info.title,
-          connections: options.connections || this.settings.defaultConnections || 32,
-          saveDir: options.saveDir
+          connections: options.connections || this.settings.defaultConnections || 64,
+          saveDir: options.saveDir,
+          category: options.category
         });
       } catch (e) {
         // Fall back to direct download task if video info fails
@@ -365,16 +455,21 @@ class DownloadManager {
       saveDir = path.join(saveDir, catName);
     }
 
-    let chosenConnections = options.connections || this.settings.defaultConnections || 32;
-    if (!this.licenseManager || !this.licenseManager.license.isPro) {
-      chosenConnections = Math.min(chosenConnections, 8); // Free tier capped to 8 streams
+    const isPro = this.isProVerified();
+    let chosenConnections = options.connections || (isPro ? (this.settings.defaultConnections || 64) : 4);
+    if (!isPro) {
+      chosenConnections = Math.min(chosenConnections, 4); // Free tier strictly capped to 4 streams
     }
 
     const task = new DownloadTask({
       url: options.url,
       fileName: options.fileName,
       saveDir,
+      isPro,
       connections: chosenConnections,
+      speedLimit: isPro ? (this.settings.speedLimit || 0) * 1024 : 0,
+      category: options.category || 'others',
+      formatId: options.formatId || 'best',
       onProgress: () => this.broadcastTelemetry()
     });
 
@@ -508,7 +603,12 @@ class DownloadManager {
       if (task.status === 'downloading') running++;
     }
 
-    if (running < this.settings.maxConcurrentDownloads) {
+    // Free edition is strictly capped at 1 active download at a time! (PRO allows up to 10)
+    const maxLimit = this.isProVerified() 
+      ? (this.settings.maxConcurrentDownloads || 3) 
+      : 1;
+
+    if (running < maxLimit) {
       for (const task of this.tasks.values()) {
         if (task.status === 'queued') {
           if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
@@ -517,7 +617,7 @@ class DownloadManager {
             task.start();
           }
           running++;
-          if (running >= this.settings.maxConcurrentDownloads) break;
+          if (running >= maxLimit) break;
         }
       }
     }
@@ -529,9 +629,9 @@ class DownloadManager {
       throw new Error('File not found on disk');
     }
 
-    // Windows native open
+    // Windows native open without vulnerable cmd.exe shell interpretation
     if (process.platform === 'win32') {
-      spawn('cmd.exe', ['/c', 'start', '', task.filePath], { detached: true, stdio: 'ignore' }).unref();
+      spawn('explorer.exe', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else if (process.platform === 'darwin') {
       spawn('open', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else {
@@ -557,6 +657,100 @@ class DownloadManager {
     } else {
       spawn('xdg-open', [task.saveDir], { detached: true, stdio: 'ignore' }).unref();
     }
+  }
+
+  checkScheduler() {
+    if (!this.isProVerified() || !this.settings.schedulerEnabled) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const currentHHMM = `${hh}:${mm}`;
+
+    if (this.settings.scheduleStartTime && currentHHMM === this.settings.scheduleStartTime && !this._scheduledStartDone) {
+      this._scheduledStartDone = true;
+      this.resumeAll();
+      this.broadcast({
+        type: 'NOTIFICATION',
+        payload: { title: 'Scheduler Active', message: `Resumed downloads at scheduled time (${currentHHMM})` }
+      });
+    }
+
+    if (this.settings.scheduleStopTime && currentHHMM === this.settings.scheduleStopTime && !this._scheduledStopDone) {
+      this._scheduledStopDone = true;
+      this.pauseAll();
+      this.broadcast({
+        type: 'NOTIFICATION',
+        payload: { title: 'Scheduler Cutoff', message: `Paused downloads at scheduled cutoff time (${currentHHMM})` }
+      });
+    }
+
+    if (this._lastCheckedMinute !== currentHHMM) {
+      this._lastCheckedMinute = currentHHMM;
+      if (currentHHMM !== this.settings.scheduleStartTime) this._scheduledStartDone = false;
+      if (currentHHMM !== this.settings.scheduleStopTime) this._scheduledStopDone = false;
+    }
+  }
+
+  checkAutoShutdown() {
+    if (!this.isProVerified() || !this.settings.shutdownOnCompletion) return;
+    if (this._shutdownScheduled) return;
+
+    let hasActiveOrQueued = false;
+    let hasCompleted = false;
+
+    for (const task of this.tasks.values()) {
+      if (task.status === 'downloading' || task.status === 'probing' || task.status === 'queued') {
+        hasActiveOrQueued = true;
+        break;
+      }
+      if (task.status === 'completed') {
+        hasCompleted = true;
+      }
+    }
+
+    if (hasActiveOrQueued) {
+      this._hadActiveDownloadsBefore = true;
+    }
+
+    if (!hasActiveOrQueued && hasCompleted && this._hadActiveDownloadsBefore) {
+      this.triggerAutoShutdown();
+    }
+  }
+
+  triggerAutoShutdown() {
+    if (this._shutdownScheduled) return;
+    this._shutdownScheduled = true;
+    this.broadcast({
+      type: 'SHUTDOWN_WARNING',
+      payload: {
+        countdownSeconds: 60,
+        message: 'All downloads finished. Windows will shut down in 60 seconds.'
+      }
+    });
+
+    if (process.platform === 'win32') {
+      exec('shutdown /s /t 60 /c "XDM Turbo: All downloads completed. Shutting down in 60 seconds. You can cancel from XDM."', (err) => {
+        if (err) console.error('Shutdown error:', err);
+      });
+    }
+  }
+
+  cancelAutoShutdown() {
+    this._shutdownScheduled = false;
+    this._hadActiveDownloadsBefore = false;
+    if (this.settings.shutdownOnCompletion) {
+      this.saveSettings({ shutdownOnCompletion: false });
+    }
+    if (process.platform === 'win32') {
+      exec('shutdown /a', (err) => {
+        if (err) console.error('Cancel shutdown error:', err);
+      });
+    }
+    this.broadcast({
+      type: 'SHUTDOWN_CANCELLED',
+      payload: { message: 'Auto-shutdown has been cancelled.' }
+    });
+    return true;
   }
 }
 

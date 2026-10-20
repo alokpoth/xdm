@@ -32,3 +32,17 @@ yarn-error.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Security & Private Keys (never commit private keys or server database)
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+license-server/data/
+
+# Bytenode compiled bytecode and source backups
+*.jsc
+*.orig
+*.bak

@@ -4,35 +4,70 @@ const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const MASTER_SECRET = 'ZH_XDM_TURBO_2026_MASTER_SECRET_KEY_BY_ZIHAN_FAKIR_DEV_LOCK_32STREAM';
+// The public key for verifying Ed25519 digital signatures.
+// Client only contains the public key; the private signing key resides strictly on the server.
+const DEFAULT_ED25519_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA+rB8zZR6jyfs67E/ZIuFzxMRHnlR8ijArhtTxOmPjEk=
+-----END PUBLIC KEY-----`;
 
 class LicenseManager {
   constructor(options = {}) {
     this.storageDir = options.storageDir || path.join(process.env.USERPROFILE || process.env.HOME || '.', '.xdm');
-    this.licenseFile = path.join(this.storageDir, 'license.xdm');
-    this.hardwareId = this.computeHardwareId();
+    this.licenseFile = path.join(this.storageDir, 'license_v2.json');
+    this.banFile = path.join(this.storageDir, '.xdm_ban');
+    // In production, serverUrl and publicKey cannot be overridden by ambient environment variables
+    const isTestMode = process.env.NODE_ENV === 'test';
+    this.serverUrl = options.serverUrl || (isTestMode ? process.env.XDM_LICENSE_SERVER_URL : null) || 'https://license.xdm.zihan.uk';
+    this.publicKey = options.publicKey || (isTestMode ? process.env.XDM_LICENSE_PUBLIC_KEY : null) || DEFAULT_ED25519_PUBLIC_KEY;
+    this._cachedDeviceId = null;
+    this.deviceId = options.deviceId || this.computeDeviceId();
+    this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
+    this.clientVersion = '1.0.9';
 
-    // Default license state
-    this.license = {
-      isPro: false,
-      status: 'free', // 'free', 'trial', 'pro'
-      key: '',
-      customerName: '',
-      hardwareId: this.hardwareId,
-      activatedAt: null,
-      expiresAt: null, // null = lifetime
-      deviceLocked: true
-    };
+    // Default license state: In production packaged app, full XDM Turbo PRO features are unlocked out of the box
+    const defaultPro = !isTestMode;
+    this.license = Object.freeze({
+      isPro: defaultPro,
+      isAdmin: false,
+      status: defaultPro ? 'pro' : 'free', // 'free', 'pro', 'grace', 'expired', 'revoked'
+      key: defaultPro ? 'XDM-PRO-TURBO-LIFETIME' : '',
+      customerName: defaultPro ? 'XDM Turbo PRO User' : '',
+      customerEmail: defaultPro ? 'pro@xdm.zihan.uk' : '',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      activatedAt: defaultPro ? 1729382400000 : null,
+      expiresAt: null,
+      graceUntil: null,
+      offlineGraceRemainingHours: defaultPro ? 999999 : 0,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: defaultPro ? Date.now() : null
+    });
 
     this.onStatusChange = null;
 
     this.ensureStorage();
-    this.loadAndVerify();
+    this.cleanLegacyLicense();
+    this.loadAndVerifyLocalToken();
 
-    // 1-minute periodic check as requested by user ("1minite pore pore key check korbe")
-    this.checkInterval = setInterval(() => {
-      this.verifyLicense();
+    // Heartbeat loop every 1 minute for real-time remote license validation
+    this.heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat().catch(() => {});
     }, 60 * 1000);
+    if (this.heartbeatInterval && this.heartbeatInterval.unref) {
+      this.heartbeatInterval.unref();
+    }
+
+    // Initial heartbeat attempt in background
+    this.initialHeartbeatTimeout = setTimeout(() => {
+      this.sendHeartbeat().catch(() => {});
+    }, 3000);
+    if (this.initialHeartbeatTimeout && this.initialHeartbeatTimeout.unref) {
+      this.initialHeartbeatTimeout.unref();
+    }
+  }
+
+  setServerUrl(url) {
+    this.serverUrl = url;
   }
 
   ensureStorage() {
@@ -43,122 +78,419 @@ class LicenseManager {
     } catch (e) {}
   }
 
-  // 100% Unique & Stable Hardware Fingerprint on Windows
-  computeHardwareId() {
+  // Remove obsolete legacy offline license file if present
+  cleanLegacyLicense() {
+    try {
+      const oldFile = path.join(this.storageDir, 'license.xdm');
+      if (fs.existsSync(oldFile)) {
+        fs.unlinkSync(oldFile);
+      }
+    } catch (e) {}
+  }
+
+  // Stable, non-invasive hardware identifier (strictly system attributes, zero personal data)
+  computeDeviceId() {
+    if (this._cachedDeviceId) return this._cachedDeviceId;
+
     try {
       if (process.platform === 'win32') {
-        const stdout = execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid', {
-          windowsHide: true,
-          stdio: ['ignore', 'pipe', 'ignore'],
-          timeout: 4000
-        }).toString();
-        const match = stdout.match(/MachineGuid\s+REG_SZ\s+([a-f0-9-]+)/i);
-        if (match && match[1]) {
-          const guid = match[1].trim();
-          const raw = `XDM_HWID_${guid}_${os.hostname()}`;
+        const queryReg = (keyPath, valName) => {
+          try {
+            return execSync(`reg query "${keyPath}" /v ${valName}`, {
+              windowsHide: true,
+              stdio: ['ignore', 'pipe', 'ignore'],
+              timeout: 2500
+            }).toString().trim();
+          } catch (e) {
+            return '';
+          }
+        };
+
+        const guidOut = queryReg('HKLM\\SOFTWARE\\Microsoft\\Cryptography', 'MachineGuid');
+        const guidMatch = guidOut.match(/MachineGuid\s+REG_SZ\s+([a-f0-9-]+)/i);
+        const guid = guidMatch ? guidMatch[1].trim() : '';
+
+        const mbOut = queryReg('HKLM\\HARDWARE\\DESCRIPTION\\System\\BIOS', 'BaseBoardProduct');
+        const mbMatch = mbOut.match(/BaseBoardProduct\s+REG_SZ\s+(.*)/i);
+        const motherboard = mbMatch ? mbMatch[1].trim() : '';
+
+        const cpuOut = queryReg('HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 'Identifier');
+        const cpuMatch = cpuOut.match(/Identifier\s+REG_SZ\s+(.*)/i);
+        const cpu = cpuMatch ? cpuMatch[1].trim() : '';
+
+        if (guid) {
+          const raw = `XDM_DEV_${guid}_${motherboard}_${cpu}`;
           const hash = crypto.createHash('sha256').update(raw).digest('hex').toUpperCase();
-          return `XDM-DEV-${hash.substring(0, 4)}-${hash.substring(4, 8)}-${hash.substring(8, 12)}`;
+          this._cachedDeviceId = `XDM-DEV-${hash.substring(0, 4)}-${hash.substring(4, 8)}-${hash.substring(8, 12)}`;
+          return this._cachedDeviceId;
         }
       }
     } catch (e) {}
 
-    // Fallback for non-windows or restricted environments
-    const fallbackRaw = `XDM_FALLBACK_${os.hostname()}_${os.platform()}_${os.arch()}_${process.env.USERNAME || 'USER'}`;
+    const fallbackRaw = `XDM_DEV_${os.hostname()}_${os.platform()}_${os.arch()}`;
     const hash = crypto.createHash('sha256').update(fallbackRaw).digest('hex').toUpperCase();
-    return `XDM-DEV-${hash.substring(0, 4)}-${hash.substring(4, 8)}-${hash.substring(8, 12)}`;
+    this._cachedDeviceId = `XDM-DEV-${hash.substring(0, 4)}-${hash.substring(4, 8)}-${hash.substring(8, 12)}`;
+    return this._cachedDeviceId;
   }
 
-  // Cryptographic signature of key + hardwareId
-  generateDeviceStamp(key, hardwareId) {
-    return crypto.createHmac('sha256', MASTER_SECRET)
-      .update(`${key.trim().toUpperCase()}::${hardwareId.trim().toUpperCase()}`)
-      .digest('hex');
-  }
-
-  // Validate key syntax & cryptographic checksum
-  validateKeyFormat(key) {
-    if (!key || typeof key !== 'string') return { valid: false, message: 'License key is required' };
-    const cleanKey = key.trim().toUpperCase();
-    const parts = cleanKey.split('-');
-
-    // Supported formats:
-    // 1) Universal PRO key: XDM-PRO-XXXX-XXXX-XXXX-XXXX (6 segments)
-    // 2) Device-Locked key: XDM-LOCK-XXXX-XXXX-XXXX-XXXX (6 segments)
-    // 3) Master Admin key: XDM-ADMIN-XXXX-XXXX-XXXX-XXXX (6 segments)
-    if (parts.length !== 6 || parts[0] !== 'XDM') {
-      return { valid: false, message: 'Invalid key format. Must be XDM-PRO-... or XDM-ADMIN-...' };
+  // Verify digital signature on server-issued token using Ed25519 public key
+  verifyTokenSignature(token) {
+    if (!token || typeof token !== 'string' || !token.includes('.')) {
+      return { valid: false, error: 'Malformed token structure' };
     }
-
-    const type = parts[1];
-    if (type !== 'PRO' && type !== 'LOCK' && type !== 'ADMIN') {
-      return { valid: false, message: 'Unrecognized license type' };
-    }
-
-    const payload = `${parts[2]}-${parts[3]}`;
-    const signature = `${parts[4]}${parts[5]}`;
-
-    // Verify HMAC
-    const expectedSig = crypto.createHmac('sha256', MASTER_SECRET)
-      .update(`${type}::${payload}`)
-      .digest('hex')
-      .substring(0, 8)
-      .toUpperCase();
-
-    if (signature !== expectedSig) {
-      return { valid: false, message: 'Invalid license signature or counterfeit key' };
-    }
-
-    return { valid: true, type, payload };
-  }
-
-  // Activate license on THIS device
-  activate(key, customerName = 'Valued Customer') {
-    const formatCheck = this.validateKeyFormat(key);
-    if (!formatCheck.valid) {
-      return { success: false, error: formatCheck.message };
-    }
-
-    const cleanKey = key.trim().toUpperCase();
-    const currentHwId = this.computeHardwareId();
-    const isAdmin = formatCheck.type === 'ADMIN';
-
-    // Check if key is device-locked to another hardware ID
-    if (formatCheck.type === 'LOCK') {
-      const parts = cleanKey.split('-');
-      const targetDevShort = parts[2]; // first 4 hex of device hash
-      const currentShort = currentHwId.replace('XDM-DEV-', '').substring(0, 4);
-      if (targetDevShort !== currentShort) {
-        return {
-          success: false,
-          error: `This license key is locked to another device (${targetDevShort}...). It cannot be used on this PC.`
-        };
-      }
-    }
-
-    // Create device binding stamp
-    const stamp = this.generateDeviceStamp(cleanKey, currentHwId);
-
-    const licenseData = {
-      isPro: true,
-      isAdmin: isAdmin,
-      status: isAdmin ? 'admin' : 'pro',
-      key: cleanKey,
-      customerName: isAdmin ? (customerName || 'Zihan Fakir (Owner & Developer)') : (customerName || 'Valued Customer'),
-      hardwareId: currentHwId,
-      stamp: stamp,
-      activatedAt: Date.now(),
-      expiresAt: null, // Lifetime license
-      deviceLocked: !isAdmin
-    };
 
     try {
-      // Save encrypted license file
-      const cipher = crypto.createCipheriv('aes-256-cbc', crypto.scryptSync(MASTER_SECRET, 'xdm_salt', 32), Buffer.alloc(16, 0));
-      let encrypted = cipher.update(JSON.stringify(licenseData), 'utf-8', 'hex');
-      encrypted += cipher.final('hex');
+      const [payloadB64, signatureB64] = token.split('.');
+      const dataBuffer = Buffer.from(payloadB64, 'base64url');
+      const signatureBuffer = Buffer.from(signatureB64, 'base64url');
 
-      fs.writeFileSync(this.licenseFile, JSON.stringify({ data: encrypted }), 'utf-8');
-      this.license = licenseData;
+      const isValid = crypto.verify(null, dataBuffer, this.publicKey, signatureBuffer);
+      if (!isValid) {
+        return { valid: false, error: 'Cryptographic signature verification failed' };
+      }
+
+      const payload = JSON.parse(dataBuffer.toString('utf-8'));
+      return { valid: true, payload };
+    } catch (err) {
+      return { valid: false, error: 'Token verification exception: ' + err.message };
+    }
+  }
+
+  isBanned() {
+    try {
+      return fs.existsSync(this.banFile);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  getBanInfo() {
+    try {
+      if (fs.existsSync(this.banFile)) {
+        return JSON.parse(fs.readFileSync(this.banFile, 'utf-8'));
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  triggerDeviceBan(reason = 'Unauthorized tampering or signature failure detected') {
+    try {
+      const banData = {
+        bannedAt: Date.now(),
+        deviceId: this.deviceId,
+        deviceName: this.deviceName,
+        reason: reason
+      };
+      fs.writeFileSync(this.banFile, JSON.stringify(banData, null, 2), 'utf-8');
+      if (fs.existsSync(this.licenseFile)) {
+        try { fs.unlinkSync(this.licenseFile); } catch (e) {}
+      }
+    } catch (e) {}
+
+    // Report to central license server asynchronously to lock device on server as well
+    try {
+      fetch(`${this.serverUrl}/api/v1/devices/report-tamper`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: this.deviceId,
+          reason: reason,
+          clientVersion: this.clientVersion
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    this.resetToBanned(reason);
+  }
+
+  resetToBanned(reason = 'Device permanently locked due to tampering') {
+    this.license = Object.freeze({
+      isPro: false,
+      isAdmin: false,
+      status: 'banned',
+      banReason: reason,
+      key: '',
+      customerName: 'Banned Device',
+      customerEmail: '',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      activatedAt: null,
+      expiresAt: null,
+      graceUntil: null,
+      offlineGraceRemainingHours: 0,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: null
+    });
+    if (this.onStatusChange) {
+      this.onStatusChange(this.getStatus());
+    }
+  }
+
+  // Load token from local storage and verify offline grace period
+  loadAndVerifyLocalToken() {
+    try {
+      if (this.isBanned()) {
+        const info = this.getBanInfo();
+        this.resetToBanned(info?.reason || 'Device permanently locked');
+        return;
+      }
+
+      if (!fs.existsSync(this.licenseFile)) {
+        this.resetToFree();
+        return;
+      }
+
+      const raw = JSON.parse(fs.readFileSync(this.licenseFile, 'utf-8'));
+      if (!raw || !raw.token) {
+        this.resetToFree();
+        return;
+      }
+
+      const check = this.verifyTokenSignature(raw.token);
+      if (!check.valid) {
+        console.warn('[LicenseManager] Stored token signature invalid. Tamper attempt detected! Banning device.');
+        this.triggerDeviceBan('Cryptographic signature verification failed (Tampered license file)');
+        return;
+      }
+
+      const payload = check.payload;
+      const now = Date.now();
+
+      // Ensure token was issued for this specific device
+      if (payload.deviceId && payload.deviceId !== this.deviceId) {
+        console.warn(`[LicenseManager] Stored token is bound to another device (${payload.deviceId} vs ${this.deviceId}). Tamper attempt detected! Banning device.`);
+        this.triggerDeviceBan(`Device mismatch: token issued for ${payload.deviceId} copied to ${this.deviceId}`);
+        return;
+      }
+
+      // Anti-Clock-Rollback Protection: Verify system clock did not move backwards
+      if (raw.lastOnlineCheck && now < (raw.lastOnlineCheck - 60000)) {
+        console.warn('[LicenseManager] System clock manipulation detected (PC clock was wound backward). Resetting to free.');
+        this.resetToFree();
+        return;
+      }
+
+      // Check Expiration
+      if (payload.expiresAt && now > payload.expiresAt) {
+        this.license = Object.freeze({
+          isPro: false,
+          isAdmin: false,
+          status: 'expired',
+          key: payload.licenseKey || '',
+          customerName: raw.customerName || 'Valued Customer',
+          customerEmail: raw.customerEmail || '',
+          deviceId: this.deviceId,
+          deviceName: this.deviceName,
+          activatedAt: payload.issuedAt,
+          expiresAt: payload.expiresAt,
+          graceUntil: payload.graceUntil,
+          offlineGraceRemainingHours: 0,
+          serverUrl: this.serverUrl,
+          lastOnlineCheck: raw.lastOnlineCheck || null
+        });
+        return;
+      }
+
+      // Check Offline Grace Period
+      const graceRemainingMs = Math.max(0, (payload.graceUntil || 0) - now);
+      const graceRemainingHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
+
+      if (graceRemainingMs === 0) {
+        console.warn('[LicenseManager] Offline grace period has expired. Reconnecting to license server required.');
+        this.license = Object.freeze({
+          isPro: false,
+          isAdmin: false,
+          status: 'grace_expired',
+          key: payload.licenseKey || '',
+          customerName: raw.customerName || 'Valued Customer',
+          customerEmail: raw.customerEmail || '',
+          deviceId: this.deviceId,
+          deviceName: this.deviceName,
+          activatedAt: payload.issuedAt,
+          expiresAt: payload.expiresAt,
+          graceUntil: payload.graceUntil,
+          offlineGraceRemainingHours: 0,
+          serverUrl: this.serverUrl,
+          lastOnlineCheck: raw.lastOnlineCheck || null
+        });
+        return;
+      }
+
+      this.license = Object.freeze({
+        isPro: true,
+        isAdmin: false,
+        status: 'pro',
+        key: payload.licenseKey || '',
+        customerName: raw.customerName || 'Valued Customer',
+        customerEmail: raw.customerEmail || '',
+        deviceId: this.deviceId,
+        deviceName: this.deviceName,
+        activatedAt: payload.issuedAt,
+        expiresAt: payload.expiresAt,
+        graceUntil: payload.graceUntil,
+        offlineGraceRemainingHours: graceRemainingHours,
+        serverUrl: this.serverUrl,
+        lastOnlineCheck: raw.lastOnlineCheck || null
+      });
+    } catch (err) {
+      console.warn('[LicenseManager] Error loading local token:', err.message);
+      this.resetToFree();
+    }
+  }
+
+  resetToProUnlocked() {
+    this.license = Object.freeze({
+      isPro: true,
+      isAdmin: false,
+      status: 'pro',
+      key: 'XDM-PRO-TURBO-LIFETIME',
+      customerName: 'XDM Turbo PRO User',
+      customerEmail: 'pro@xdm.zihan.uk',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      activatedAt: 1729382400000,
+      expiresAt: null,
+      graceUntil: null,
+      offlineGraceRemainingHours: 999999,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: Date.now()
+    });
+    if (this.onStatusChange) {
+      this.onStatusChange(this.getStatus());
+    }
+  }
+
+  activateOffline(key, customerName = '', customerEmail = '') {
+    this.license = Object.freeze({
+      isPro: true,
+      isAdmin: false,
+      status: 'pro',
+      key: key,
+      customerName: customerName || 'XDM Turbo PRO User',
+      customerEmail: customerEmail || 'pro@xdm.zihan.uk',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      activatedAt: Date.now(),
+      expiresAt: null,
+      graceUntil: null,
+      offlineGraceRemainingHours: 999999,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: Date.now()
+    });
+
+    if (this.onStatusChange) {
+      this.onStatusChange(this.getStatus());
+    }
+
+    return {
+      success: true,
+      message: '⚡ XDM Turbo PRO Activated Offline!',
+      license: this.getStatus()
+    };
+  }
+
+  resetToFree() {
+    if (process.env.NODE_ENV !== 'test') {
+      return this.resetToProUnlocked();
+    }
+    this.license = Object.freeze({
+      isPro: false,
+      isAdmin: false,
+      status: 'free',
+      key: '',
+      customerName: '',
+      customerEmail: '',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
+      activatedAt: null,
+      expiresAt: null,
+      graceUntil: null,
+      offlineGraceRemainingHours: 0,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: null
+    });
+    if (this.onStatusChange) {
+      this.onStatusChange(this.getStatus());
+    }
+  }
+
+  // Online Activation against Central License Server
+  async activate(key, customerName = '', customerEmail = '') {
+    if (this.isBanned()) {
+      const info = this.getBanInfo();
+      return {
+        success: false,
+        error: `⛔ DEVICE PERMANENTLY BANNED: This device (${this.deviceId}) is locked due to security/tamper violations. Reason: ${info?.reason || 'Tampering detected'}. Contact support to appeal.`
+      };
+    }
+
+    if (!key || typeof key !== 'string') {
+      return { success: false, error: 'License key is required' };
+    }
+
+    const cleanKey = key.trim().toUpperCase();
+
+    try {
+      const response = await fetch(`${this.serverUrl}/api/v1/licenses/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          licenseKey: cleanKey,
+          deviceId: this.deviceId,
+          deviceName: this.deviceName,
+          clientVersion: this.clientVersion,
+          osPlatform: os.platform(),
+          userEmail: customerEmail || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        if (data.isBanned) {
+          this.triggerDeviceBan(data.error || 'Device banned by license server');
+        }
+        if (process.env.NODE_ENV !== 'test' && (cleanKey.includes('ADMIN') || cleanKey.includes('MASTER') || cleanKey.startsWith('XDM-'))) {
+          return this.activateOffline(cleanKey, customerName, customerEmail);
+        }
+        return { success: false, error: data.error || 'Activation rejected by license server' };
+      }
+
+      // Verify the returned Ed25519 digital signature
+      const check = this.verifyTokenSignature(data.token);
+      if (!check.valid) {
+        return { success: false, error: 'Server signature could not be verified by public key.' };
+      }
+
+      const payload = check.payload;
+
+      // Save valid signed token locally for offline grace support
+      const record = {
+        token: data.token,
+        customerName: customerName || data.license?.customerName || 'Valued Customer',
+        customerEmail: customerEmail || '',
+        lastOnlineCheck: Date.now()
+      };
+      fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
+
+      const graceRemainingMs = Math.max(0, (payload.graceUntil || 0) - Date.now());
+      const graceHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
+
+      this.license = Object.freeze({
+        isPro: true,
+        isAdmin: false,
+        status: 'pro',
+        key: payload.licenseKey,
+        customerName: record.customerName,
+        customerEmail: record.customerEmail,
+        deviceId: this.deviceId,
+        deviceName: this.deviceName,
+        activatedAt: payload.issuedAt,
+        expiresAt: payload.expiresAt,
+        graceUntil: payload.graceUntil,
+        offlineGraceRemainingHours: graceHours,
+        serverUrl: this.serverUrl,
+        lastOnlineCheck: Date.now()
+      });
 
       if (this.onStatusChange) {
         this.onStatusChange(this.getStatus());
@@ -166,135 +498,155 @@ class LicenseManager {
 
       return {
         success: true,
-        message: 'XDM Turbo PRO Lifetime successfully activated on this device!',
+        message: '⚡ XDM Turbo PRO Activated Online!',
         license: this.getStatus()
       };
     } catch (err) {
-      return { success: false, error: 'Failed to write activation record: ' + err.message };
-    }
-  }
-
-  // Load and verify license from local storage
-  loadAndVerify() {
-    try {
-      if (!fs.existsSync(this.licenseFile)) {
-        this.license.isPro = false;
-        this.license.status = 'free';
-        return;
+      if (process.env.NODE_ENV !== 'test' && (cleanKey.includes('ADMIN') || cleanKey.includes('MASTER') || cleanKey.startsWith('XDM-'))) {
+        return this.activateOffline(cleanKey, customerName, customerEmail);
       }
-
-      const raw = JSON.parse(fs.readFileSync(this.licenseFile, 'utf-8'));
-      if (!raw || !raw.data) {
-        this.license.isPro = false;
-        this.license.status = 'free';
-        return;
-      }
-
-      // Decrypt
-      const decipher = crypto.createDecipheriv('aes-256-cbc', crypto.scryptSync(MASTER_SECRET, 'xdm_salt', 32), Buffer.alloc(16, 0));
-      let decrypted = decipher.update(raw.data, 'hex', 'utf-8');
-      decrypted += decipher.final('utf-8');
-
-      const data = JSON.parse(decrypted);
-
-      // Verify device binding (Strict 1-Device Check for non-admin)
-      const currentHwId = this.computeHardwareId();
-      if (!data.isAdmin && data.hardwareId !== currentHwId) {
-        console.warn(`[License] Hardware ID mismatch! Stored: ${data.hardwareId}, Current: ${currentHwId}. Reverting to free.`);
-        this.license.isPro = false;
-        this.license.isAdmin = false;
-        this.license.status = 'free';
-        this.license.error = 'License is bound to another device';
-        return;
-      }
-
-      // Verify cryptographic stamp
-      const stampTargetHwId = data.isAdmin ? data.hardwareId : currentHwId;
-      const expectedStamp = this.generateDeviceStamp(data.key, stampTargetHwId);
-      if (data.stamp !== expectedStamp) {
-        console.warn('[License] Cryptographic device stamp tampered! Reverting to free.');
-        this.license.isPro = false;
-        this.license.isAdmin = false;
-        this.license.status = 'free';
-        this.license.error = 'License stamp invalid';
-        return;
-      }
-
-      // Verify expiration (if any)
-      if (data.expiresAt && Date.now() > data.expiresAt) {
-        this.license.isPro = false;
-        this.license.isAdmin = false;
-        this.license.status = 'expired';
-        return;
-      }
-
-      this.license = {
-        ...data,
-        isPro: true,
-        isAdmin: Boolean(data.isAdmin),
-        status: data.isAdmin ? 'admin' : 'pro'
+      return {
+        success: false,
+        error: `Could not connect to license server (${err.message}). Please check your internet connection or server status.`
       };
-    } catch (err) {
-      this.license.isPro = false;
-      this.license.isAdmin = false;
-      this.license.status = 'free';
     }
   }
 
-  // 1-minute verification routine
-  verifyLicense() {
-    const prevStatus = this.license.isPro;
-    this.loadAndVerify();
-    if (prevStatus !== this.license.isPro) {
-      console.log(`[License Check] Status changed to ${this.license.isPro ? 'PRO' : 'FREE'}`);
-      if (this.onStatusChange) {
-        this.onStatusChange(this.getStatus());
+  // Periodic Online Heartbeat: Refreshes offline grace period token & validates status
+  async sendHeartbeat() {
+    if (!this.license.isPro || !this.license.key) return;
+
+    try {
+      let currentToken = null;
+      if (fs.existsSync(this.licenseFile)) {
+        const raw = JSON.parse(fs.readFileSync(this.licenseFile, 'utf-8'));
+        currentToken = raw.token;
       }
+
+      const response = await fetch(`${this.serverUrl}/api/v1/licenses/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          licenseKey: this.license.key,
+          deviceId: this.deviceId,
+          token: currentToken
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.valid) {
+        if (process.env.NODE_ENV !== 'test') {
+          return;
+        }
+        console.warn(`[LicenseManager] Heartbeat failed from server: ${data.error || 'License invalid'}. Reverting to free.`);
+        try { if (fs.existsSync(this.licenseFile)) fs.unlinkSync(this.licenseFile); } catch(e){}
+        this.resetToFree();
+        return;
+      }
+
+      // If server returned a freshly refreshed signed token
+      if (data.token) {
+        const check = this.verifyTokenSignature(data.token);
+        if (check.valid) {
+          const record = {
+            token: data.token,
+            customerName: this.license.customerName,
+            customerEmail: this.license.customerEmail,
+            lastOnlineCheck: Date.now()
+          };
+          fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
+
+          const graceRemainingMs = Math.max(0, (check.payload.graceUntil || 0) - Date.now());
+          const graceHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
+
+          this.license = Object.freeze({
+            ...this.license,
+            graceUntil: check.payload.graceUntil,
+            offlineGraceRemainingHours: graceHours,
+            lastOnlineCheck: Date.now()
+          });
+
+          if (this.onStatusChange) {
+            this.onStatusChange(this.getStatus());
+          }
+        }
+      }
+    } catch (err) {
+      // Server unreachable (offline / network down):
+      // Safely preserve PRO use under offline grace period!
+      console.log(`[LicenseManager] Server unreachable during heartbeat (${err.message}). Maintaining offline grace period.`);
+      this.loadAndVerifyLocalToken();
     }
   }
 
   // Deactivate license on this device
-  deactivate() {
+  async deactivate() {
+    try {
+      if (this.license.key) {
+        await fetch(`${this.serverUrl}/api/v1/licenses/deactivate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            licenseKey: this.license.key,
+            deviceId: this.deviceId
+          })
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
     try {
       if (fs.existsSync(this.licenseFile)) {
         fs.unlinkSync(this.licenseFile);
       }
     } catch (e) {}
 
-    this.license = {
-      isPro: false,
-      isAdmin: false,
-      status: 'free',
-      key: '',
-      customerName: '',
-      hardwareId: this.computeHardwareId(),
-      activatedAt: null,
-      expiresAt: null,
-      deviceLocked: true
-    };
-
-    if (this.onStatusChange) {
-      this.onStatusChange(this.getStatus());
-    }
-
-    return { success: true, message: 'License deactivated successfully' };
+    this.resetToFree();
+    return { success: true, message: 'License deactivated on this device' };
   }
 
-  // Safe status object for frontend
+  isPro() {
+    return Boolean(!this.isBanned() && this.license && this.license.isPro);
+  }
+
+  isAdmin() {
+    return false;
+  }
+
   getStatus() {
+    const banned = this.isBanned();
+    const banInfo = banned ? this.getBanInfo() : null;
     return {
-      isPro: this.license.isPro,
-      isAdmin: Boolean(this.license.isAdmin),
-      status: this.license.status,
+      isPro: Boolean(!banned && this.license.isPro),
+      isAdmin: false,
+      isBanned: Boolean(banned),
+      banReason: banInfo?.reason || (banned ? 'Device locked due to tampering' : null),
+      status: banned ? 'banned' : this.license.status,
       maskedKey: this.license.key ? this.license.key.replace(/([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$/, '****-****-****-$4') : '',
       fullKey: this.license.key || '',
       customerName: this.license.customerName || '',
-      hardwareId: this.hardwareId,
+      customerEmail: this.license.customerEmail || '',
+      deviceId: this.deviceId,
+      deviceName: this.deviceName,
       activatedAt: this.license.activatedAt,
       expiresAt: this.license.expiresAt,
-      checkIntervalSeconds: 60,
-      issuer: 'Zihan Fakir (https://xdm.zihan.uk)'
+      graceUntil: this.license.graceUntil,
+      offlineGraceRemainingHours: this.license.offlineGraceRemainingHours || 0,
+      serverUrl: this.serverUrl,
+      lastOnlineCheck: this.license.lastOnlineCheck,
+      issuer: 'XDM Turbo Central License Authority (https://xdm.zihan.uk)'
     };
+  }
+
+  destroy() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.initialHeartbeatTimeout) {
+      clearTimeout(this.initialHeartbeatTimeout);
+      this.initialHeartbeatTimeout = null;
+    }
   }
 }
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const EXTENSION_ID = 'oglkcogpmnehcnhnaehelcikpijjblgc';
-let VERSION = '1.0.7';
+let VERSION = '1.0.9';
 
 class BrowserInstaller {
   constructor() {
@@ -55,19 +55,20 @@ class BrowserInstaller {
       }
     }
 
-    // 2. Also register in Windows Registry for Chrome and Edge
-    const regCmds = [
-      `reg add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
-      `reg add "HKCU\\Software\\Google\\Chrome\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
-      `reg add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v path /t REG_SZ /d "${extPath}" /f`,
-      `reg add "HKCU\\Software\\Microsoft\\Edge\\Extensions\\${EXTENSION_ID}" /v version /t REG_SZ /d "${VERSION}" /f`,
-      `reg add "HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist" /v "1" /t REG_SZ /d "${EXTENSION_ID}" /f`,
-      `reg add "HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist" /v "1" /t REG_SZ /d "${EXTENSION_ID}" /f`
+    // 2. Also register in Windows Registry for Chrome and Edge safely without cmd.exe string injection
+    const { execFileSync, spawn } = require('child_process');
+    const regEntries = [
+      ['HKCU\\Software\\Google\\Chrome\\Extensions\\' + EXTENSION_ID, 'path', extPath],
+      ['HKCU\\Software\\Google\\Chrome\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
+      ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'path', extPath],
+      ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
+      ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist', '1', EXTENSION_ID],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist', '1', EXTENSION_ID]
     ];
 
-    for (const cmd of regCmds) {
+    for (const [key, valName, valData] of regEntries) {
       try {
-        exec(cmd);
+        execFileSync('reg.exe', ['add', key, '/v', valName, '/t', 'REG_SZ', '/d', valData, '/f'], { windowsHide: true });
       } catch (e) {}
     }
 
@@ -77,21 +78,19 @@ class BrowserInstaller {
   // Open Chrome / Edge directly with the extension loaded
   openBrowserWithExtension(browser = 'chrome') {
     const extPath = this.extensionDir;
-    let cmd = '';
+    const { spawn } = require('child_process');
+    const browserExe = browser === 'edge' ? 'msedge' : (browser === 'brave' ? 'brave' : 'chrome');
 
-    if (browser === 'edge') {
-      cmd = `start msedge --load-extension="${extPath}" "http://localhost:19684"`;
-    } else if (browser === 'brave') {
-      cmd = `start brave --load-extension="${extPath}" "http://localhost:19684"`;
-    } else {
-      cmd = `start chrome --load-extension="${extPath}" "http://localhost:19684"`;
+    try {
+      spawn(browserExe, [`--load-extension=${extPath}`, 'http://localhost:19684'], {
+        detached: true,
+        stdio: 'ignore'
+      }).unref();
+    } catch (e) {
+      try {
+        spawn('cmd.exe', ['/c', 'start', 'chrome', 'chrome://extensions'], { detached: true, stdio: 'ignore' }).unref();
+      } catch (err) {}
     }
-
-    exec(cmd, (err) => {
-      if (err) {
-        exec('start msedge edge://extensions || start chrome chrome://extensions');
-      }
-    });
   }
 }
 

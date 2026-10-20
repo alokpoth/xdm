@@ -79,8 +79,14 @@ export interface Settings {
   defaultConnections: number;
   autoStart: boolean;
   soundNotification: boolean;
-  speedLimit: number;
+  speedLimit: number; // in KB/s (0 = unlimited)
   categoriesDir: boolean;
+  clipboardMonitoring?: boolean;
+  windowsNotifications?: boolean;
+  schedulerEnabled?: boolean;
+  scheduleStartTime?: string;
+  scheduleStopTime?: string;
+  shutdownOnCompletion?: boolean;
 }
 
 export interface ProbeResult {
@@ -111,14 +117,23 @@ export interface ProbeResult {
 export interface LicenseInfo {
   isPro: boolean;
   isAdmin?: boolean;
-  status: 'free' | 'pro' | 'admin' | 'expired' | 'trial';
+  isBanned?: boolean;
+  banReason?: string | null;
+  status: 'free' | 'pro' | 'admin' | 'expired' | 'trial' | 'grace_expired' | 'banned';
   maskedKey: string;
   fullKey: string;
   customerName: string;
-  hardwareId: string;
+  customerEmail?: string;
+  deviceId?: string;
+  deviceName?: string;
+  hardwareId?: string;
   activatedAt: number | null;
   expiresAt: number | null;
-  checkIntervalSeconds: number;
+  graceUntil?: number | null;
+  offlineGraceRemainingHours?: number;
+  serverUrl?: string;
+  lastOnlineCheck?: number | null;
+  checkIntervalSeconds?: number;
   issuer: string;
   error?: string;
 }
