@@ -196,6 +196,12 @@
             <p class="text-[11px] text-slate-400">
               Issues authentic server-backed keys signed with the authority's private Ed25519 key. Supports device limits and expiration dates.
             </p>
+            <div class="pt-3 border-t border-slate-800/80 space-y-2">
+              <button id="purgeDataBtn" class="w-full py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 hover:text-white text-xs font-mono transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
+                <span>Clean All Test Data (Reset to 0)</span>
+              </button>
+            </div>
           </div>
 
           <div class="lg:col-span-2 p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-3">
@@ -708,19 +714,34 @@
           <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}">${lic.status.toUpperCase()}</span></td>
           <td class="py-3 px-3 text-slate-400">${createdDate}</td>
           <td class="py-3 px-3 text-slate-400">${expiresDate}</td>
-          <td class="py-3 px-4 text-right space-x-1">
+          <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
             ${lic.status === 'active' ? `
               <button class="revoke-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px]" data-id="${lic.id}">Revoke</button>
               <button class="suspend-btn px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px]" data-id="${lic.id}">Suspend</button>
             ` : `
               <button class="resume-btn px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px]" data-id="${lic.id}">Reactivate</button>
             `}
+            <button class="delete-btn px-2 py-1 rounded bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white text-[10px] transition-all cursor-pointer font-bold" data-id="${lic.id}" data-key="${lic.key}" title="Delete Key Permanently">Remove</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
 
       // Actions
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.key;
+          if (!confirm(`Are you sure you want to permanently delete license key "${key}"?\n\nThis will remove it from the database completely and unbind all connected devices.`)) return;
+          try {
+            await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}`, { method: 'DELETE' });
+            loadLicenses();
+            loadOverview();
+          } catch(e) {
+            alert('Error deleting license: ' + e.message);
+          }
+        });
+      });
+
       document.querySelectorAll('.revoke-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (!confirm('Are you sure you want to permanently revoke this license?')) return;
@@ -1021,6 +1042,28 @@
         passAlert.classList.remove('hidden');
       }
     });
+
+    // Purge / Clean All Test Data Handler
+    const purgeDataBtn = document.getElementById('purgeDataBtn');
+    if (purgeDataBtn) {
+      purgeDataBtn.addEventListener('click', async () => {
+        const input = prompt("⚠️ WARNING: This will permanently wipe all test licenses, devices, and audit logs and reset all counters to 0.\n\nType 'RESET' to confirm:");
+        if (input !== 'RESET') {
+          if (input !== null) alert("Reset cancelled: You must type 'RESET' to confirm.");
+          return;
+        }
+        try {
+          const res = await apiRequest('/api/v1/admin/purge-all', {
+            method: 'POST',
+            body: JSON.stringify({ confirm: 'PURGE_ALL_DATA' })
+          });
+          alert(res.message || 'All test data has been cleanly purged! Counters reset to 0.');
+          loadAllData();
+        } catch (e) {
+          alert('Failed to reset data: ' + e.message);
+        }
+      });
+    }
 
   </script>
 </body>

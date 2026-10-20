@@ -338,6 +338,39 @@ class LicenseDatabase {
     return await this.getLicenseById(id);
   }
 
+  async deleteLicense(id) {
+    await this.ready();
+    const lic = await this.getLicenseById(id);
+    if (!lic) return null;
+
+    // 1. Remove bound devices
+    await this.client.execute({
+      sql: 'DELETE FROM devices WHERE license_id = ?',
+      args: [id]
+    });
+
+    // 2. Remove the license
+    await this.client.execute({
+      sql: 'DELETE FROM licenses WHERE id = ?',
+      args: [id]
+    });
+
+    await this.logEvent('license_deleted', id, null, 'admin', { key: lic.key, edition: lic.edition });
+    return lic;
+  }
+
+  async purgeAllData() {
+    await this.ready();
+    await this.client.execute('DELETE FROM devices');
+    await this.client.execute('DELETE FROM device_security');
+    await this.client.execute('DELETE FROM licenses');
+    await this.client.execute('DELETE FROM users');
+    await this.client.execute('DELETE FROM audit_logs');
+    await this.ensureDefaultAdmin();
+    await this.logEvent('system_purged', null, null, 'admin', { action: 'Full reset to clean state' });
+    return true;
+  }
+
   // --- Device Operations ---
   async getDevicesForLicense(licenseId) {
     const res = await this.client.execute({

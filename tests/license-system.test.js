@@ -794,3 +794,107 @@ test('Admin Password Change: Validates current password, updates hash, and requi
   });
   assert.equal(restoreRes.status, 200);
 });
+
+test('Admin Delete License: Permanently removes a license key and unbinds devices', async () => {
+  // 1. Login
+  const loginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  const { token } = await loginRes.json();
+
+  // 2. Create a test license
+  const createRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ edition: 'pro', maxDevices: 1, customerName: 'To Be Deleted' })
+  });
+  const createData = await createRes.json();
+  const lic = createData.licenses[0];
+
+  // 3. Activate on a device
+  const deviceId = 'XDM-DEV-DEL-TEST-01';
+  const actRes = await fetch(`${SERVER_URL}/api/v1/licenses/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: lic.key,
+      deviceId,
+      deviceName: 'Delete Test PC',
+      clientVersion: '1.0.9',
+      osPlatform: 'win32'
+    })
+  });
+  assert.equal(actRes.status, 200);
+  const { token: clientToken } = await actRes.json();
+
+  // 4. Delete the license key permanently
+  const delRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses/${lic.id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  assert.equal(delRes.status, 200);
+  const delData = await delRes.json();
+  assert.equal(delData.success, true);
+  assert.equal(delData.license.key, lic.key);
+
+  // 5. Subsequent lookup returns 404
+  const getRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses/${lic.id}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  assert.equal(getRes.status, 404);
+
+  // 6. Client heartbeat fails because key no longer exists
+  const hbRes = await fetch(`${SERVER_URL}/api/v1/licenses/heartbeat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ licenseKey: lic.key, deviceId, token: clientToken })
+  });
+  assert.equal(hbRes.status, 404);
+});
+
+test('Admin Purge Test Data: Rejects without confirmation, wipes data with valid confirm', async () => {
+  // 1. Login
+  const loginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  const { token } = await loginRes.json();
+
+  // 2. Reject missing/wrong confirm token
+  const badPurge = await fetch(`${SERVER_URL}/api/v1/admin/purge-all`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ confirm: 'wrong' })
+  });
+  assert.equal(badPurge.status, 400);
+
+  // 3. Successful purge with correct confirmation token
+  const goodPurge = await fetch(`${SERVER_URL}/api/v1/admin/purge-all`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ confirm: 'PURGE_ALL_DATA' })
+  });
+  assert.equal(goodPurge.status, 200);
+  const purgeData = await goodPurge.json();
+  assert.equal(purgeData.success, true);
+
+  // 4. Verify overview metrics are cleanly reset to 0
+  const ovRes = await fetch(`${SERVER_URL}/api/v1/admin/overview`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const ovData = await ovRes.json();
+  assert.equal(ovData.metrics.totalLicenses, 0);
+  assert.equal(ovData.metrics.totalDevices, 0);
+});

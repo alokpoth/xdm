@@ -624,6 +624,40 @@ app.post('/api/v1/admin/licenses/:id/resume', requireAdminAuth, async (req, res)
   res.json({ success: true, license: updated });
 });
 
+// Admin Delete / Remove License Key Permanently
+const handleAdminDeleteLicense = async (req, res) => {
+  try {
+    const targetId = req.params.id || req.body?.id;
+    if (!targetId) {
+      return res.status(400).json({ success: false, error: 'License id is required' });
+    }
+    const deleted = await db.deleteLicense(targetId);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'License not found' });
+    }
+    res.json({ success: true, message: 'License key removed permanently', license: deleted });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.delete('/api/v1/admin/licenses/:id', requireAdminAuth, handleAdminDeleteLicense);
+app.post('/api/v1/admin/licenses/:id/delete', requireAdminAuth, handleAdminDeleteLicense);
+app.post('/api/admin/licenses/delete', requireAdminAuth, handleAdminDeleteLicense);
+
+// Admin Purge All Test Data (Clean Slate)
+app.post('/api/v1/admin/purge-all', requireAdminAuth, async (req, res) => {
+  try {
+    const { confirm } = req.body || {};
+    if (confirm !== 'PURGE_ALL_DATA') {
+      return res.status(400).json({ success: false, error: 'Confirmation required: provide confirm: "PURGE_ALL_DATA"' });
+    }
+    await db.purgeAllData();
+    res.json({ success: true, message: 'All test licenses, devices, and logs have been wiped successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Admin Update Device Limit
 app.post('/api/v1/admin/licenses/:id/limit', requireAdminAuth, async (req, res) => {
   const { maxDevices } = req.body || {};
