@@ -234,9 +234,9 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
   return (
     <div 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md animate-fadeIn"
     >
-      <div className="w-full max-w-lg rounded-3xl liquid-modal-panel border shadow-2xl overflow-hidden select-none backdrop-blur-2xl">
+      <div className="w-full max-w-2xl rounded-3xl liquid-modal-panel border shadow-2xl overflow-hidden select-none backdrop-blur-2xl">
         {/* Modal Header */}
         <div className="px-6 py-4.5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center space-x-3">

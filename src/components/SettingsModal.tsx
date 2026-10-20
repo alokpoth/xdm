@@ -129,9 +129,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md select-none animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md select-none animate-fadeIn"
     >
-      <div className="w-full max-w-xl rounded-3xl liquid-modal-panel border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden backdrop-blur-2xl">
+      <div className="w-full max-w-2xl sm:max-w-3xl rounded-3xl liquid-modal-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden backdrop-blur-2xl">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
@@ -196,13 +196,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400">
                 <Zap className="w-4 h-4" />
-                <span>Download Acceleration (Connections)</span>
+                <span>Download Acceleration (Parallel Streams)</span>
               </div>
-              <span className="text-xs font-bold text-emerald-300 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                {isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)} Connections
+              <span className="text-xs font-bold text-emerald-300 bg-emerald-500/15 px-3 py-0.5 rounded-full border border-emerald-500/30 font-mono">
+                {isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)} Active Streams
               </span>
             </div>
 
+            {/* Quick Stream Preset Badges */}
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 pt-1">
+              {[
+                { val: 1, label: '1 Stream', desc: 'Single' },
+                { val: 2, label: '2 Streams', desc: 'Standard' },
+                { val: 4, label: '4 Streams', desc: 'Free Max', isFreeMax: true },
+                { val: 8, label: '8 Streams', desc: 'Turbo', proOnly: true },
+                { val: 16, label: '16 Streams', desc: 'High', proOnly: true },
+                { val: 32, label: '32 Streams', desc: 'Ultra', proOnly: true },
+                { val: 64, label: '64 Streams', desc: 'Max PRO', proOnly: true, highlight: true }
+              ].map(preset => {
+                const isSelected = (isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === preset.val;
+                const isLocked = !isPro && preset.proOnly;
+
+                return (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => {
+                      if (isLocked) {
+                        if (onOpenLicenseModal) onOpenLicenseModal();
+                      } else {
+                        setForm({ ...form, defaultConnections: preset.val });
+                      }
+                    }}
+                    className={`px-2 py-2 rounded-xl border text-center transition-all cursor-pointer relative group ${
+                      isSelected
+                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                        : isLocked
+                          ? 'bg-white/[0.02] border-white/[0.06] text-slate-500 hover:border-amber-500/30 hover:bg-amber-500/5'
+                          : 'bg-white/[0.04] border-white/[0.08] text-slate-300 hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <div className="font-mono text-xs font-bold flex items-center justify-center space-x-1">
+                      <span>{preset.val}</span>
+                      {isLocked && <Lock className="w-2.5 h-2.5 text-amber-400" />}
+                    </div>
+                    <div className="text-[9px] text-slate-400 theme-text-secondary truncate mt-0.5 font-medium">
+                      {preset.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Range Slider matching actual scale */}
             <div>
               <input
                 type="range"
@@ -210,30 +256,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 max={isPro ? 64 : 4}
                 step="1"
                 value={isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)}
-                onChange={(e) => setForm({ ...form, defaultConnections: parseInt(e.target.value, 10) })}
-                className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg"
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setForm({ ...form, defaultConnections: isPro ? val : Math.min(val, 4) });
+                }}
+                className="w-full accent-emerald-500 cursor-pointer h-2 rounded-lg bg-black/40"
               />
-              <div className="flex justify-between text-[11px] text-slate-400 theme-text-secondary mt-1">
-                <span>1 (Single)</span>
+              <div className="flex justify-between text-[11px] text-slate-400 theme-text-secondary mt-1 font-mono">
+                <span>1 (Single Stream)</span>
                 <span>2 (Standard)</span>
-                <span className="font-semibold text-emerald-400">4 (Maximum Free)</span>
-                <span className={isPro ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>
-                  {isPro ? '64 (Turbo PRO)' : '🔒 8–64 (PRO Only)'}
-                </span>
+                <span className="text-emerald-400 font-bold">4 (Maximum Free Limit)</span>
+                {isPro && <span className="text-emerald-400 font-bold">64 (Turbo PRO Max)</span>}
               </div>
             </div>
 
             {!isPro && (
-              <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-[11px] text-slate-300 theme-text-secondary">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>Free edition is capped at 4 streams. Turbo 8 to 64 streams is unlocked in PRO.</span>
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-center justify-between shadow-sm">
+                <div className="flex items-center space-x-2.5 text-xs text-slate-300 theme-text-secondary">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Free edition is capped at 4 streams. Turbo 8 to 64 streams is unlocked in PRO edition.</span>
                 </div>
                 {onOpenLicenseModal && (
                   <button
                     type="button"
                     onClick={onOpenLicenseModal}
-                    className="text-xs font-bold text-amber-400 hover:text-amber-300 underline shrink-0 ml-2"
+                    className="btn-emerald-glow px-3.5 py-1.5 text-xs font-bold text-black shrink-0 ml-3 shadow-md active:scale-95 cursor-pointer"
                   >
                     Unlock PRO
                   </button>
@@ -541,13 +588,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-4 liquid-modal-footer border-t border-white/[0.08] flex items-center justify-between shrink-0">
-          <span className="text-xs text-slate-400 theme-text-secondary">XDM Turbo Preferences</span>
+          <div className="flex items-center space-x-2.5">
+            <span className="text-xs text-slate-400 theme-text-secondary">XDM Turbo Preferences</span>
+            <span className="text-slate-600 font-mono text-xs">•</span>
+            <a
+              href="https://xdm.zihan.xyz"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                  (window as any).electronAPI.openExternal('https://xdm.zihan.xyz');
+                } else {
+                  window.open('https://xdm.zihan.xyz', '_blank');
+                }
+              }}
+              className="text-xs font-mono font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
+            >
+              xdm.zihan.xyz
+            </a>
+          </div>
 
           <div className="flex items-center space-x-3">
             <button
               type="button"
               onClick={onClose}
-              className="theme-secondary-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              className="theme-secondary-btn px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             >
               Cancel
             </button>

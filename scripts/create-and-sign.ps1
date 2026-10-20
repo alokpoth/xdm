@@ -1,5 +1,5 @@
 # Ensure Certificate for Zihan Fakir
-$certSubject = "CN=Zihan Fakir, O=Zihan Fakir, OU=zihan.uk, C=BD"
+$certSubject = "CN=Zihan Fakir, O=Zihan Fakir, OU=zihan.xyz, C=BD"
 $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "CN=Zihan Fakir" } | Select-Object -First 1
 
 if (-not $cert) {
@@ -37,8 +37,8 @@ $filesToSign = @(
     "release\win-unpacked\XDM Turbo.exe",
     "release\win-unpacked\resources\server\bin\ffmpeg.exe",
     "release\win-unpacked\resources\elevate.exe",
-    "release\XDM Turbo Setup 1.0.9.exe",
-    "release\XDM Turbo 1.0.9.exe"
+    "release\XDM Turbo Setup 1.0.10.exe",
+    "release\XDM Turbo 1.0.10.exe"
 )
 
 $timestampServer = "http://timestamp.digicert.com"
@@ -58,4 +58,6 @@ foreach ($file in $filesToSign) {
 }
 
 Write-Host "`nAuthenticode Signature check for installer:"
-Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.9.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
+if (Test-Path "release\XDM Turbo Setup 1.0.10.exe") {
+    Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.10.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
+}

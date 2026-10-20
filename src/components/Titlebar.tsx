@@ -56,7 +56,7 @@ export const Titlebar: React.FC<TitlebarProps> = React.memo(({ activeConnections
             TURBO
           </span>
           <span className="hidden md:inline-flex text-[9px] text-slate-500 theme-text-secondary font-mono font-medium ml-1">
-            v1.0.9
+            v1.0.10
           </span>
         </div>
       </div>

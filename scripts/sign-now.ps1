@@ -2,8 +2,8 @@ $cert = Get-Item "Cert:\CurrentUser\My\0E178C57ACDCC365A317CED4AAE07E9B577D38DA"
 Write-Host "Using Certificate: $($cert.Subject) ($($cert.Thumbprint))"
 
 $files = @(
-    "release\XDM Turbo Setup 1.0.9.exe",
-    "release\XDM Turbo 1.0.9.exe",
+    "release\XDM Turbo Setup 1.0.10.exe",
+    "release\XDM Turbo 1.0.10.exe",
     "release\win-unpacked\XDM Turbo.exe"
 )
 

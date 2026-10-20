@@ -22,7 +22,7 @@ class LicenseManager {
     this._cachedDeviceId = null;
     this.deviceId = options.deviceId || this.computeDeviceId();
     this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
-    this.clientVersion = '1.0.9';
+    this.clientVersion = '1.0.10';
 
     // Commercial License State: Default is Free Edition. PRO features unlock only with a valid paid license key
     const defaultPro = false;
@@ -345,7 +345,7 @@ class LicenseManager {
       status: 'pro',
       key: 'XDM-PRO-TURBO-LIFETIME',
       customerName: 'XDM Turbo PRO User',
-      customerEmail: 'pro@xdm.zihan.uk',
+      customerEmail: 'pro@xdm.zihan.xyz',
       deviceId: this.deviceId,
       deviceName: this.deviceName,
       activatedAt: 1729382400000,
@@ -367,7 +367,7 @@ class LicenseManager {
       status: 'pro',
       key: key,
       customerName: customerName || 'XDM Turbo PRO User',
-      customerEmail: customerEmail || 'pro@xdm.zihan.uk',
+      customerEmail: customerEmail || 'pro@xdm.zihan.xyz',
       deviceId: this.deviceId,
       deviceName: this.deviceName,
       activatedAt: Date.now(),
@@ -622,7 +622,7 @@ class LicenseManager {
       offlineGraceRemainingHours: this.license.offlineGraceRemainingHours || 0,
       serverUrl: this.serverUrl,
       lastOnlineCheck: this.license.lastOnlineCheck,
-      issuer: 'XDM Turbo Central License Authority (https://xdm.zihan.uk)'
+      issuer: 'XDM Turbo Central License Authority (https://xdm.zihan.xyz)'
     };
   }
 

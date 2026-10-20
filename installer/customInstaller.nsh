@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
-# XDM Turbo v1.0.9 — Premium Dark Obsidian Modern UI Theme
-# Developed by Zihan Fakir (https://xdm.zihan.uk)
+# XDM Turbo v1.0.10 — Premium Dark Obsidian Modern UI Theme
+# Developed by Zihan Fakir (https://xdm.zihan.xyz)
 # Obsidian: #070B13, Surface: #161920, Emerald: #10B981, Pure White: #FFFFFF
 # -----------------------------------------------------------------------------
 
@@ -139,17 +139,17 @@ FunctionEnd
   # Native browser integration configuration (Clean external extensions JSON, 100% safe & trusted)
   CreateDirectory "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.9"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.9"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
   FileClose $0
 
   CreateDirectory "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions"
   FileOpen $0 "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.9"}'
+  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.10"}'
   FileClose $0
 
   # Register Windows Startup (Silent background tray launch on Windows boot)

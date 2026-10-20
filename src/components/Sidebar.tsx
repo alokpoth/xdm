@@ -306,22 +306,22 @@ const SidebarComponent: React.FC<SidebarProps> = ({
 
       {/* Brand & Author Info */}
       <div className="shrink-0 mt-3 px-1 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-        <span>XDM Turbo</span>
+        <span>XDM Turbo v1.0.10</span>
         <a
-          href="https://xdm.zihan.uk"
+          href="https://xdm.zihan.xyz"
           target="_blank"
           rel="noreferrer"
           onClick={(e) => {
             e.preventDefault();
             if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
-              (window as any).electronAPI.openExternal('https://xdm.zihan.uk');
+              (window as any).electronAPI.openExternal('https://xdm.zihan.xyz');
             } else {
-              window.open('https://xdm.zihan.uk', '_blank');
+              window.open('https://xdm.zihan.xyz', '_blank');
             }
           }}
           className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center space-x-1"
         >
-          <span>xdm.zihan.uk</span>
+          <span>xdm.zihan.xyz</span>
           <ExternalLink className="w-2.5 h-2.5" />
         </a>
       </div>

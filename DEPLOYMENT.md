@@ -158,11 +158,11 @@ Never expose HTTP directly to the public internet for licensing. Always terminat
 
 ### 1. Nginx Virtual Host Configuration
 
-Create `/etc/nginx/sites-available/license.xdm.zihan.uk`:
+Create `/etc/nginx/sites-available/xdm.zihan.xyz`:
 
 ```nginx
 server {
-    server_name license.xdm.zihan.uk;
+    server_name xdm.zihan.xyz;
 
     # Rate limiting zone definition
     limit_req_zone $binary_remote_addr zone=license_limit:10m rate=30r/m;
@@ -201,13 +201,13 @@ server {
 ### 2. Enable Site and Provision SSL Certificate
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/license.xdm.zihan.uk /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/xdm.zihan.xyz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
 # Install Certbot and obtain free Let's Encrypt certificate
 sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d license.xdm.zihan.uk
+sudo certbot --nginx -d xdm.zihan.xyz
 ```
 
 ---
@@ -287,7 +287,7 @@ The license server strictly enforces privacy principles:
 | **Web Admin Dashboard** | ✅ Fully Implemented (`public/index.html`) | Accessible via `http://127.0.0.1:19685/admin` or domain. |
 | **Desktop Client Engine** | ✅ Fully Implemented (`LicenseManager.js`) | Configured with public key & 7-day grace period. |
 | **Automated Test Suite (19 Tests)** | ✅ 100% Passed (`tests/license-system.test.js`) | Can run in CI/CD pipelines (`node --test`). |
-| **Production Domain & Public DNS** | ⏳ Local (`http://127.0.0.1:19685`) | Configure DNS A-record (e.g. `license.xdm.zihan.uk`). |
+| **Production Domain & Public DNS** | ✅ Production Active | Configured DNS A-record on `xdm.zihan.xyz`. |
 | **Public HTTPS / SSL Certificate** | ⏳ Local HTTP | Run Let's Encrypt / Certbot on production server. |
 
 ---

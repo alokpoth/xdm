@@ -51,7 +51,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.9' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.10' });
 });
 
 app.get('/api/default-dir', (req, res) => {
@@ -254,11 +254,11 @@ function compareSemver(v1, v2) {
 }
 
 app.get('/api/check-update', (req, res) => {
-  const currentVersion = '1.0.9';
+  const currentVersion = '1.0.10';
   const https = require('https');
   const ghReq = https.get('https://api.github.com/repos/zihanfakir/xdm/releases/latest', {
     headers: {
-      'User-Agent': 'XDM-Turbo-Client/1.0.9',
+      'User-Agent': 'XDM-Turbo-Client/1.0.10',
       'Accept': 'application/vnd.github.v3+json'
     },
     timeout: 7000
@@ -336,7 +336,7 @@ app.get('/api/extension/status', (req, res) => {
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.9',
+    version: '1.0.10',
     path: extPath,
     extensionDir: extPath
   });

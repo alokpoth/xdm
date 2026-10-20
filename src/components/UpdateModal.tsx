@@ -35,9 +35,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   return (
     <div 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md select-none animate-fadeIn"
     >
-      <div className="w-full max-w-md rounded-3xl liquid-modal-panel border border-white/[0.09] shadow-2xl overflow-hidden flex flex-col backdrop-blur-2xl">
+      <div className="w-full max-w-xl rounded-3xl liquid-modal-panel border border-white/[0.09] shadow-2xl overflow-hidden flex flex-col backdrop-blur-2xl">
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
           <div className="flex items-center space-x-3">

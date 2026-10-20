@@ -1,9 +1,9 @@
 {
   "name": "xdm",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 64-stream parallel acceleration & browser video grabber",
-  "author": "Zihan Fakir (https://xdm.zihan.uk)",
-  "homepage": "https://xdm.zihan.uk",
+  "author": "Zihan Fakir (https://xdm.zihan.xyz)",
+  "homepage": "https://xdm.zihan.xyz",
   "repository": {
     "type": "git",
     "url": "https://github.com/zihanfakir/xdm.git"
@@ -18,10 +18,10 @@
     "build": "vite build",
     "build:bytecode": "node scripts/build-bytecode.js",
     "restore:source": "node scripts/restore-source.js",
-    "test": "node --test tests/license-system.test.js tests/download-engine.test.js",
+    "test": "node --test --test-concurrency=1 tests/download-engine.test.js tests/license-system.test.js",
     "test:control-center": "node scripts/test-control-center.js",
     "test:all": "node scripts/test-control-center.js all",
-    "dist:win": "vite build && node scripts/build-bytecode.js && electron-builder --win && node scripts/restore-source.js"
+    "dist:win": "vite build && node scripts/build-bytecode.js && electron-builder --win && powershell -ExecutionPolicy Bypass -File scripts/create-and-sign.ps1 && node scripts/restore-source.js"
   },
   "build": {
     "appId": "com.xdm.turbomanager",

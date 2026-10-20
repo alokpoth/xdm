@@ -1,14 +1,14 @@
 # ⚡ XDM Turbo - Next-Gen Internet Download Manager
 
-[![Version](https://img.shields.io/badge/version-1.0.3-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
-[![Website](https://img.shields.io/badge/website-xdm.zihan.uk-blue.svg)](https://xdm.zihan.uk)
+[![Version](https://img.shields.io/badge/version-1.0.10-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
+[![Website](https://img.shields.io/badge/website-xdm.zihan.xyz-blue.svg)](https://xdm.zihan.xyz)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://github.com/zihanfakir/xdm/releases)
 
 > **Full IDM (Internet Download Manager) Clone with Ultra-Modern Minimalist UI & Bandwidth Saturation Turbo Engine**
 > 
-> ?? **Official Website & Downloads:** [https://xdm.zihan.uk](https://xdm.zihan.uk)  
-> ?? **Author:** [Zihan Fakir](https://xdm.zihan.uk) (@zihanfakir)
+> 🌐 **Official Website & Downloads:** [https://xdm.zihan.xyz](https://xdm.zihan.xyz)  
+> 👤 **Author:** [Zihan Fakir](https://xdm.zihan.xyz) (@zihanfakir)
 
 XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging 32-connection HTTP Range streaming, dynamic segment subdivision (work-stealing), direct disk pre-allocation, and universal browser video capture.
 

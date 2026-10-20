@@ -459,7 +459,7 @@ class LicenseDatabase {
           options.userId || null,
           options.deviceName || 'Desktop PC',
           options.osPlatform || 'Windows',
-          options.clientVersion || '1.0.9',
+          options.clientVersion || '1.0.10',
           options.ipAddress || null,
           now,
           now

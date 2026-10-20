@@ -246,7 +246,7 @@ const handleActivate = async (req, res) => {
         userId,
         deviceName: deviceName || 'Windows PC',
         osPlatform: osPlatform || 'Windows',
-        clientVersion: clientVersion || '1.0.9',
+        clientVersion: clientVersion || '1.0.10',
         ipAddress: ip
       });
     } catch (seatErr) {
