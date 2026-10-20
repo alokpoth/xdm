@@ -639,6 +639,15 @@ class LicenseDatabase {
     });
     return res.rows[0] || null;
   }
+
+  async updateAdminPassword(username, newPasswordHash) {
+    await this.client.execute({
+      sql: 'UPDATE admin_users SET password_hash = ? WHERE username = ?',
+      args: [newPasswordHash, username]
+    });
+    await this.logEvent('admin_password_changed', null, null, 'admin', { username });
+    return true;
+  }
 }
 
 const dbInstance = new LicenseDatabase();

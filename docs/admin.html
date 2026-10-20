@@ -116,9 +116,13 @@
       </nav>
 
       <!-- Right Profile & Logout -->
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2 sm:space-x-3">
         <button id="refreshBtn" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors" title="Refresh Live Data">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+        <button id="openChangePassBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all" title="Change Admin Password">
+          <i data-lucide="key-round" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="hidden sm:inline">Change Password</span>
         </button>
         <button id="logoutBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-all">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
@@ -424,6 +428,41 @@
         <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
           <button type="button" id="cancelIssueBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white">Cancel</button>
           <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold">Generate Keys</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Admin Password Modal -->
+  <div id="changePasswordModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-[#0c1222] border border-slate-800 p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="key-round" class="w-4 h-4 text-emerald-400"></i>
+          <span>Change Admin Password</span>
+        </h3>
+        <button type="button" id="closePassModalBtn" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+
+      <div id="passAlert" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+
+      <form id="changePasswordForm" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Current Password</label>
+          <input type="password" id="currentPassInput" placeholder="••••••••" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">New Password (min 6 chars)</label>
+          <input type="password" id="newPassInput" minlength="6" placeholder="••••••••" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Confirm New Password</label>
+          <input type="password" id="confirmPassInput" minlength="6" placeholder="••••••••" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="cancelPassBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white">Cancel</button>
+          <button type="submit" id="savePassBtn" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold">Update Password</button>
         </div>
       </form>
     </div>
@@ -913,6 +952,75 @@
         }
       } catch (err) {
         alert('Failed to create license: ' + err.message);
+      }
+    });
+
+    // Change Password Modal Handlers
+    const changePasswordModal = document.getElementById('changePasswordModal');
+    const openChangePassBtn = document.getElementById('openChangePassBtn');
+    const closePassModalBtn = document.getElementById('closePassModalBtn');
+    const cancelPassBtn = document.getElementById('cancelPassBtn');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const passAlert = document.getElementById('passAlert');
+
+    function openPassModal() {
+      passAlert.classList.add('hidden');
+      changePasswordForm.reset();
+      changePasswordModal.classList.remove('hidden');
+      changePasswordModal.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closePassModal() {
+      changePasswordModal.classList.add('hidden');
+      changePasswordModal.classList.remove('flex');
+    }
+
+    if (openChangePassBtn) openChangePassBtn.addEventListener('click', openPassModal);
+    if (closePassModalBtn) closePassModalBtn.addEventListener('click', closePassModal);
+    if (cancelPassBtn) cancelPassBtn.addEventListener('click', closePassModal);
+
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      passAlert.classList.add('hidden');
+
+      const currentPassword = document.getElementById('currentPassInput').value.trim();
+      const newPassword = document.getElementById('newPassInput').value.trim();
+      const confirmPassword = document.getElementById('confirmPassInput').value.trim();
+
+      if (newPassword !== confirmPassword) {
+        passAlert.textContent = '❌ New password and confirmation do not match.';
+        passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        passAlert.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const res = await apiRequest('/api/v1/admin/change-password', {
+          method: 'POST',
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        if (res.success) {
+          passAlert.textContent = '✅ ' + (res.message || 'Password changed successfully!');
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          passAlert.classList.remove('hidden');
+          if (res.token) {
+            authToken = res.token;
+            sessionStorage.setItem('xdm_admin_token', authToken);
+          }
+          setTimeout(() => {
+            closePassModal();
+          }, 1500);
+        } else {
+          passAlert.textContent = '❌ ' + (res.error || 'Failed to update password');
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          passAlert.classList.remove('hidden');
+        }
+      } catch (err) {
+        passAlert.textContent = '❌ ' + err.message;
+        passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        passAlert.classList.remove('hidden');
       }
     });
 

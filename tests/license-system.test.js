@@ -736,3 +736,61 @@ test('Stateless HMAC Admin Auth: Rejects forged or expired admin tokens', async 
   });
   assert.equal(resMalformed.status, 401);
 });
+
+
+test('Admin Password Change: Validates current password, updates hash, and requires new password on login', async () => {
+  // 1. Rejects wrong current password
+  const failRes = await fetch(`${SERVER_URL}/api/v1/admin/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ currentPassword: 'wrongpassword', newPassword: 'newsecurepass123' })
+  });
+  assert.equal(failRes.status, 400);
+
+  // 2. Succeeds with correct current password
+  const successRes = await fetch(`${SERVER_URL}/api/v1/admin/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({ currentPassword: 'zihan2026', newPassword: 'newsecurepass123' })
+  });
+  assert.equal(successRes.status, 200);
+  const successData = await successRes.json();
+  assert.equal(successData.success, true);
+  assert.ok(successData.token);
+
+  // 3. Old password fails login
+  const oldLoginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'zihan2026' })
+  });
+  assert.equal(oldLoginRes.status, 401);
+
+  // 4. New password succeeds login
+  const newLoginRes = await fetch(`${SERVER_URL}/api/v1/admin/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'newsecurepass123' })
+  });
+  assert.equal(newLoginRes.status, 200);
+  const newLoginData = await newLoginRes.json();
+  assert.equal(newLoginData.success, true);
+  assert.ok(newLoginData.token);
+
+  // 5. Restore default password so other operations remain consistent
+  const restoreRes = await fetch(`${SERVER_URL}/api/v1/admin/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${newLoginData.token}`
+    },
+    body: JSON.stringify({ currentPassword: 'newsecurepass123', newPassword: 'zihan2026' })
+  });
+  assert.equal(restoreRes.status, 200);
+});
