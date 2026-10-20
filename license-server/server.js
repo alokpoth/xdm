@@ -824,6 +824,34 @@ const handleAdminGetAuditLogs = async (req, res) => {
 app.get('/api/v1/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
 app.get('/api/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
 
+// Admin Clear Audit Logs
+const handleAdminClearAuditLogs = async (req, res) => {
+  try {
+    const adminUsername = req.admin?.username || 'admin';
+    const beforeTimestamp = req.body?.beforeTimestamp;
+    const result = await db.clearAuditLogs({ adminUsername, beforeTimestamp });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/admin/audit-logs/clear', requireAdminAuth, handleAdminClearAuditLogs);
+app.post('/api/admin/audit-logs/clear', requireAdminAuth, handleAdminClearAuditLogs);
+app.delete('/api/v1/admin/audit-logs', requireAdminAuth, handleAdminClearAuditLogs);
+app.delete('/api/admin/audit-logs', requireAdminAuth, handleAdminClearAuditLogs);
+
+// Admin Database Maintenance & Optimization
+const handleAdminOptimizeDatabase = async (req, res) => {
+  try {
+    const result = await db.optimizeDatabase();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.post('/api/v1/admin/database/optimize', requireAdminAuth, handleAdminOptimizeDatabase);
+app.post('/api/admin/database/optimize', requireAdminAuth, handleAdminOptimizeDatabase);
+
 // Serve Admin UI statically when running standalone
 app.get(/^\/admin(\/.*)?$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));

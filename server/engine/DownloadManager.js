@@ -50,16 +50,28 @@ class DownloadManager {
     this.loadState();
 
     // Auto schedule queue check
-    setInterval(() => this.processQueue(), 2000);
+    this._queueInterval = setInterval(() => this.processQueue(), 2000);
+    if (this._queueInterval.unref) this._queueInterval.unref();
 
     // Auto check scheduler & auto-shutdown every 2.5s
-    setInterval(() => {
+    this._schedulerInterval = setInterval(() => {
       this.checkScheduler();
       this.checkAutoShutdown();
     }, 2500);
+    if (this._schedulerInterval.unref) this._schedulerInterval.unref();
 
     // Broadcast telemetry loop
-    setInterval(() => this.broadcastTelemetry(), 400);
+    this._telemetryInterval = setInterval(() => this.broadcastTelemetry(), 400);
+    if (this._telemetryInterval.unref) this._telemetryInterval.unref();
+  }
+
+  destroy() {
+    if (this._queueInterval) clearInterval(this._queueInterval);
+    if (this._schedulerInterval) clearInterval(this._schedulerInterval);
+    if (this._telemetryInterval) clearInterval(this._telemetryInterval);
+    if (this.licenseManager && typeof this.licenseManager.destroy === 'function') {
+      this.licenseManager.destroy();
+    }
   }
 
   ensureStorage() {

@@ -5,8 +5,38 @@
 
   const DOWNLOAD_EXTS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.exe', '.msi', '.apk', '.dmg', '.pkg', '.mp4', '.mkv', '.avi', '.mov', '.mp3', '.flac', '.wav', '.pdf', '.epub'];
 
-  // Intercept normal download link clicks strictly
+  let isProUser = false;
+  let licenseChecked = false;
+
+  function refreshLicenseStatus(callback) {
+    try {
+      chrome.runtime.sendMessage({ action: 'GET_LICENSE_STATUS' }, (res) => {
+        if (chrome.runtime.lastError || !res) {
+          isProUser = false;
+        } else {
+          isProUser = Boolean(res.isPro);
+        }
+        licenseChecked = true;
+        if (!isProUser) {
+          // Free mode: strictly remove all video panels from DOM
+          document.querySelectorAll('.xdm-video-panel').forEach(p => p.remove());
+        }
+        if (callback) callback(isProUser);
+      });
+    } catch (e) {
+      isProUser = false;
+    }
+  }
+
+  // Initial license state query and periodic refresh
+  refreshLicenseStatus();
+  setInterval(() => refreshLicenseStatus(), 20000);
+
+  // Intercept normal download link clicks strictly (PRO ONLY)
   document.addEventListener('click', function(e) {
+    // If not PRO, free version extension is OFF: let browser handle all clicks naturally
+    if (!isProUser) return;
+
     // Security: Only capture genuine user gestures, ignoring synthetic click events
     if (!e.isTrusted) return;
 
@@ -35,7 +65,7 @@
           if (res && res.success) {
             showToast('Sent to XDM Turbo: ' + (pathname.split('/').pop() || href));
           } else {
-            // If engine is offline, fall back to default browser download
+            // If pro required or offline, let browser handle the download
             window.location.href = href;
           }
         });
@@ -75,6 +105,12 @@
 
   // IDM Video Grabber: Inject floating download bar on video players
   function setupVideoGrabber() {
+    if (!isProUser) {
+      // Free mode: video grabber is turned off
+      document.querySelectorAll('.xdm-video-panel').forEach(p => p.remove());
+      return;
+    }
+
     const videos = document.querySelectorAll('video');
 
     videos.forEach((video) => {
@@ -88,11 +124,17 @@
         return;
       }
 
+      // For YouTube Shorts, only attach to active reel card to prevent jitter / jumping
+      const reelCard = video.closest('ytd-reel-video-renderer');
+      if (reelCard && !reelCard.hasAttribute('is-active')) {
+        return;
+      }
+
       // Container hierarchy:
       // For YouTube Shorts: ytd-reel-video-renderer is the top-level card that holds both the player and the #overlay
       // For standard YouTube: .html5-video-player holds the video and stays active in fullscreen
       // Fallbacks: [data-video-id], .video-js, or video.parentElement
-      const playerContainer = video.closest('ytd-reel-video-renderer') || 
+      const playerContainer = reelCard || 
                               video.closest('.html5-video-player') || 
                               video.closest('div[role="dialog"]') ||
                               video.closest('[data-video-id]') || 
@@ -445,7 +487,7 @@
     grabberDebounce = setTimeout(() => {
       grabberDebounce = null;
       setupVideoGrabber();
-    }, 300);
+    }, 400);
   };
 
   const domObserver = new MutationObserver(triggerGrabber);
@@ -457,6 +499,6 @@
     });
   }
 
-  setInterval(setupVideoGrabber, 2500);
+  setInterval(setupVideoGrabber, 4000);
   setupVideoGrabber();
 })();

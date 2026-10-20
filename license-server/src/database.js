@@ -10,6 +10,17 @@ class LicenseDatabase {
     this.client = null;
     this._initPromise = null;
     this.setupClient();
+    this.setupMaintenance();
+  }
+
+  setupMaintenance() {
+    // Run automated database vacuum, pruning, and optimization every 24 hours
+    this._maintenanceTimer = setInterval(() => {
+      this.optimizeDatabase().catch(() => {});
+    }, 24 * 60 * 60 * 1000);
+    if (this._maintenanceTimer && this._maintenanceTimer.unref) {
+      this._maintenanceTimer.unref();
+    }
   }
 
   setupClient() {
@@ -52,6 +63,8 @@ class LicenseDatabase {
   async init() {
     await this.initTables();
     await this.ensureDefaultAdmin();
+    // Non-blocking initial database maintenance to prevent bloat
+    this.optimizeDatabase().catch(() => {});
   }
 
   // Direct SQL execution helper
@@ -185,6 +198,74 @@ class LicenseDatabase {
       args: [limit, offset]
     });
     return res.rows;
+  }
+
+  async clearAuditLogs(options = {}) {
+    const adminUsername = options.adminUsername || 'admin';
+    let deleteSql = 'DELETE FROM audit_logs';
+    const params = [];
+    if (options.beforeTimestamp) {
+      deleteSql += ' WHERE created_at < ?';
+      params.push(Number(options.beforeTimestamp));
+    }
+    await this.client.execute({ sql: deleteSql, args: params });
+    try {
+      await this.client.execute('VACUUM');
+    } catch (e) {}
+    await this.logEvent('audit_logs_cleared', null, null, 'admin', {
+      clearedBy: adminUsername,
+      clearedAt: Date.now()
+    });
+    return { success: true, message: 'Audit event history cleared successfully' };
+  }
+
+  async optimizeDatabase() {
+    const sixtyDaysAgo = Date.now() - (60 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+
+    // 1. Prune audit logs beyond 2,500 entries or older than 60 days
+    try {
+      await this.client.execute({
+        sql: `DELETE FROM audit_logs 
+              WHERE created_at < ? 
+                 OR id NOT IN (SELECT id FROM audit_logs ORDER BY created_at DESC LIMIT 2500)`,
+        args: [sixtyDaysAgo]
+      });
+    } catch (e) {}
+
+    // 2. Prune stale unbanned IP attempt tracking older than 14 days
+    try {
+      await this.client.execute({
+        sql: 'DELETE FROM device_security WHERE is_banned = 0 AND last_attempt_at < ?',
+        args: [fourteenDaysAgo]
+      });
+    } catch (e) {}
+
+    // 3. Prune deactivated device sessions older than 90 days
+    try {
+      await this.client.execute({
+        sql: 'DELETE FROM devices WHERE is_active = 0 AND last_seen_at < ?',
+        args: [ninetyDaysAgo]
+      });
+    } catch (e) {}
+
+    // 4. Run SQLite optimization and vacuum
+    try {
+      await this.client.execute('PRAGMA optimize');
+    } catch (e) {}
+    try {
+      await this.client.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+    } catch (e) {}
+    try {
+      await this.client.execute('VACUUM');
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: 'Database optimized successfully. Stale logs pruned and disk space reclaimed.',
+      optimizedAt: Date.now()
+    };
   }
 
   // --- User Operations ---

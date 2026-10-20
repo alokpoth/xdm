@@ -127,7 +127,8 @@ app.post('/api/video/download', async (req, res) => {
       manager.broadcast({ type: 'PRO_REQUIRED', feature: 'extension' });
       return res.status(403).json({ 
         success: false, 
-        error: 'Browser Video Sniffer & 4K Grabber is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to download videos directly from browsers.' 
+        error: 'Browser Video Sniffer & 4K Grabber is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to download videos directly from browsers.',
+        proRequired: true
       });
     }
 
@@ -170,7 +171,8 @@ app.post('/api/downloads', async (req, res) => {
       manager.broadcast({ type: 'PRO_REQUIRED', feature: 'extension' });
       return res.status(403).json({ 
         success: false, 
-        error: 'Browser Extension download capture is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to unlock seamless 1-click browser integration.' 
+        error: 'Browser Extension download capture is an XDM Turbo PRO exclusive feature. Please upgrade to PRO to unlock seamless 1-click browser integration.',
+        proRequired: true
       });
     }
 

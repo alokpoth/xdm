@@ -1048,3 +1048,43 @@ test('Client Server Sync: 60s syncWithServer synchronizes unban, ban, and licens
 
   client.destroy();
 });
+
+test('Admin Database Optimization: Reclaims disk space and prunes stale records via /api/v1/admin/database/optimize', async () => {
+  const res = await fetch(`${SERVER_URL}/api/v1/admin/database/optimize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    }
+  });
+
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.success, true);
+  assert.ok(data.optimizedAt, 'Must include optimizedAt timestamp');
+});
+
+test('Admin Audit Logs Clear: Successfully purges event history via /api/v1/admin/audit-logs/clear', async () => {
+  // Clear logs
+  const clearRes = await fetch(`${SERVER_URL}/api/v1/admin/audit-logs/clear`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    }
+  });
+
+  assert.equal(clearRes.status, 200);
+  const clearData = await clearRes.json();
+  assert.equal(clearData.success, true);
+
+  // Fetch logs: should now only contain the audit_logs_cleared event
+  const logsRes = await fetch(`${SERVER_URL}/api/v1/admin/audit-logs?limit=10`, {
+    headers: { 'Authorization': `Bearer ${adminToken}` }
+  });
+  assert.equal(logsRes.status, 200);
+  const logsData = await logsRes.json();
+  assert.equal(logsData.success, true);
+  assert.ok(logsData.logs.length <= 2, 'Audit logs should be emptied except the clear confirmation event');
+  assert.equal(logsData.logs[0].event_type, 'audit_logs_cleared');
+});

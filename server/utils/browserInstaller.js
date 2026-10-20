@@ -55,15 +55,26 @@ class BrowserInstaller {
       }
     }
 
-    // 2. Also register in Windows Registry for Chrome and Edge safely without cmd.exe string injection
+    // 2. Also register in Windows Registry for Chrome, Edge, and Brave safely without cmd.exe string injection
     const { execFileSync, spawn } = require('child_process');
     const regEntries = [
       ['HKCU\\Software\\Google\\Chrome\\Extensions\\' + EXTENSION_ID, 'path', extPath],
       ['HKCU\\Software\\Google\\Chrome\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
       ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'path', extPath],
       ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
+      // Allowlist policies so Chromium runs the extension without requiring manual developer mode
       ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist', '1', EXTENSION_ID],
-      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist', '1', EXTENSION_ID]
+      ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources', '1', 'file:///*'],
+      ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources', '2', 'http://127.0.0.1/*'],
+      ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources', '3', 'http://localhost/*'],
+      ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources', '4', 'https://xdm.zihan.xyz/*'],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallAllowlist', '1', EXTENSION_ID],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources', '1', 'file:///*'],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources', '2', 'http://127.0.0.1/*'],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources', '3', 'http://localhost/*'],
+      ['HKCU\\Software\\Policies\\Microsoft\\Edge\\ExtensionInstallSources', '4', 'https://xdm.zihan.xyz/*'],
+      ['HKCU\\Software\\Policies\\BraveSoftware\\Brave\\ExtensionInstallAllowlist', '1', EXTENSION_ID],
+      ['HKCU\\Software\\Policies\\BraveSoftware\\Brave\\ExtensionInstallSources', '1', 'file:///*']
     ];
 
     for (const [key, valName, valData] of regEntries) {
@@ -75,20 +86,25 @@ class BrowserInstaller {
     return { success: true, message: 'External extensions JSON and Registry written successfully' };
   }
 
-  // Open Chrome / Edge directly with the extension loaded
+  // Open Chrome / Edge directly with the extension loaded without requiring Dev Mode toggles
   openBrowserWithExtension(browser = 'chrome') {
     const extPath = this.extensionDir;
     const { spawn } = require('child_process');
     const browserExe = browser === 'edge' ? 'msedge' : (browser === 'brave' ? 'brave' : 'chrome');
 
     try {
-      spawn(browserExe, [`--load-extension=${extPath}`, 'http://localhost:19684'], {
+      spawn(browserExe, [
+        `--load-extension=${extPath}`,
+        `--disable-extensions-except=${extPath}`,
+        '--no-default-browser-check',
+        'http://localhost:19684'
+      ], {
         detached: true,
         stdio: 'ignore'
       }).unref();
     } catch (e) {
       try {
-        spawn('cmd.exe', ['/c', 'start', 'chrome', 'chrome://extensions'], { detached: true, stdio: 'ignore' }).unref();
+        spawn('cmd.exe', ['/c', 'start', browserExe, 'http://localhost:19684'], { detached: true, stdio: 'ignore' }).unref();
       } catch (err) {}
     }
   }

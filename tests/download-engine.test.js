@@ -269,3 +269,12 @@ test('DownloadTask Non-Range Single Stream Fallback', async () => {
   } catch (e) {}
   await new Promise((resolve) => server.close(resolve));
 });
+
+
+test('DownloadManager Free Tier: Extension downloads strictly require verified PRO status', () => {
+  const DownloadManager = require('../server/engine/DownloadManager');
+  const tempDir = path.join(os.tmpdir(), `xdm_test_mgr_${Date.now()}`);
+  const mgr = new DownloadManager({ storageDir: tempDir });
+  assert.equal(mgr.isProVerified(), false, 'Default installation must not be PRO');
+  mgr.destroy();
+});
