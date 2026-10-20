@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <title>XDM Turbo • Central License Governance & Admin Portal</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { background-color: #060911; color: #f1f5f9; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0b1120; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#060911] text-slate-100">
+
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div id="loginView" class="fixed inset-0 z-50 flex items-center justify-center bg-[#060911] p-4">
+    <div class="w-full max-w-md rounded-2xl bg-[#0b1120] border border-slate-800 p-8 shadow-2xl relative overflow-hidden">
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="text-center space-y-2 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-lg shadow-emerald-500/20">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-white">XDM Turbo Central Licensing</h1>
+        <p class="text-xs text-slate-400">Authenticated Administrator Access Only</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div id="loginError" class="hidden p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center space-x-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-400"></i>
+          <span id="loginErrorMsg">Invalid credentials</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1">Username</label>
+          <input type="text" id="usernameInput" placeholder="Enter username" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1">Password</label>
+          <input type="password" id="passwordInput" placeholder="••••••••" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
+        </div>
+
+        <button type="submit" id="loginBtn" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          <span>Authenticate to Dashboard</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN DASHBOARD ==================== -->
+  <div id="dashboardView" class="hidden min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800/80 bg-[#0a0f1d]/90 backdrop-blur sticky top-0 z-40 px-3 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5 sm:space-x-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-black font-extrabold shadow-md shadow-emerald-500/20 shrink-0">
+          <i data-lucide="shield" class="w-4 h-4 text-black"></i>
+        </div>
+        <div>
+          <h2 class="text-xs sm:text-sm font-bold text-white flex items-center space-x-1.5 sm:space-x-2">
+            <span>XDM Turbo Governance</span>
+            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">ONLINE</span>
+          </h2>
+          <p class="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate max-w-[200px] sm:max-w-none">Zihan Fakir • Ed25519 Central Authority</p>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation Tabs -->
+      <nav class="hidden md:flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="overview">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 inline mr-1"></i>Overview
+        </button>
+        <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="licenses">
+          <i data-lucide="key" class="w-3.5 h-3.5 inline mr-1"></i>Licenses
+        </button>
+        <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="devices">
+          <i data-lucide="laptop" class="w-3.5 h-3.5 inline mr-1"></i>Devices
+        </button>
+        <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="users">
+          <i data-lucide="users" class="w-3.5 h-3.5 inline mr-1"></i>Users &amp; Privacy
+        </button>
+        <button class="nav-tab px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white" data-tab="audit">
+          <i data-lucide="history" class="w-3.5 h-3.5 inline mr-1"></i>Audit Logs
+        </button>
+        <button id="navTabAdmins" class="nav-tab hidden px-3 py-1.5 rounded-lg transition-all text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 cursor-pointer" data-tab="admins">
+          <i data-lucide="crown" class="w-3.5 h-3.5 inline mr-1 text-amber-400"></i>Owner Panel
+        </button>
+      </nav>
+
+      <!-- Right Profile & Logout -->
+      <div class="flex items-center space-x-1.5 sm:space-x-3">
+        <div id="currentUserBadge" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono">
+          <span id="currentRoleTag" class="px-1.5 py-0.2 rounded font-bold uppercase tracking-wider text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30">OWNER</span>
+          <span id="currentUsernameText" class="text-slate-300 font-semibold truncate max-w-[120px]">admin</span>
+        </div>
+        <button id="refreshBtn" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer" title="Refresh Live Data">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+        <button id="openChangePassBtn" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-all cursor-pointer" title="Change Admin Credentials">
+          <i data-lucide="user-cog" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="hidden sm:inline">Credentials</span>
+        </button>
+        <button id="logoutBtn" class="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold transition-all cursor-pointer">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Logout</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Sub-Navigation Tabs Bar (Touch-Friendly Horizontal Scroll) -->
+    <div class="md:hidden border-b border-slate-800 bg-[#070d19]/95 px-3 py-2 overflow-x-auto no-scrollbar flex items-center space-x-1.5 sticky top-[57px] z-30">
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="overview">
+        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+        <span>Overview</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="licenses">
+        <i data-lucide="key" class="w-3.5 h-3.5"></i>
+        <span>Licenses</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="devices">
+        <i data-lucide="laptop" class="w-3.5 h-3.5"></i>
+        <span>Devices</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="users">
+        <i data-lucide="users" class="w-3.5 h-3.5"></i>
+        <span>Users</span>
+      </button>
+      <button class="nav-tab shrink-0 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-all" data-tab="audit">
+        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+        <span>Audit Logs</span>
+      </button>
+      <button id="navTabAdminsMobile" class="nav-tab shrink-0 hidden px-3 py-1.5 rounded-lg text-amber-400 hover:text-amber-300 text-xs font-semibold items-center space-x-1.5 transition-all cursor-pointer" data-tab="admins">
+        <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span>Owner Panel</span>
+      </button>
+    </div>
+
+    <!-- Subheader Notification Banner -->
+    <div class="bg-slate-950/90 border-b border-slate-800/60 px-3 sm:px-6 py-2 text-[10px] sm:text-[11px] text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 font-mono">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+        <span class="truncate">Active Heartbeat Monitor • Live Users calculated via last-seen timestamp (&lt; 15m)</span>
+      </div>
+      <div>Offline Grace Period: <strong class="text-emerald-400">7 Days</strong></div>
+    </div>
+
+    <!-- Content Sections Container -->
+    <main class="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6">
+
+      <!-- ================= TAB: OVERVIEW ================= -->
+      <section id="tab-overview" class="space-y-4 sm:space-y-6">
+        <!-- Metric Cards Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">ACTIVE NOW</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400" id="statOnlineNow">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">1-min real-time</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">TOTAL LICENSES</span>
+              <i data-lucide="key" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-white" id="statTotalLicenses">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono"><span id="statActiveLicenses" class="text-emerald-400">0</span> active</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">BOUND DEVICES</span>
+              <i data-lucide="laptop" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-purple-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-purple-300" id="statTotalDevices">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono"><span id="statSeen24h">0</span> in 24h</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">REGISTERED USERS</span>
+              <i data-lucide="user-check" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-amber-200" id="statTotalUsers">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Consented</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1 col-span-2 sm:col-span-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">BANNED DEVICES</span>
+              <i data-lucide="shield-alert" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-rose-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-rose-400" id="statBannedDevices">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">10+ brute attempts</p>
+          </div>
+        </div>
+
+        <!-- Database Storage & Disk Capacity Meter (Real-Time Health & Usage) -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-slate-800/80 pb-3">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <i data-lucide="database" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-xs sm:text-sm text-white flex items-center space-x-2">
+                  <span>Database Capacity &amp; Storage Usage</span>
+                  <span id="dbHealthStatusBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full border text-emerald-400 bg-emerald-500/10 border-emerald-500/30">Healthy (Optimal)</span>
+                </h3>
+                <p class="text-[10px] sm:text-[11px] text-slate-400">Real-time disk consumption, storage fullness, and table row counts</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <button id="quickOptimizeDbBtn" class="px-3 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/50 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center space-x-1.5 cursor-pointer">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Optimize Now</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Capacity Progress Bar -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-[11px] sm:text-xs font-mono">
+              <span class="text-slate-400">Disk Used: <strong id="dbSizeText" class="text-white">0 KB</strong> of <span id="dbQuotaText" class="text-slate-400">1.00 GB</span></span>
+              <span id="dbPercentText" class="text-emerald-400 font-bold">0.01% Capacity</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div id="dbProgressBar" class="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500" style="width: 1%"></div>
+            </div>
+          </div>
+
+          <!-- Breakdown Chips -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 font-mono text-[11px]">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Audit Events</span>
+              <span id="dbCountAudit" class="text-white font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Licenses</span>
+              <span id="dbCountLicenses" class="text-emerald-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Active Devices</span>
+              <span id="dbCountDevices" class="text-purple-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80">
+              <span class="text-slate-500 text-[10px] block uppercase">Users</span>
+              <span id="dbCountUsers" class="text-amber-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-900/70 border border-slate-800/80 col-span-2 sm:col-span-1">
+              <span class="text-slate-500 text-[10px] block uppercase">Security Tracked</span>
+              <span id="dbCountSecurity" class="text-rose-300 font-bold text-xs sm:text-sm">0</span>
+            </div>
+          </div>
+        </div>
+        <!-- Quick Actions & Recent Activity -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-4">
+            <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+              <span>Quick Issue License</span>
+            </h3>
+            <button id="openIssueModalBtn" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+              <i data-lucide="key" class="w-4 h-4"></i>
+              <span>Generate New License Key</span>
+            </button>
+            <p class="text-[11px] text-slate-400">
+              Issues authentic server-backed keys signed with the authority's private Ed25519 key. Supports device limits and expiration dates.
+            </p>
+            <div class="pt-3 border-t border-slate-800/80 space-y-2">
+              <button id="optimizeDbBtn" class="w-full py-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="database" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Optimize &amp; Defrag Database</span>
+              </button>
+              <button id="purgeDataBtn" class="w-full py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 hover:text-white text-xs font-mono transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
+                <span>Clean All Test Data (Reset to 0)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+                <i data-lucide="activity" class="w-4 h-4 text-blue-400"></i>
+                <span>Latest Security &amp; Activation Events</span>
+              </h3>
+              <button id="clearAuditLogsOverviewBtn" class="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 hover:text-white text-[11px] font-mono transition-all flex items-center space-x-1 cursor-pointer">
+                <i data-lucide="trash" class="w-3 h-3 text-rose-400"></i>
+                <span>Clear History</span>
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="text-[10px] font-mono uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                    <th class="py-2">Time</th>
+                    <th class="py-2">Event</th>
+                    <th class="py-2">License</th>
+                    <th class="py-2">Device</th>
+                    <th class="py-2">IP</th>
+                  </tr>
+                </thead>
+                <tbody id="overviewRecentEvents" class="divide-y divide-slate-800/50 font-mono text-[11px]">
+                  <tr><td colspan="5" class="py-4 text-center text-slate-500">Loading events...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: LICENSES ================= -->
+      <section id="tab-licenses" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <input type="text" id="licenseSearchInput" placeholder="Search by key, customer, email..." class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-emerald-500 w-full sm:w-72 font-mono">
+            <select id="licenseStatusFilter" class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="revoked">Revoked</option>
+              <option value="expired">Expired</option>
+            </select>
+            <select id="licenseAdminFilter" class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none">
+              <option value="">All Admins</option>
+            </select>
+          </div>
+          <button id="openIssueModalBtn2" class="px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer w-full sm:w-auto shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Create License</span>
+          </button>
+        </div>
+
+        <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[760px]">
+              <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Key</th>
+                  <th class="py-3 px-3">Edition</th>
+                  <th class="py-3 px-3">Issued By</th>
+                  <th class="py-3 px-3">Customer</th>
+                  <th class="py-3 px-3">Devices</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-3">Created</th>
+                  <th class="py-3 px-3">Expires</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="licensesTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                <tr><td colspan="9" class="py-6 text-center text-slate-500">Loading licenses...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: DEVICES ================= -->
+      <section id="tab-devices" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <input type="text" id="deviceSearchInput" placeholder="Search devices by ID, name, or key..." class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 w-full sm:w-80 font-mono">
+        </div>
+
+        <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[680px]">
+              <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Device ID</th>
+                  <th class="py-3 px-3">Device Name</th>
+                  <th class="py-3 px-3">OS / Version</th>
+                  <th class="py-3 px-3">License Key</th>
+                  <th class="py-3 px-3">Last Seen (Live)</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="devicesTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                <tr><td colspan="7" class="py-6 text-center text-slate-500">Loading devices...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: USERS & PRIVACY ================= -->
+      <section id="tab-users" class="hidden space-y-6">
+        <div class="p-4 sm:p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs">
+          <div class="font-bold text-white flex items-center space-x-2">
+            <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
+            <span>Privacy &amp; Data Collection Disclosure</span>
+          </div>
+          <p class="text-slate-400 leading-relaxed text-xs">
+            XDM Turbo implements strict data minimization. We collect only what is strictly required to enforce single-device and multi-seat licensing:
+          </p>
+          <ul class="list-disc list-inside text-slate-400 space-y-1 font-mono text-[11px]">
+            <li>Anonymized SHA-256 hardware identifier (derived from system GUID/motherboard, no personal files/MACs).</li>
+            <li>Computer host name and OS platform (for customer device management).</li>
+            <li>Client application version (for security patch auditing).</li>
+            <li>Last-seen heartbeat timestamp (used solely to determine live seat usage).</li>
+          </ul>
+          <p class="text-slate-500 text-[10px]">
+            We never inspect, collect, or transmit user downloads, URLs, browsing history, files, passwords, or personal identity without explicit opt-in consent.
+          </p>
+        </div>
+
+        <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[620px]">
+              <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">User ID</th>
+                  <th class="py-3 px-3">Email Address</th>
+                  <th class="py-3 px-3">Licenses Count</th>
+                  <th class="py-3 px-3">Active Devices</th>
+                  <th class="py-3 px-3">Consent Status</th>
+                  <th class="py-3 px-3">Last Seen</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                <tr><td colspan="6" class="py-6 text-center text-slate-500">Loading registered users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: AUDIT LOGS ================= -->
+      <section id="tab-audit" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="space-y-0.5">
+            <h2 class="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
+              <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
+              <span>System &amp; Security Audit Trail</span>
+            </h2>
+            <p class="text-[10px] sm:text-[11px] text-slate-400">Chronological immutable security events, activation attempts, and device updates</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="optimizeDbAuditBtn" class="px-3 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/50 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center space-x-1.5 cursor-pointer">
+              <i data-lucide="database" class="w-3.5 h-3.5 text-cyan-400"></i>
+              <span>Optimize Database</span>
+            </button>
+            <button id="clearAuditLogsBtn" class="px-3 py-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800/50 text-rose-300 hover:text-white text-xs font-mono transition-all flex items-center space-x-1.5 cursor-pointer">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
+              <span>Clear Event History</span>
+            </button>
+          </div>
+        </div>
+        <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
+          <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table class="w-full text-left text-xs min-w-[680px]">
+              <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Timestamp</th>
+                  <th class="py-3 px-3">Event Type</th>
+                  <th class="py-3 px-3">License ID</th>
+                  <th class="py-3 px-3">Device ID</th>
+                  <th class="py-3 px-3">IP Address</th>
+                  <th class="py-3 px-4">Details</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                <tr><td colspan="6" class="py-6 text-center text-slate-500">Loading security logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB: OWNER ADMIN MANAGEMENT ================= -->
+      <section id="tab-admins" class="hidden space-y-4 sm:space-y-6">
+        <!-- Owner Banner -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xl">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+              <i data-lucide="crown" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-white flex items-center space-x-2">
+                <span>Master Owner Governance</span>
+                <span class="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase">OWNER PRIVILEGE</span>
+              </h2>
+              <p class="text-[11px] text-slate-300">Create sub-admin accounts, track license generation per reseller, suspend or unban accounts, and reset passwords.</p>
+            </div>
+          </div>
+          <button id="openCreateAdminModalBtn" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer shrink-0">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Create New Admin</span>
+          </button>
+        </div>
+
+        <!-- Metrics Cards Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">TOTAL ADMINS</span>
+              <i data-lucide="users" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-amber-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-white" id="statTotalAdmins">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Platform operators</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">ACTIVE ACCOUNTS</span>
+              <i data-lucide="check-circle" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-emerald-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400" id="statActiveAdmins">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Authorized &amp; active</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">SUSPENDED / BANNED</span>
+              <i data-lucide="ban" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-rose-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-rose-400" id="statBannedAdmins">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Locked by Owner</p>
+          </div>
+
+          <div class="p-3.5 sm:p-5 rounded-2xl bg-[#0b1120] border border-slate-800 shadow-xl space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] sm:text-xs">KEYS GENERATED</span>
+              <i data-lucide="key" class="w-3.5 sm:w-4 h-3.5 sm:h-4 text-cyan-400"></i>
+            </div>
+            <div class="text-2xl sm:text-3xl font-bold font-mono text-cyan-300" id="statAdminTotalKeys">0</div>
+            <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono">Issued by all admins</p>
+          </div>
+        </div>
+
+        <!-- Admins Table & Search -->
+        <div class="space-y-3">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <input type="text" id="adminSearchInput" placeholder="Search admin by username or notes..." class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 w-full sm:w-80 font-mono">
+              <select id="adminStatusFilter" class="px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 focus:outline-none">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="banned">Suspended / Banned</option>
+              </select>
+            </div>
+            <p class="text-[11px] text-slate-400 font-mono">Owner account is permanent and cannot be banned or deleted.</p>
+          </div>
+
+          <div class="rounded-2xl bg-[#0b1120] border border-slate-800 overflow-hidden shadow-xl">
+            <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+              <table class="w-full text-left text-xs min-w-[760px]">
+                <thead class="bg-slate-950/60 text-[10px] uppercase font-mono tracking-wider text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-4">Admin Username</th>
+                    <th class="py-3 px-3">Role</th>
+                    <th class="py-3 px-3">Status</th>
+                    <th class="py-3 px-3">Keys Created</th>
+                    <th class="py-3 px-3">Active Keys / Devices</th>
+                    <th class="py-3 px-3">Last Login</th>
+                    <th class="py-3 px-3">Notes</th>
+                    <th class="py-3 px-4 text-right">Governance Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminsTableBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                  <tr><td colspan="8" class="py-6 text-center text-slate-500">Loading admin accounts...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==================== MODAL: CREATE LICENSE ==================== -->
+  <div id="createLicenseModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-lg rounded-2xl bg-[#0b1120] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i data-lucide="key" class="w-4 h-4 text-emerald-400"></i>
+          <span>Issue New Product License</span>
+        </h3>
+        <button id="closeIssueModalBtn" class="text-slate-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <form id="createLicenseForm" class="space-y-3 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Edition</label>
+            <select id="newEdition" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
+              <option value="pro">PRO (64 Turbo Streams, 4K Video)</option>
+              <option value="admin">Admin / Dev (64 Streams, Full Access)</option>
+              <option value="trial">Trial (64 Streams, 14 Days Evaluation)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Max Devices (Seats)</label>
+            <input type="number" id="newMaxDevices" value="1" min="1" max="100" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Customer Name</label>
+            <input type="text" id="newCustomerName" placeholder="e.g. Rahim Uddin" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Customer Email</label>
+            <input type="email" id="newCustomerEmail" placeholder="rahim@example.com" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Expiration / Duration</label>
+          <select id="newExpiryOption" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none">
+            <option value="3day">3 Days</option>
+            <option value="7day">7 Days</option>
+            <option value="14day">14 Days</option>
+            <option value="1month">1 Month (30 Days)</option>
+            <option value="3month">3 Months (90 Days)</option>
+            <option value="6month">6 Months (180 Days)</option>
+            <option value="1year">1 Year (365 Days)</option>
+            <option value="3year">3 Years (1095 Days)</option>
+            <option value="lifetime" selected>Lifetime Access (No Expiration)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Quantity (Batch)</label>
+          <input type="number" id="newCount" value="1" min="1" max="50" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="cancelIssueBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold">Generate Keys</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Admin Credentials Modal -->
+  <div id="changePasswordModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-[#0c1222] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="user-cog" class="w-4 h-4 text-emerald-400"></i>
+          <span>Change Admin Credentials</span>
+        </h3>
+        <button type="button" id="closePassModalBtn" class="text-slate-400 hover:text-white text-sm cursor-pointer flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="passAlert" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+
+      <form id="changePasswordForm" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Current Password (Required)</label>
+          <input type="password" id="currentPassInput" placeholder="••••••••" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">New Username (Optional)</label>
+          <input type="text" id="newUsernameInput" placeholder="Leave empty to keep current" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">New Password (Optional, min 6 chars)</label>
+          <input type="password" id="newPassInput" minlength="6" placeholder="Leave empty to keep current" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Confirm New Password</label>
+          <input type="password" id="confirmPassInput" minlength="6" placeholder="••••••••" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <p class="text-[10.5px] text-slate-400">You can change your username, password, or both. Your current password is required for verification.</p>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="cancelPassBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer">Cancel</button>
+          <button type="submit" id="savePassBtn" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold cursor-pointer">Save Credentials</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CREATE ADMIN ==================== -->
+  <div id="createAdminModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-md rounded-2xl bg-[#0b1120] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i data-lucide="user-plus" class="w-4 h-4 text-amber-400"></i>
+          <span>Create New Administrator / Reseller</span>
+        </h3>
+        <button type="button" id="closeCreateAdminModalBtn" class="text-slate-400 hover:text-white p-1 cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <div id="createAdminAlert" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+
+      <form id="createAdminForm" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Username (Required)</label>
+          <input type="text" id="newAdminUsername" placeholder="e.g. reseller_dhaka" required pattern="^[a-zA-Z0-9_\-\.]{3,32}$" title="3-32 characters, letters, numbers, underscores, dashes, dots" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Initial Password (Required, min 6 chars)</label>
+          <input type="password" id="newAdminPassword" placeholder="••••••••" required minlength="6" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Role &amp; Permissions</label>
+          <select id="newAdminRole" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500 font-mono">
+            <option value="admin" selected>Sub-Admin / Reseller (Can issue keys &amp; manage their own licenses)</option>
+            <option value="owner">Master Owner (Full platform governance authority)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Notes / Description (Optional)</label>
+          <input type="text" id="newAdminNotes" placeholder="e.g. Authorized reseller for Bangladesh region" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500">
+        </div>
+
+        <p class="text-[10.5px] text-slate-400">The newly created administrator can immediately sign in with these credentials.</p>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="cancelCreateAdminBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer">Cancel</button>
+          <button type="submit" id="submitCreateAdminBtn" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold cursor-pointer">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: RESET SUB-ADMIN PASSWORD ==================== -->
+  <div id="resetSubAdminPassModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-[#0b1120] border border-slate-800 p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i data-lucide="key-round" class="w-4 h-4 text-cyan-400"></i>
+          <span>Reset Admin Password</span>
+        </h3>
+        <button type="button" id="closeResetSubAdminModalBtn" class="text-slate-400 hover:text-white p-1 cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <div id="resetSubAdminAlert" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+
+      <form id="resetSubAdminPassForm" class="space-y-3 text-xs">
+        <input type="hidden" id="resetSubAdminId">
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Target Account</label>
+          <div id="resetSubAdminUsernameDisplay" class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-amber-300 font-mono font-bold"></div>
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">New Password (Min 6 chars)</label>
+          <input type="password" id="resetSubAdminNewPassword" placeholder="••••••••" required minlength="6" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+        </div>
+
+        <div>
+          <label class="block font-mono uppercase tracking-wider text-slate-400 mb-1">Confirm New Password</label>
+          <input type="password" id="resetSubAdminConfirmPassword" placeholder="••••••••" required minlength="6" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white font-mono focus:outline-none focus:border-cyan-500">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end space-x-2">
+          <button type="button" id="cancelResetSubAdminBtn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer">Cancel</button>
+          <button type="submit" id="submitResetSubAdminBtn" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold cursor-pointer">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== SCRIPT LOGIC ==================== -->
+  <script>
+    let authToken = sessionStorage.getItem('xdm_admin_token') || null;
+    let currentUserRole = sessionStorage.getItem('xdm_admin_role') || null;
+    let currentUsername = sessionStorage.getItem('xdm_admin_username') || null;
+    let apiBaseUrl = localStorage.getItem('xdm_admin_server_url') || '';
+    let activeTab = 'overview';
+    let cachedAdmins = [];
+
+    function getApiUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      return `${apiBaseUrl}${path}`;
+    }
+
+    // Elements
+    const loginView = document.getElementById('loginView');
+    const dashboardView = document.getElementById('dashboardView');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const loginErrorMsg = document.getElementById('loginErrorMsg');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const serverUrlInput = document.getElementById('serverUrlInput');
+
+    if (serverUrlInput && apiBaseUrl) {
+      if (apiBaseUrl.includes('127.0.0.1') && window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost') {
+        apiBaseUrl = '';
+        localStorage.removeItem('xdm_admin_server_url');
+      } else {
+        serverUrlInput.value = apiBaseUrl;
+      }
+    }
+
+    function updateUserBadge() {
+      const badge = document.getElementById('currentUserBadge');
+      const roleTag = document.getElementById('currentRoleTag');
+      const userText = document.getElementById('currentUsernameText');
+      const navOwner = document.getElementById('navTabAdmins');
+      const navOwnerMobile = document.getElementById('navTabAdminsMobile');
+
+      if (badge && currentUsername) {
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        if (userText) userText.textContent = currentUsername;
+        if (roleTag) {
+          if (currentUserRole === 'owner' || currentUserRole === 'superadmin') {
+            roleTag.textContent = 'OWNER';
+            roleTag.className = 'px-1.5 py-0.2 rounded font-bold uppercase tracking-wider text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          } else {
+            roleTag.textContent = 'ADMIN';
+            roleTag.className = 'px-1.5 py-0.2 rounded font-bold uppercase tracking-wider text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30';
+          }
+        }
+      }
+
+      const isOwner = (currentUserRole === 'owner' || currentUserRole === 'superadmin');
+      if (navOwner) {
+        if (isOwner) navOwner.classList.remove('hidden');
+        else navOwner.classList.add('hidden');
+      }
+      if (navOwnerMobile) {
+        if (isOwner) {
+          navOwnerMobile.classList.remove('hidden');
+          navOwnerMobile.classList.add('flex');
+        } else {
+          navOwnerMobile.classList.add('hidden');
+          navOwnerMobile.classList.remove('flex');
+        }
+      }
+    }
+
+    // Init View
+    if (window.location.pathname.includes('/owner')) {
+      const loginTitle = document.querySelector('#loginView h1');
+      const loginSub = document.querySelector('#loginView p');
+      if (loginTitle) loginTitle.textContent = 'XDM Turbo Master Owner Portal';
+      if (loginSub) loginSub.textContent = 'Master Governance & Admin Management';
+    }
+
+    if (authToken) {
+      showDashboard();
+    } else {
+      showLogin();
+    }
+
+    function showLogin() {
+      loginView.classList.remove('hidden');
+      dashboardView.classList.add('hidden');
+      lucide.createIcons();
+    }
+
+    function showDashboard() {
+      loginView.classList.add('hidden');
+      dashboardView.classList.remove('hidden');
+      updateUserBadge();
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOwnerPath = window.location.pathname.includes('/owner');
+      const isOwnerRole = currentUserRole === 'owner' || currentUserRole === 'superadmin';
+      const targetTab = urlParams.get('tab') || (isOwnerPath && isOwnerRole ? 'admins' : 'overview');
+      switchTab(targetTab);
+      loadAllData();
+      lucide.createIcons();
+    }
+
+    // Login Submit
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value.trim();
+      const customUrl = (document.getElementById('serverUrlInput')?.value || '').trim();
+      apiBaseUrl = customUrl.replace(/\/+$/, '');
+      localStorage.setItem('xdm_admin_server_url', apiBaseUrl);
+
+      try {
+        const res = await fetch(getApiUrl('/api/v1/admin/login'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const contentType = res.headers.get('content-type') || '';
+        let data = {};
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const rawText = await res.text();
+          if (!res.ok) {
+            throw new Error(`Server returned HTTP ${res.status}${rawText.includes('FUNCTION_INVOCATION_FAILED') ? ': Serverless container warming up. Please retry in 5 seconds.' : ''}`);
+          }
+        }
+        if (data.success && data.token) {
+          authToken = data.token;
+          sessionStorage.setItem('xdm_admin_token', authToken);
+          if (data.admin) {
+            currentUserRole = data.admin.role;
+            currentUsername = data.admin.username;
+            sessionStorage.setItem('xdm_admin_role', currentUserRole);
+            sessionStorage.setItem('xdm_admin_username', currentUsername);
+          }
+          showDashboard();
+        } else {
+          loginErrorMsg.textContent = data.error || 'Authentication failed';
+          loginError.classList.remove('hidden');
+        }
+      } catch (err) {
+        loginErrorMsg.textContent = `Server connection error (${err.message})`;
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch(getApiUrl('/api/v1/admin/logout'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+      } catch(e){}
+      authToken = null;
+      currentUserRole = null;
+      currentUsername = null;
+      sessionStorage.removeItem('xdm_admin_token');
+      sessionStorage.removeItem('xdm_admin_role');
+      sessionStorage.removeItem('xdm_admin_username');
+      showLogin();
+    });
+
+    refreshBtn.addEventListener('click', () => {
+      loadAllData();
+    });
+
+    // Auto-refresh dashboard data every 30 seconds for live monitoring
+    setInterval(() => {
+      if (authToken && !document.hidden) {
+        loadAllData();
+      }
+    }, 30000);
+
+    // Tab Navigation
+    document.querySelectorAll('.nav-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchTab(btn.dataset.tab);
+      });
+    });
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll('.nav-tab').forEach(b => {
+        if (b.dataset.tab === tabName) {
+          if (tabName === 'admins') {
+            b.className = 'nav-tab px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30';
+          } else {
+            b.className = 'nav-tab px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30';
+          }
+        } else {
+          if (b.dataset.tab === 'admins') {
+            b.className = 'nav-tab px-3 py-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all';
+          } else {
+            b.className = 'nav-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all';
+          }
+        }
+      });
+
+      ['overview', 'licenses', 'devices', 'users', 'audit', 'admins'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (el) {
+          if (t === tabName) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+      });
+
+      if (tabName === 'admins') {
+        loadAdmins();
+      }
+
+      lucide.createIcons();
+    }
+
+    // API Fetch Helper
+    async function apiRequest(endpoint, options = {}) {
+      const headers = options.headers || {};
+      headers['Authorization'] = `Bearer ${authToken}`;
+      headers['Content-Type'] = 'application/json';
+      const res = await fetch(getApiUrl(endpoint), { ...options, headers });
+      if (res.status === 401) {
+        authToken = null;
+        sessionStorage.removeItem('xdm_admin_token');
+        showLogin();
+        throw new Error('Session expired');
+      }
+      return await res.json();
+    }
+
+    // Data Loaders
+    async function loadAllData() {
+      try {
+        await loadOverview();
+        await loadLicenses();
+        await loadDevices();
+        await loadUsers();
+        await loadAuditLogs();
+        if (currentUserRole === 'owner' || currentUserRole === 'superadmin') {
+          await loadAdmins();
+        }
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      }
+    }
+
+    async function loadOverview() {
+      const data = await apiRequest('/api/v1/admin/overview');
+      if (data.admin) {
+        currentUserRole = data.admin.role;
+        currentUsername = data.admin.username;
+        sessionStorage.setItem('xdm_admin_role', currentUserRole);
+        sessionStorage.setItem('xdm_admin_username', currentUsername);
+        updateUserBadge();
+      }
+
+      if (data.success && data.metrics) {
+        const m = data.metrics;
+        document.getElementById('statOnlineNow').textContent = m.onlineDevicesNow;
+        document.getElementById('statTotalLicenses').textContent = m.totalLicenses;
+        document.getElementById('statActiveLicenses').textContent = m.activeLicenses;
+        document.getElementById('statRevokedLicenses').textContent = m.revokedLicenses;
+        document.getElementById('statTotalDevices').textContent = m.totalDevices;
+        document.getElementById('statSeen24h').textContent = m.devicesSeen24h;
+        document.getElementById('statTotalUsers').textContent = m.totalUsers;
+        if (document.getElementById('statBannedDevices')) {
+          document.getElementById('statBannedDevices').textContent = m.bannedDevices || 0;
+        }
+
+        // Real-Time Database Storage Capacity & Health
+        if (m.storage) {
+          const s = m.storage;
+          const sizeEl = document.getElementById('dbSizeText');
+          if (sizeEl) sizeEl.textContent = s.sizeFormatted;
+          const quotaEl = document.getElementById('dbQuotaText');
+          if (quotaEl) quotaEl.textContent = s.maxQuotaFormatted || '1.00 GB';
+          const percentEl = document.getElementById('dbPercentText');
+          if (percentEl) percentEl.textContent = `${s.usagePercent}% Capacity (${s.sizeFormatted} used)`;
+          const barEl = document.getElementById('dbProgressBar');
+          if (barEl) barEl.style.width = `${Math.max(1, s.usagePercent)}%`;
+          const badgeEl = document.getElementById('dbHealthStatusBadge');
+          if (badgeEl) {
+            badgeEl.textContent = s.status;
+            badgeEl.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${s.statusClass || 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'}`;
+          }
+          if (s.tableCounts) {
+            if (document.getElementById('dbCountAudit')) document.getElementById('dbCountAudit').textContent = s.tableCounts.auditLogs;
+            if (document.getElementById('dbCountLicenses')) document.getElementById('dbCountLicenses').textContent = s.tableCounts.licenses;
+            if (document.getElementById('dbCountDevices')) document.getElementById('dbCountDevices').textContent = s.tableCounts.devices;
+            if (document.getElementById('dbCountUsers')) document.getElementById('dbCountUsers').textContent = s.tableCounts.users;
+            if (document.getElementById('dbCountSecurity')) document.getElementById('dbCountSecurity').textContent = s.tableCounts.securityEvents;
+          }
+        }
+      }
+
+      // Latest events
+      const logsData = await apiRequest('/api/v1/admin/audit-logs?limit=5');
+      const tbody = document.getElementById('overviewRecentEvents');
+      if (logsData.success && logsData.logs) {
+        tbody.innerHTML = '';
+        if (logsData.logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No events logged yet.</td></tr>';
+          return;
+        }
+        logsData.logs.forEach(l => {
+          const tr = document.createElement('tr');
+          const d = new Date(l.created_at).toLocaleTimeString();
+          tr.innerHTML = `
+            <td class="py-2 text-slate-400">${d}</td>
+            <td class="py-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${l.event_type}</span></td>
+            <td class="py-2 text-slate-300 truncate max-w-[120px]">${l.license_id || '—'}</td>
+            <td class="py-2 text-slate-400 truncate max-w-[120px]">${l.device_id || '—'}</td>
+            <td class="py-2 text-slate-500">${l.ip_address || '—'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    function getEventColor(type) {
+      if (type.includes('success')) return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      if (type.includes('failed') || type.includes('revoked')) return 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+      return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+    }
+
+    // Licenses Loader
+    async function loadLicenses() {
+      const search = document.getElementById('licenseSearchInput').value.trim();
+      const status = document.getElementById('licenseStatusFilter').value;
+      const adminFilter = document.getElementById('licenseAdminFilter')?.value || '';
+      let url = `/api/v1/admin/licenses?search=${encodeURIComponent(search)}&status=${status}&limit=50`;
+      if (adminFilter) {
+        url += `&admin=${encodeURIComponent(adminFilter)}`;
+      }
+      const data = await apiRequest(url);
+
+      const tbody = document.getElementById('licensesTableBody');
+      tbody.innerHTML = '';
+
+      if (!data.licenses || data.licenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-slate-500">No licenses found.</td></tr>';
+        return;
+      }
+
+      data.licenses.forEach(lic => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/50 transition-colors';
+        const createdDate = new Date(lic.created_at).toLocaleDateString();
+        const expiresDate = lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'Lifetime';
+        
+        let statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        if (lic.status === 'revoked') statusBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        if (lic.status === 'suspended') statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-white select-all">${lic.key}</td>
+          <td class="py-3 px-3 uppercase text-[10px] font-bold text-slate-400">${lic.edition}</td>
+          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80">${lic.created_by_admin || 'master'}</span></td>
+          <td class="py-3 px-3 text-slate-300">${lic.customer_name || '—'}<br><span class="text-[10px] text-slate-500">${lic.customer_email || ''}</span></td>
+          <td class="py-3 px-3 text-slate-300">${lic.active_devices} / ${lic.max_devices}</td>
+          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}">${lic.status.toUpperCase()}</span></td>
+          <td class="py-3 px-3 text-slate-400">${createdDate}</td>
+          <td class="py-3 px-3 text-slate-400">${expiresDate}</td>
+          <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+            ${lic.status === 'active' ? `
+              <button class="revoke-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px]" data-id="${lic.id}">Revoke</button>
+              <button class="suspend-btn px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px]" data-id="${lic.id}">Suspend</button>
+            ` : `
+              <button class="resume-btn px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px]" data-id="${lic.id}">Reactivate</button>
+            `}
+            <button class="delete-btn px-2 py-1 rounded bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white text-[10px] transition-all cursor-pointer font-bold" data-id="${lic.id}" data-key="${lic.key}" title="Delete Key Permanently">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Actions
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const key = btn.dataset.key;
+          if (!confirm(`Are you sure you want to permanently delete license key "${key}"?\n\nThis will remove it from the database completely and unbind all connected devices.`)) return;
+          try {
+            await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}`, { method: 'DELETE' });
+            loadLicenses();
+            loadOverview();
+          } catch(e) {
+            alert('Error deleting license: ' + e.message);
+          }
+        });
+      });
+
+      document.querySelectorAll('.revoke-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Are you sure you want to permanently revoke this license?')) return;
+          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/revoke`, { method: 'POST', body: JSON.stringify({ reason: 'Admin revoked' }) });
+          loadLicenses();
+          loadOverview();
+        });
+      });
+
+      document.querySelectorAll('.suspend-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/suspend`, { method: 'POST', body: JSON.stringify({ reason: 'Admin suspended' }) });
+          loadLicenses();
+          loadOverview();
+        });
+      });
+
+      document.querySelectorAll('.resume-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/resume`, { method: 'POST', body: JSON.stringify({}) });
+          loadLicenses();
+          loadOverview();
+        });
+      });
+    }
+
+    document.getElementById('licenseSearchInput').addEventListener('input', () => loadLicenses());
+    document.getElementById('licenseStatusFilter').addEventListener('change', () => loadLicenses());
+    document.getElementById('licenseAdminFilter')?.addEventListener('change', () => loadLicenses());
+
+    // Devices Loader
+    async function loadDevices() {
+      const search = document.getElementById('deviceSearchInput').value.trim();
+      const data = await apiRequest(`/api/v1/admin/devices?search=${encodeURIComponent(search)}&limit=50`);
+      const tbody = document.getElementById('devicesTableBody');
+      tbody.innerHTML = '';
+
+      if (!data.devices || data.devices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No activated devices found.</td></tr>';
+        return;
+      }
+
+      const now = Date.now();
+      const twoMins = 2 * 60 * 1000;
+
+      data.devices.forEach(dev => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/50 transition-colors';
+        const isOnline = (now - dev.last_seen_at) < twoMins;
+        const lastSeenStr = new Date(dev.last_seen_at).toLocaleTimeString();
+        const isBanned = Boolean(dev.is_banned);
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-slate-200 select-all">
+            <div class="flex items-center space-x-1.5">
+              ${isBanned ? '<i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-400"></i>' : ''}
+              <span>${dev.id}</span>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-white font-semibold">${dev.device_name}</td>
+          <td class="py-3 px-3 text-slate-400">${dev.os_platform} (v${dev.client_version})</td>
+          <td class="py-3 px-3 text-slate-300 font-mono">${dev.license_key}</td>
+          <td class="py-3 px-3">
+            <span class="flex items-center space-x-1.5 font-mono">
+              <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}"></span>
+              <span class="${isOnline ? 'text-emerald-300 font-bold' : 'text-slate-400'}">${isOnline ? 'ONLINE' : lastSeenStr}</span>
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            ${isBanned ? `
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1">
+                <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
+                <span>BANNED (${dev.failed_attempts || 10} fails)</span>
+              </span>
+            ` : `
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${dev.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
+                ${dev.is_active ? 'BOUND' : 'DEACTIVATED'}
+              </span>
+              ${dev.failed_attempts > 0 ? `<span class="ml-1 text-[9px] text-amber-400 font-mono">(${dev.failed_attempts}/10 fails)</span>` : ''}
+            `}
+          </td>
+          <td class="py-3 px-4 text-right space-x-1">
+            ${isBanned ? `
+              <button class="unban-device-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer inline-flex items-center gap-1" data-dev="${dev.id}">
+                <i data-lucide="unlock" class="w-3 h-3"></i>
+                <span>Unban</span>
+              </button>
+            ` : `
+              ${dev.is_active && dev.license_id !== 'NONE' ? `
+                <button class="deactivate-device-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px]" data-lic="${dev.license_id}" data-dev="${dev.id}">Unbind</button>
+              ` : ''}
+              <button class="ban-device-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px]" data-dev="${dev.id}">Lock</button>
+            `}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.querySelectorAll('.unban-device-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm(`Unban device ${btn.dataset.dev} and reset failed attempts counter?`)) return;
+          await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/unban`, { method: 'POST' });
+          loadDevices();
+          loadOverview();
+        });
+      });
+
+      document.querySelectorAll('.ban-device-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const reason = prompt(`Enter reason for locking device ${btn.dataset.dev}:`, 'Exceeded invalid attempts or suspicious behavior');
+          if (!reason) return;
+          await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/ban`, { method: 'POST', body: JSON.stringify({ reason }) });
+          loadDevices();
+          loadOverview();
+        });
+      });
+
+      document.querySelectorAll('.deactivate-device-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Force unbind this device from the license?')) return;
+          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.lic}/devices/${btn.dataset.dev}/deactivate`, { method: 'POST' });
+          loadDevices();
+          loadLicenses();
+          loadOverview();
+        });
+      });
+    }
+
+    document.getElementById('deviceSearchInput').addEventListener('input', () => loadDevices());
+
+    // Users Loader
+    async function loadUsers() {
+      const data = await apiRequest('/api/v1/admin/users?limit=50');
+      const tbody = document.getElementById('usersTableBody');
+      tbody.innerHTML = '';
+
+      if (!data.users || data.users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No users registered yet.</td></tr>';
+        return;
+      }
+
+      data.users.forEach(u => {
+        const tr = document.createElement('tr');
+        const lastSeen = new Date(u.last_seen_at).toLocaleDateString();
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-slate-300">${u.id}</td>
+          <td class="py-3 px-3 text-white">${u.email || '—'}</td>
+          <td class="py-3 px-3 text-slate-400">${u.licenses_count}</td>
+          <td class="py-3 px-3 text-slate-400">${u.active_devices_count}</td>
+          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">CONSENTED</span></td>
+          <td class="py-3 px-3 text-slate-400">${lastSeen}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Audit Logs Loader
+    async function loadAuditLogs() {
+      const data = await apiRequest('/api/v1/admin/audit-logs?limit=50');
+      const tbody = document.getElementById('auditTableBody');
+      tbody.innerHTML = '';
+
+      if (!data.logs || data.logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No audit events recorded.</td></tr>';
+        return;
+      }
+
+      data.logs.forEach(l => {
+        const tr = document.createElement('tr');
+        const time = new Date(l.created_at).toLocaleString();
+        tr.innerHTML = `
+          <td class="py-3 px-4 text-slate-400">${time}</td>
+          <td class="py-3 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${l.event_type}</span></td>
+          <td class="py-3 px-3 text-slate-300 font-mono text-[10px] truncate max-w-[120px]">${l.license_id || '—'}</td>
+          <td class="py-3 px-3 text-slate-400 font-mono text-[10px] truncate max-w-[120px]">${l.device_id || '—'}</td>
+          <td class="py-3 px-3 text-slate-500">${l.ip_address || '—'}</td>
+          <td class="py-3 px-4 text-slate-400 text-[10px] truncate max-w-[200px]">${l.details || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Modal Handlers
+    const createLicenseModal = document.getElementById('createLicenseModal');
+    const openIssueModalBtn = document.getElementById('openIssueModalBtn');
+    const openIssueModalBtn2 = document.getElementById('openIssueModalBtn2');
+    const closeIssueModalBtn = document.getElementById('closeIssueModalBtn');
+    const cancelIssueBtn = document.getElementById('cancelIssueBtn');
+    const createLicenseForm = document.getElementById('createLicenseForm');
+
+    function openModal() {
+      createLicenseModal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeModal() {
+      createLicenseModal.classList.add('hidden');
+    }
+
+    openIssueModalBtn.addEventListener('click', openModal);
+    openIssueModalBtn2.addEventListener('click', openModal);
+    closeIssueModalBtn.addEventListener('click', closeModal);
+    cancelIssueBtn.addEventListener('click', closeModal);
+
+    createLicenseForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const edition = document.getElementById('newEdition').value;
+      const maxDevices = parseInt(document.getElementById('newMaxDevices').value, 10) || 1;
+      const customerName = document.getElementById('newCustomerName').value.trim();
+      const customerEmail = document.getElementById('newCustomerEmail').value.trim();
+      const count = parseInt(document.getElementById('newCount').value, 10) || 1;
+      const expiryOpt = document.getElementById('newExpiryOption').value;
+
+      let expiresAt = null;
+      const now = Date.now();
+      if (expiryOpt === '3day') expiresAt = now + (3 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '7day') expiresAt = now + (7 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '14day' || expiryOpt === '14days') expiresAt = now + (14 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '1month') expiresAt = now + (30 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '3month') expiresAt = now + (90 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '6month') expiresAt = now + (180 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '1year') expiresAt = now + (365 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === '3year') expiresAt = now + (1095 * 24 * 60 * 60 * 1000);
+      else if (expiryOpt === 'lifetime') expiresAt = null;
+
+      try {
+        const res = await apiRequest('/api/v1/admin/licenses', {
+          method: 'POST',
+          body: JSON.stringify({ edition, maxDevices, customerName, customerEmail, expiresAt, duration: expiryOpt, count })
+        });
+        if (res.success) {
+          alert(`Successfully generated ${res.count} license key(s)!`);
+          closeModal();
+          createLicenseForm.reset();
+          loadLicenses();
+          loadOverview();
+        }
+      } catch (err) {
+        alert('Failed to create license: ' + err.message);
+      }
+    });
+
+    // Change Password Modal Handlers
+    const changePasswordModal = document.getElementById('changePasswordModal');
+    const openChangePassBtn = document.getElementById('openChangePassBtn');
+    const closePassModalBtn = document.getElementById('closePassModalBtn');
+    const cancelPassBtn = document.getElementById('cancelPassBtn');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const passAlert = document.getElementById('passAlert');
+
+    function openPassModal() {
+      passAlert.classList.add('hidden');
+      changePasswordForm.reset();
+      changePasswordModal.classList.remove('hidden');
+      changePasswordModal.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closePassModal() {
+      changePasswordModal.classList.add('hidden');
+      changePasswordModal.classList.remove('flex');
+    }
+
+    if (openChangePassBtn) openChangePassBtn.addEventListener('click', openPassModal);
+    if (closePassModalBtn) closePassModalBtn.addEventListener('click', closePassModal);
+    if (cancelPassBtn) cancelPassBtn.addEventListener('click', closePassModal);
+
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      passAlert.classList.add('hidden');
+
+      const currentPassword = document.getElementById('currentPassInput').value.trim();
+      const newUsername = document.getElementById('newUsernameInput')?.value.trim() || undefined;
+      const newPassword = document.getElementById('newPassInput').value.trim();
+      const confirmPassword = document.getElementById('confirmPassInput').value.trim();
+
+      if (!newUsername && !newPassword) {
+        passAlert.textContent = 'Please enter a new username or a new password to update.';
+        passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        passAlert.classList.remove('hidden');
+        return;
+      }
+
+      if (newPassword) {
+        if (newPassword.length < 6) {
+          passAlert.textContent = 'New password must be at least 6 characters.';
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          passAlert.classList.remove('hidden');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          passAlert.textContent = 'New password and confirmation do not match.';
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          passAlert.classList.remove('hidden');
+          return;
+        }
+      }
+
+      try {
+        const payload = { currentPassword };
+        if (newUsername) payload.newUsername = newUsername;
+        if (newPassword) payload.newPassword = newPassword;
+
+        const res = await apiRequest('/api/v1/admin/change-credentials', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        if (res.success) {
+          passAlert.textContent = res.message || 'Credentials updated successfully!';
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          passAlert.classList.remove('hidden');
+          if (res.token) {
+            authToken = res.token;
+            sessionStorage.setItem('xdm_admin_token', authToken);
+          }
+          setTimeout(() => {
+            closePassModal();
+          }, 1500);
+        } else {
+          passAlert.textContent = res.error || 'Failed to update credentials';
+          passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          passAlert.classList.remove('hidden');
+        }
+      } catch (err) {
+        passAlert.textContent = err.message;
+        passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        passAlert.classList.remove('hidden');
+      }
+    });
+
+    // ==========================================
+    // OWNER GOVERNANCE & ADMIN MANAGEMENT
+    // ==========================================
+    async function loadAdmins() {
+      if (currentUserRole !== 'owner' && currentUserRole !== 'superadmin') return;
+
+      try {
+        const data = await apiRequest('/api/v1/owner/admins');
+        if (!data.success || !data.admins) return;
+
+        cachedAdmins = data.admins;
+        renderAdminsTable();
+        updateAdminFilterDropdown();
+      } catch (err) {
+        console.error('Failed to load admins:', err);
+      }
+    }
+
+    function updateAdminFilterDropdown() {
+      const select = document.getElementById('licenseAdminFilter');
+      if (!select) return;
+      const currentVal = select.value;
+      const adminsSet = new Set(cachedAdmins.map(a => a.username));
+      
+      let html = '<option value="">All Admins</option>';
+      adminsSet.forEach(u => {
+        html += `<option value="${u}" ${u === currentVal ? 'selected' : ''}>${u}</option>`;
+      });
+      select.innerHTML = html;
+    }
+
+    function renderAdminsTable() {
+      const search = (document.getElementById('adminSearchInput')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('adminStatusFilter')?.value || '';
+
+      const totalAdmins = cachedAdmins.length;
+      const activeAdmins = cachedAdmins.filter(a => a.status === 'active').length;
+      const bannedAdmins = cachedAdmins.filter(a => a.status === 'banned').length;
+      const totalKeys = cachedAdmins.reduce((acc, a) => acc + (parseInt(a.keys_count, 10) || 0), 0);
+
+      if (document.getElementById('statTotalAdmins')) document.getElementById('statTotalAdmins').textContent = totalAdmins;
+      if (document.getElementById('statActiveAdmins')) document.getElementById('statActiveAdmins').textContent = activeAdmins;
+      if (document.getElementById('statBannedAdmins')) document.getElementById('statBannedAdmins').textContent = bannedAdmins;
+      if (document.getElementById('statAdminTotalKeys')) document.getElementById('statAdminTotalKeys').textContent = totalKeys;
+
+      const filtered = cachedAdmins.filter(a => {
+        if (statusFilter && a.status !== statusFilter) return false;
+        if (search) {
+          const matchUser = a.username.toLowerCase().includes(search);
+          const matchNotes = (a.notes || '').toLowerCase().includes(search);
+          return matchUser || matchNotes;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('adminsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-500">No administrator accounts match criteria.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(adm => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/50 transition-colors';
+        const isOwner = adm.role === 'owner' || adm.role === 'superadmin';
+        const isBanned = adm.status === 'banned';
+        const lastLogin = adm.last_login_at ? new Date(adm.last_login_at).toLocaleString() : 'Never';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-white select-all">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="${isOwner ? 'crown' : 'user'}" class="w-3.5 h-3.5 ${isOwner ? 'text-amber-400' : 'text-blue-400'}"></i>
+              <span>${adm.username}</span>
+            </div>
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${isOwner ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}">
+              ${adm.role.toUpperCase()}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isBanned ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
+              ${isBanned ? 'SUSPENDED' : 'ACTIVE'}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <div class="flex items-center space-x-1.5 font-mono">
+              <span class="font-bold text-white">${adm.keys_count || 0}</span>
+              <button class="view-admin-keys-btn text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 cursor-pointer transition-colors" data-admin="${adm.username}">View Keys</button>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-slate-300 font-mono text-[10.5px]">
+            <span class="text-emerald-400 font-semibold">${adm.active_keys_count || 0}</span> keys &bull; <span class="text-purple-300 font-semibold">${adm.active_devices_count || 0}</span> dev
+          </td>
+          <td class="py-3 px-3 text-slate-400 text-[10.5px]">${lastLogin}</td>
+          <td class="py-3 px-3 text-slate-400 text-[11px] truncate max-w-[140px]">${adm.notes || '—'}</td>
+          <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+            ${isOwner ? `
+              <span class="text-[10px] text-slate-500 font-mono italic">Protected Master</span>
+            ` : `
+              ${isBanned ? `
+                <button class="unban-admin-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer" data-id="${adm.id}" data-user="${adm.username}">Activate</button>
+              ` : `
+                <button class="ban-admin-btn px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-semibold border border-rose-500/20 cursor-pointer" data-id="${adm.id}" data-user="${adm.username}">Suspend</button>
+              `}
+              <button class="reset-admin-pass-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-semibold border border-slate-700 cursor-pointer" data-id="${adm.id}" data-user="${adm.username}">Reset Pass</button>
+              <button class="delete-admin-btn px-2 py-1 rounded bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer" data-id="${adm.id}" data-user="${adm.username}">Delete</button>
+            `}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Actions bindings
+      document.querySelectorAll('.ban-admin-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const username = btn.dataset.user;
+          const id = btn.dataset.id;
+          if (!confirm(`Are you sure you want to suspend / ban administrator "${username}"?\n\nThey will be immediately blocked from logging into the portal.`)) return;
+          try {
+            await apiRequest(`/api/v1/owner/admins/${id}/ban`, { method: 'POST', body: JSON.stringify({ reason: 'Suspended by Owner' }) });
+            await loadAdmins();
+          } catch(e) {
+            alert('Failed to suspend admin: ' + e.message);
+          }
+        });
+      });
+
+      document.querySelectorAll('.unban-admin-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const username = btn.dataset.user;
+          const id = btn.dataset.id;
+          if (!confirm(`Activate administrator "${username}"?`)) return;
+          try {
+            await apiRequest(`/api/v1/owner/admins/${id}/unban`, { method: 'POST' });
+            await loadAdmins();
+          } catch(e) {
+            alert('Failed to activate admin: ' + e.message);
+          }
+        });
+      });
+
+      document.querySelectorAll('.reset-admin-pass-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const user = btn.dataset.user;
+          document.getElementById('resetSubAdminId').value = id;
+          document.getElementById('resetSubAdminUsernameDisplay').textContent = user;
+          document.getElementById('resetSubAdminNewPassword').value = '';
+          document.getElementById('resetSubAdminConfirmPassword').value = '';
+          document.getElementById('resetSubAdminAlert').classList.add('hidden');
+          const modal = document.getElementById('resetSubAdminPassModal');
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          lucide.createIcons();
+        });
+      });
+
+      document.querySelectorAll('.delete-admin-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const username = btn.dataset.user;
+          const id = btn.dataset.id;
+          if (!confirm(`CRITICAL: Permanently delete administrator account "${username}"?\n\nThis action cannot be undone.`)) return;
+          try {
+            await apiRequest(`/api/v1/owner/admins/${id}`, { method: 'DELETE' });
+            await loadAdmins();
+            await loadOverview();
+          } catch(e) {
+            alert('Failed to delete admin: ' + e.message);
+          }
+        });
+      });
+
+      document.querySelectorAll('.view-admin-keys-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const adminUser = btn.dataset.admin;
+          const adminSelect = document.getElementById('licenseAdminFilter');
+          if (adminSelect) {
+            adminSelect.value = adminUser;
+          }
+          switchTab('licenses');
+          loadLicenses();
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    document.getElementById('adminSearchInput')?.addEventListener('input', () => renderAdminsTable());
+    document.getElementById('adminStatusFilter')?.addEventListener('change', () => renderAdminsTable());
+
+    // Create Admin Modal Handlers
+    const createAdminModal = document.getElementById('createAdminModal');
+    const openCreateAdminModalBtn = document.getElementById('openCreateAdminModalBtn');
+    const closeCreateAdminModalBtn = document.getElementById('closeCreateAdminModalBtn');
+    const cancelCreateAdminBtn = document.getElementById('cancelCreateAdminBtn');
+    const createAdminForm = document.getElementById('createAdminForm');
+    const createAdminAlert = document.getElementById('createAdminAlert');
+
+    function openCreateAdminModal() {
+      if (createAdminAlert) createAdminAlert.classList.add('hidden');
+      if (createAdminForm) createAdminForm.reset();
+      if (createAdminModal) {
+        createAdminModal.classList.remove('hidden');
+        createAdminModal.classList.add('flex');
+      }
+      lucide.createIcons();
+    }
+
+    function closeCreateAdminModal() {
+      if (createAdminModal) {
+        createAdminModal.classList.add('hidden');
+        createAdminModal.classList.remove('flex');
+      }
+    }
+
+    if (openCreateAdminModalBtn) openCreateAdminModalBtn.addEventListener('click', openCreateAdminModal);
+    if (closeCreateAdminModalBtn) closeCreateAdminModalBtn.addEventListener('click', closeCreateAdminModal);
+    if (cancelCreateAdminBtn) cancelCreateAdminBtn.addEventListener('click', closeCreateAdminModal);
+
+    if (createAdminForm) {
+      createAdminForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        createAdminAlert.classList.add('hidden');
+
+        const username = document.getElementById('newAdminUsername').value.trim();
+        const password = document.getElementById('newAdminPassword').value.trim();
+        const role = document.getElementById('newAdminRole').value;
+        const notes = document.getElementById('newAdminNotes').value.trim();
+
+        try {
+          const res = await apiRequest('/api/v1/owner/admins', {
+            method: 'POST',
+            body: JSON.stringify({ username, password, role, notes })
+          });
+
+          if (res.success) {
+            alert(`Administrator account "${username}" created successfully!`);
+            closeCreateAdminModal();
+            loadAdmins();
+          } else {
+            createAdminAlert.textContent = res.error || 'Failed to create admin';
+            createAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+            createAdminAlert.classList.remove('hidden');
+          }
+        } catch (err) {
+          createAdminAlert.textContent = err.message;
+          createAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          createAdminAlert.classList.remove('hidden');
+        }
+      });
+    }
+
+    // Reset Sub-Admin Password Modal Handlers
+    const resetSubAdminPassModal = document.getElementById('resetSubAdminPassModal');
+    const closeResetSubAdminModalBtn = document.getElementById('closeResetSubAdminModalBtn');
+    const cancelResetSubAdminBtn = document.getElementById('cancelResetSubAdminBtn');
+    const resetSubAdminPassForm = document.getElementById('resetSubAdminPassForm');
+    const resetSubAdminAlert = document.getElementById('resetSubAdminAlert');
+
+    function closeResetSubAdminModal() {
+      if (resetSubAdminPassModal) {
+        resetSubAdminPassModal.classList.add('hidden');
+        resetSubAdminPassModal.classList.remove('flex');
+      }
+    }
+
+    if (closeResetSubAdminModalBtn) closeResetSubAdminModalBtn.addEventListener('click', closeResetSubAdminModal);
+    if (cancelResetSubAdminBtn) cancelResetSubAdminBtn.addEventListener('click', closeResetSubAdminModal);
+
+    if (resetSubAdminPassForm) {
+      resetSubAdminPassForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        resetSubAdminAlert.classList.add('hidden');
+
+        const id = document.getElementById('resetSubAdminId').value;
+        const newPassword = document.getElementById('resetSubAdminNewPassword').value.trim();
+        const confirmPassword = document.getElementById('resetSubAdminConfirmPassword').value.trim();
+
+        if (newPassword.length < 6) {
+          resetSubAdminAlert.textContent = 'Password must be at least 6 characters.';
+          resetSubAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          resetSubAdminAlert.classList.remove('hidden');
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          resetSubAdminAlert.textContent = 'Passwords do not match.';
+          resetSubAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          resetSubAdminAlert.classList.remove('hidden');
+          return;
+        }
+
+        try {
+          const res = await apiRequest(`/api/v1/owner/admins/${id}/password`, {
+            method: 'POST',
+            body: JSON.stringify({ newPassword })
+          });
+
+          if (res.success) {
+            alert('Password reset successfully!');
+            closeResetSubAdminModal();
+            loadAdmins();
+          } else {
+            resetSubAdminAlert.textContent = res.error || 'Failed to reset password';
+            resetSubAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+            resetSubAdminAlert.classList.remove('hidden');
+          }
+        } catch (err) {
+          resetSubAdminAlert.textContent = err.message;
+          resetSubAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          resetSubAdminAlert.classList.remove('hidden');
+        }
+      });
+    }
+
+    // Purge / Clean All Test Data Handler
+    const purgeDataBtn = document.getElementById('purgeDataBtn');
+    if (purgeDataBtn) {
+      purgeDataBtn.addEventListener('click', async () => {
+        const input = prompt("WARNING: This will permanently wipe all test licenses, devices, and audit logs and reset all counters to 0.\n\nType 'RESET' to confirm:");
+        if (input !== 'RESET') {
+          if (input !== null) alert("Reset cancelled: You must type 'RESET' to confirm.");
+          return;
+        }
+        try {
+          const res = await apiRequest('/api/v1/admin/purge-all', {
+            method: 'POST',
+            body: JSON.stringify({ confirm: 'PURGE_ALL_DATA' })
+          });
+          alert(res.message || 'All test data has been cleanly purged! Counters reset to 0.');
+          loadAllData();
+        } catch (e) {
+          alert('Failed to reset data: ' + e.message);
+        }
+      });
+    }
+
+    // Database Optimization Handler
+    async function handleOptimizeDatabase() {
+      const confirmed = confirm("Optimize and defragment database?\n\nThis will prune audit logs beyond 2,500 entries, remove stale IP attempt counters older than 14 days, and execute SQLite VACUUM to reclaim storage space.");
+      if (!confirmed) return;
+      try {
+        const res = await apiRequest('/api/v1/admin/database/optimize', { method: 'POST' });
+        alert(res.message || "Database optimized and defragmented successfully.");
+        await loadAllData();
+      } catch (e) {
+        alert("Failed to optimize database: " + e.message);
+      }
+    }
+
+    const optimizeDbBtn = document.getElementById('optimizeDbBtn');
+    if (optimizeDbBtn) optimizeDbBtn.addEventListener('click', handleOptimizeDatabase);
+    const optimizeDbAuditBtn = document.getElementById('optimizeDbAuditBtn');
+    if (optimizeDbAuditBtn) optimizeDbAuditBtn.addEventListener('click', handleOptimizeDatabase);
+    const quickOptimizeDbBtn = document.getElementById('quickOptimizeDbBtn');
+    if (quickOptimizeDbBtn) quickOptimizeDbBtn.addEventListener('click', handleOptimizeDatabase);
+
+    // Clear Audit Logs Handler
+    async function handleClearAuditLogs() {
+      const confirmed = confirm("Are you sure you want to clear the security & activation event history?\n\nThis will purge the audit trail records and defragment storage.");
+      if (!confirmed) return;
+      try {
+        const res = await apiRequest('/api/v1/admin/audit-logs/clear', { method: 'POST' });
+        alert(res.message || "Audit event history cleared successfully.");
+        await loadAuditLogs();
+        await loadOverviewMetrics();
+      } catch (e) {
+        alert("Failed to clear audit history: " + e.message);
+      }
+    }
+
+    const clearAuditLogsBtn = document.getElementById('clearAuditLogsBtn');
+    if (clearAuditLogsBtn) clearAuditLogsBtn.addEventListener('click', handleClearAuditLogs);
+    const clearAuditLogsOverviewBtn = document.getElementById('clearAuditLogsOverviewBtn');
+    if (clearAuditLogsOverviewBtn) clearAuditLogsOverviewBtn.addEventListener('click', handleClearAuditLogs);
+
+  </script>
+</body>
+</html>

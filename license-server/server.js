@@ -1042,8 +1042,8 @@ const handleOwnerGetAdminLicenses = async (req, res) => {
 app.get('/api/v1/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdminLicenses);
 app.get('/api/owner/admins/:id/licenses', requireOwnerAuth, handleOwnerGetAdminLicenses);
 
-// Serve Admin UI statically when running standalone
-app.get(/^\/admin(\/.*)?$/, (req, res) => {
+// Serve Admin & Owner UI statically when running standalone
+app.get(/^\/(admin|owner)(\/.*)?$/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 

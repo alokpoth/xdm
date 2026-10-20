@@ -862,6 +862,13 @@
     }
 
     // Init View
+    if (window.location.pathname.includes('/owner')) {
+      const loginTitle = document.querySelector('#loginView h1');
+      const loginSub = document.querySelector('#loginView p');
+      if (loginTitle) loginTitle.textContent = 'XDM Turbo Master Owner Portal';
+      if (loginSub) loginSub.textContent = 'Master Governance & Admin Management';
+    }
+
     if (authToken) {
       showDashboard();
     } else {
@@ -878,7 +885,11 @@
       loginView.classList.add('hidden');
       dashboardView.classList.remove('hidden');
       updateUserBadge();
-      switchTab('overview');
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOwnerPath = window.location.pathname.includes('/owner');
+      const isOwnerRole = currentUserRole === 'owner' || currentUserRole === 'superadmin';
+      const targetTab = urlParams.get('tab') || (isOwnerPath && isOwnerRole ? 'admins' : 'overview');
+      switchTab(targetTab);
       loadAllData();
       lucide.createIcons();
     }
