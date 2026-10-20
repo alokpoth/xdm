@@ -52,7 +52,7 @@
 
         <div>
           <label class="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1">Username</label>
-          <input type="text" id="usernameInput" value="admin" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
+          <input type="text" id="usernameInput" placeholder="Enter username" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
         </div>
 
         <div>
@@ -60,22 +60,11 @@
           <input type="password" id="passwordInput" placeholder="••••••••" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
         </div>
 
-        <div>
-          <label class="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-between">
-            <span>API Server URL</span>
-            <span class="text-[10px] text-slate-500 font-normal lowercase">optional (default: same origin)</span>
-          </label>
-          <input type="text" id="serverUrlInput" placeholder="Leave empty for current site (https://xdm.zihan.xyz)" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 focus:border-emerald-500 focus:outline-none text-white text-xs font-mono">
-        </div>
-
         <button type="submit" id="loginBtn" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
           <i data-lucide="lock" class="w-4 h-4"></i>
           <span>Authenticate to Dashboard</span>
         </button>
       </form>
-      <div class="mt-6 pt-4 border-t border-slate-800/80 text-center text-[11px] text-slate-500 font-mono">
-        Default credentials: <span class="text-slate-400 font-bold">admin</span> / <span class="text-slate-400 font-bold">zihan2026</span>
-      </div>
     </div>
   </div>
 
@@ -536,7 +525,16 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let data = {};
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const rawText = await res.text();
+          if (!res.ok) {
+            throw new Error(`Server returned HTTP ${res.status}${rawText.includes('FUNCTION_INVOCATION_FAILED') ? ': Serverless container warming up. Please retry in 5 seconds.' : ''}`);
+          }
+        }
         if (data.success && data.token) {
           authToken = data.token;
           sessionStorage.setItem('xdm_admin_token', authToken);

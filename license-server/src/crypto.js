@@ -12,23 +12,29 @@ class LicenseCrypto {
   }
 
   ensureKeys() {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-
+    // 1. If keys are provided via environment variables, use them immediately (Zero disk access, 100% serverless safe)
     if (process.env.ED25519_PRIVATE_KEY && process.env.ED25519_PUBLIC_KEY) {
       this.privateKey = process.env.ED25519_PRIVATE_KEY.replace(/\\n/g, '\n');
       this.publicKey = process.env.ED25519_PUBLIC_KEY.replace(/\\n/g, '\n');
       return;
     }
 
-    if (fs.existsSync(PRIVATE_KEY_FILE) && fs.existsSync(PUBLIC_KEY_FILE)) {
-      this.privateKey = fs.readFileSync(PRIVATE_KEY_FILE, 'utf-8');
-      this.publicKey = fs.readFileSync(PUBLIC_KEY_FILE, 'utf-8');
-      return;
+    // 2. Check local disk safely
+    try {
+      if (fs.existsSync(PRIVATE_KEY_FILE) && fs.existsSync(PUBLIC_KEY_FILE)) {
+        this.privateKey = fs.readFileSync(PRIVATE_KEY_FILE, 'utf-8');
+        this.publicKey = fs.readFileSync(PUBLIC_KEY_FILE, 'utf-8');
+        return;
+      }
+
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+    } catch (e) {
+      console.warn('[LicenseCrypto] Read-only filesystem detected on key check:', e.message);
     }
 
-    // Generate new Ed25519 keypair
+    // 3. Generate in-memory fallback
     const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519', {
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
       publicKeyEncoding: { type: 'spki', format: 'pem' }
@@ -40,9 +46,7 @@ class LicenseCrypto {
     try {
       fs.writeFileSync(PRIVATE_KEY_FILE, privateKey, { mode: 0o600 });
       fs.writeFileSync(PUBLIC_KEY_FILE, publicKey, { mode: 0o644 });
-    } catch (e) {
-      console.warn('[LicenseCrypto] Could not write keys to disk:', e.message);
-    }
+    } catch (e) {}
   }
 
   getPublicKey() {

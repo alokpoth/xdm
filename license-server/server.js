@@ -30,6 +30,19 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '100kb' }));
 
+// Serverless Path Normalization Middleware (Vercel rewrite & catch-all resilience)
+app.use((req, res, next) => {
+  if (req.query && req.query['0'] && (req.path === '/api' || req.path === '/')) {
+    const sub = req.query['0'].startsWith('/') ? req.query['0'] : `/${req.query['0']}`;
+    req.url = `/api${sub}`;
+  }
+  const originalPath = req.headers['x-matched-path'] || req.headers['x-forwarded-url'];
+  if (originalPath && originalPath.startsWith('/api') && (req.path === '/api' || req.path === '/')) {
+    req.url = originalPath;
+  }
+  next();
+});
+
 // Client IP extraction helper
 function getClientIp(req) {
   if (process.env.VERCEL || process.env.TRUST_PROXY === 'true') {
