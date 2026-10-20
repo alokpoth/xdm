@@ -6,7 +6,7 @@
   "homepage": "https://xdm.zihan.xyz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zihanfakir/xdm.git"
+    "url": "https://gitlab.com/zihanfakir/xdm.git"
   },
   "main": "electron/main.js",
   "scripts": {

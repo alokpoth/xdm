@@ -24,7 +24,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   if (!isOpen || !updateInfo) return null;
 
   const handleOpenReleaseUrl = () => {
-    const targetUrl = updateInfo.downloadUrl || 'https://github.com/zihanfakir/xdm/releases';
+    const targetUrl = updateInfo.downloadUrl || 'https://gitlab.com/zihanfakir/xdm/-/releases';
     if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(targetUrl);
     } else {
