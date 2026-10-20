@@ -105,6 +105,111 @@ test('DownloadTask Range Support & Multi-Segment Download', async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
+test('DownloadTask Path Traversal & Malicious Filename Sanitization', () => {
+  const task = new DownloadTask({
+    url: 'https://example.com/payload.exe',
+    fileName: '../../../Windows/System32/calc.exe',
+    saveDir: 'C:\\Users\\Test\\Downloads'
+  });
+  assert.ok(!task.fileName.includes('..'));
+  assert.ok(!task.fileName.includes('/'));
+  assert.ok(!task.fileName.includes('\\'));
+  assert.equal(task.fileName, 'calc.exe');
+
+  // DOS reserved device names
+  const conTask = new DownloadTask({
+    url: 'https://example.com/CON.txt',
+    fileName: 'CON.txt'
+  });
+  assert.equal(conTask.fileName, 'file_CON.txt');
+
+  const auxTask = new DownloadTask({
+    url: 'https://example.com/aux.bin',
+    fileName: 'aux.bin'
+  });
+  assert.equal(auxTask.fileName, 'file_aux.bin');
+
+  const nulTask = new DownloadTask({
+    url: 'https://example.com/NUL.tar.gz',
+    fileName: 'NUL.tar.gz'
+  });
+  assert.equal(nulTask.fileName, 'file_NUL.tar.gz');
+});
+
+test('DownloadTask Pause and Resume Integrity', async () => {
+  // Large 200KB payload
+  const testPayload = Buffer.alloc(200 * 1024, 0x5a); // 200KB of 'Z's
+  const server = http.createServer((req, res) => {
+    const range = req.headers['range'];
+    if (range) {
+      const match = range.match(/bytes=(\d+)-(\d+)?/);
+      if (match) {
+        const start = parseInt(match[1], 10);
+        const end = match[2] ? parseInt(match[2], 10) : testPayload.length - 1;
+        const chunk = testPayload.subarray(start, end + 1);
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${testPayload.length}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunk.length,
+          'Content-Type': 'application/octet-stream'
+        });
+        res.end(chunk);
+        return;
+      }
+    }
+    res.writeHead(200, {
+      'Accept-Ranges': 'bytes',
+      'Content-Length': testPayload.length,
+      'Content-Type': 'application/octet-stream'
+    });
+    res.end(testPayload);
+  });
+
+  const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+  const tempDir = path.join(os.tmpdir(), `xdm_test_pauseresume_${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  const dlUrl = `http://127.0.0.1:${port}/largefile.bin`;
+  let resolveTask;
+  const completionPromise = new Promise((resolve) => { resolveTask = resolve; });
+
+  const task = new DownloadTask({
+    url: dlUrl,
+    fileName: 'largefile.bin',
+    saveDir: tempDir,
+    connections: 4,
+    onProgress: (t) => {
+      if (t.status === 'completed') resolveTask();
+    }
+  });
+
+  task.start();
+
+  // Wait for initial segment progress then pause
+  await new Promise((r) => setTimeout(r, 40));
+  task.pause();
+  assert.equal(task.status, 'paused');
+  assert.equal(task.isPaused, true);
+  assert.equal(task.activeStreams.size, 0);
+
+  // Resume the task
+  task.resume();
+  await completionPromise;
+
+  assert.equal(task.status, 'completed');
+  assert.equal(task.downloadedBytes, testPayload.length);
+
+  const downloadedPath = path.join(tempDir, 'largefile.bin');
+  assert.ok(fs.existsSync(downloadedPath));
+  assert.equal(fs.readFileSync(downloadedPath).length, testPayload.length);
+
+  try {
+    fs.unlinkSync(downloadedPath);
+    fs.rmdirSync(tempDir);
+  } catch (e) {}
+  await new Promise((resolve) => server.close(resolve));
+});
+
 test('DownloadTask Non-Range Single Stream Fallback', async () => {
   // Create a mock server that does NOT support Range requests (returns 200 only)
   const testPayload = Buffer.from('Hello world non-resumable stream content');

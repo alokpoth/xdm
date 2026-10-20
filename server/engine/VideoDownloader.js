@@ -222,10 +222,8 @@ class VideoDownloader {
     const { url, formatId, saveDir, title } = options;
 
     let cleanTitle = (title || 'video').replace(/[<>:"/\\|?*]+/g, '_').trim();
-    if (!/xdm\s+by\s+zihan/i.test(cleanTitle)) {
-      cleanTitle = `${cleanTitle} XDM by Zihan`;
-    }
-    const safeTitle = cleanTitle.substring(0, 120);
+    cleanTitle = cleanTitle.replace(/[.\s]+$/, '');
+    const safeTitle = (cleanTitle || 'video').substring(0, 120);
 
     const outTemplate = path.join(saveDir, `${safeTitle}.%(ext)s`);
     const ffmpegPath = this.getFfmpegPath();

@@ -12,19 +12,28 @@ function formatXdmFileName(originalName) {
   if (!originalName || typeof originalName !== 'string') {
     return `download_${Date.now()}`;
   }
-  let clean = originalName.replace(/[<>:"/\\|?*]+/g, '_').trim();
-  // Strip trailing dots and spaces (illegal in Windows file systems)
-  clean = clean.replace(/[.\s]+$/, '');
+  // 1. Strip any directory path components (both forward and backward slashes)
+  let clean = path.basename(originalName.replace(/\\/g, '/')).trim();
+  // 2. Remove illegal characters for Windows and Unix filesystems
+  clean = clean.replace(/[<>:"/\\|?*]+/g, '_').trim();
+  // 3. Remove leading/trailing dots and spaces
+  clean = clean.replace(/^[\.\s]+/, '').replace(/[\.\s]+$/, '');
+  // 4. Remove consecutive dots that might represent directory traversal
+  clean = clean.replace(/\.{2,}/g, '_');
   if (!clean) clean = `download_${Date.now()}`;
+
+  // Guard against Windows DOS reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9) with or without extensions
+  const DOS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i;
+  if (DOS_RESERVED.test(clean)) {
+    clean = `file_${clean}`;
+  }
 
   const ext = path.extname(clean);
   let base = clean.slice(0, clean.length - ext.length).trim();
   if (!base) base = `file_${Date.now()}`;
 
-  // Guard against Windows DOS reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
-  const DOS_RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-  if (DOS_RESERVED.test(base)) {
-    base = `${base}_file`;
+  if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base)) {
+    base = `file_${base}`;
   }
 
   // Prevent Windows MAX_PATH overflows by clamping base length to 120 chars
@@ -1106,5 +1115,8 @@ class DownloadTask {
     };
   }
 }
+
+DownloadTask.formatXdmFileName = formatXdmFileName;
+DownloadTask.prototype.formatXdmFileName = formatXdmFileName;
 
 module.exports = DownloadTask;

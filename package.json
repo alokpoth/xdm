@@ -19,6 +19,8 @@
     "build:bytecode": "node scripts/build-bytecode.js",
     "restore:source": "node scripts/restore-source.js",
     "test": "node --test tests/license-system.test.js tests/download-engine.test.js",
+    "test:control-center": "node scripts/test-control-center.js",
+    "test:all": "node scripts/test-control-center.js all",
     "dist:win": "vite build && node scripts/build-bytecode.js && electron-builder --win && node scripts/restore-source.js"
   },
   "build": {
@@ -116,5 +118,9 @@
     "tailwindcss": "^3.4.19",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
+  },
+  "overrides": {
+    "braces": ">=3.0.3",
+    "postcss-selector-parser": ">=7.1.6"
   }
 }
