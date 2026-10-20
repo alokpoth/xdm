@@ -47,8 +47,8 @@ app.use(express.json({ limit: '2mb' }));
 // Hard Ban Lockdown Middleware:
 // If device is banned, all engine features, download endpoints, and controls are completely shut down
 app.use('/api', (req, res, next) => {
-  // Allow health check, checking license status, and submitting an unban/license activation key
-  if (req.path === '/health' || req.path === '/license' || req.path === '/license/activate') {
+  // Allow health check, checking license status, and checking unban status / activating valid token
+  if (req.path === '/health' || req.path === '/license' || req.path === '/license/activate' || req.path === '/license/check-ban-status') {
     return next();
   }
 
@@ -344,6 +344,15 @@ app.post('/api/license/activate', async (req, res) => {
 app.post('/api/license/deactivate', async (req, res) => {
   try {
     const result = await manager.licenseManager.deactivate();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/license/check-ban-status', async (req, res) => {
+  try {
+    const result = await manager.licenseManager.checkOnlineUnbanStatus();
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

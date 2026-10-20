@@ -110,6 +110,7 @@ export const App: React.FC = () => {
   // Device Ban Lockdown State
   const [unbanKeyInput, setUnbanKeyInput] = useState('');
   const [unbanLoading, setUnbanLoading] = useState(false);
+  const [checkingOnlineBan, setCheckingOnlineBan] = useState(false);
   const [unbanFeedback, setUnbanFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [copiedBanDeviceId, setCopiedBanDeviceId] = useState(false);
 
@@ -496,6 +497,27 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleCheckOnlineUnban = async () => {
+    setCheckingOnlineBan(true);
+    setUnbanFeedback(null);
+    try {
+      const res = await fetch('/api/license/check-ban-status', { method: 'POST' });
+      const data = await res.json();
+      if (data.unbanned) {
+        setUnbanFeedback({ type: 'success', message: 'Ban lifted by administrator! Application restored.' });
+        const licRes = await fetch('/api/license');
+        const licData = await licRes.json();
+        setLicense(licData);
+      } else if (data.isBanned) {
+        setUnbanFeedback({ type: 'error', message: 'Appeal pending: This device is still marked as banned on the central license server. Contact @zihanfakir on WhatsApp or Telegram to appeal.' });
+      }
+    } catch (err: any) {
+      setUnbanFeedback({ type: 'error', message: 'Could not contact license server. Check your internet connection.' });
+    } finally {
+      setCheckingOnlineBan(false);
+    }
+  };
+
   const handleCopyBanDeviceId = () => {
     const id = license?.deviceId || license?.hardwareId;
     if (id) {
@@ -822,18 +844,34 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Unban Key / License Activation Input */}
+            {/* Online Server Unban Verification Button */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleCheckOnlineUnban}
+                disabled={checkingOnlineBan}
+                className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/25 active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${checkingOnlineBan ? 'animate-spin' : ''}`} />
+                <span>{checkingOnlineBan ? 'Querying Central License Server...' : 'Check Appeal / Unban Status Online'}</span>
+              </button>
+              <p className="text-[10px] text-slate-500 font-mono">
+                Click above after Zihan Fakir unbans your Device ID on the central license server.
+              </p>
+            </div>
+
+            {/* Offline Signed Unban Certificate / License Activation Input */}
             <form onSubmit={handleUnbanSubmit} className="space-y-2.5 text-left">
               <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400">
-                Enter Unban Key or Authorized License Key
+                Or Enter Signed Unban Certificate / PRO Key
               </label>
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
-                  placeholder="XDM-UNBAN-XXXX-XXXX-XXXX"
+                  placeholder="Paste signed unban token or authorized license key"
                   value={unbanKeyInput}
-                  onChange={(e) => setUnbanKeyInput(e.target.value.toUpperCase())}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-rose-500/30 focus:border-rose-500 focus:outline-none text-white font-mono text-xs placeholder-slate-600"
+                  onChange={(e) => setUnbanKeyInput(e.target.value.trim())}
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-rose-500/30 focus:border-rose-500 focus:outline-none text-white font-mono text-xs placeholder-slate-600 truncate"
                 />
                 <button
                   type="submit"
@@ -841,7 +879,7 @@ export const App: React.FC = () => {
                   className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs font-mono transition-all disabled:opacity-40 flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-rose-600/30 active:scale-95 shrink-0"
                 >
                   {unbanLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  <span>{unbanLoading ? 'Verifying...' : 'Lift Ban'}</span>
+                  <span>{unbanLoading ? 'Verifying...' : 'Verify Certificate'}</span>
                 </button>
               </div>
               {unbanFeedback && (

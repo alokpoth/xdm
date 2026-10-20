@@ -448,6 +448,44 @@ app.post('/api/v1/devices/report-tamper', rateLimit(20, 60000), async (req, res)
   }
 });
 
+// Check Device Ban Status & Issue Signed Unban Certificate if unbanned by admin
+const handleDeviceCheckStatus = async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    if (!deviceId || typeof deviceId !== 'string') {
+      return res.status(400).json({ success: false, error: 'deviceId is required' });
+    }
+    const banInfo = await db.isDeviceBanned(deviceId);
+    if (banInfo) {
+      return res.json({
+        success: true,
+        isBanned: true,
+        banReason: banInfo.ban_reason || 'Administrative hardware ban',
+        bannedAt: banInfo.banned_at
+      });
+    }
+
+    // Device is clean on central server; issue Ed25519 digitally signed unban certificate
+    const unbanToken = crypto.signLicensePayload({
+      action: 'LIFT_DEVICE_BAN',
+      deviceId: deviceId,
+      issuedAt: Date.now(),
+      issuer: 'XDM Central Security Sentinel'
+    });
+
+    res.json({
+      success: true,
+      isBanned: false,
+      unbanToken
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+app.post('/api/v1/devices/check-status', rateLimit(30, 60000), handleDeviceCheckStatus);
+app.post('/api/devices/check-status', rateLimit(30, 60000), handleDeviceCheckStatus);
+
 // ==========================================
 // 2. ADMIN GOVERNANCE ENDPOINTS
 // ==========================================
@@ -730,7 +768,17 @@ app.get('/api/v1/admin/banned-devices', requireAdminAuth, async (req, res) => {
 // Admin Unban Device
 app.post('/api/v1/admin/devices/:deviceId/unban', requireAdminAuth, async (req, res) => {
   await db.unbanDevice(req.params.deviceId, req.admin.username);
-  res.json({ success: true, message: `Device ${req.params.deviceId} has been successfully unbanned` });
+  const unbanToken = crypto.signLicensePayload({
+    action: 'LIFT_DEVICE_BAN',
+    deviceId: req.params.deviceId,
+    issuedAt: Date.now(),
+    issuer: 'XDM Central Security Sentinel'
+  });
+  res.json({ 
+    success: true, 
+    message: `Device ${req.params.deviceId} has been successfully unbanned`,
+    unbanToken 
+  });
 });
 
 // Admin Manually Ban Device

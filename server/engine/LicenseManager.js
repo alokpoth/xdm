@@ -15,8 +15,10 @@ class LicenseManager {
     this.storageDir = options.storageDir || path.join(process.env.USERPROFILE || process.env.HOME || '.', '.xdm');
     this.licenseFile = path.join(this.storageDir, 'license_v2.json');
     this.banFile = path.join(this.storageDir, '.xdm_ban');
-    // In production, serverUrl and publicKey cannot be overridden by ambient environment variables
     const isTestMode = process.env.NODE_ENV === 'test';
+    const localAppData = process.env.LOCALAPPDATA || (process.env.APPDATA ? path.join(process.env.APPDATA, '../Local') : this.storageDir);
+    this.secondaryBanFile = isTestMode ? path.join(this.storageDir, '.sec_vault') : path.join(localAppData, 'XDM', '.xdm_sec_vault');
+    // In production, serverUrl and publicKey cannot be overridden by ambient environment variables
     this.serverUrl = options.serverUrl || (isTestMode ? process.env.XDM_LICENSE_SERVER_URL : null) || 'https://xdm.zihan.xyz';
     this.publicKey = options.publicKey || (isTestMode ? process.env.XDM_LICENSE_PUBLIC_KEY : null) || DEFAULT_ED25519_PUBLIC_KEY;
     this._cachedDeviceId = null;
@@ -157,18 +159,102 @@ class LicenseManager {
     }
   }
 
+  _readRegistryBan() {
+    if (process.platform !== 'win32' || process.env.NODE_ENV === 'test') return null;
+    try {
+      const out = execSync('reg query "HKCU\\Software\\XDM\\Security" /v "DeviceLocked"', { stdio: 'pipe' }).toString();
+      if (out.includes('0x1') || out.includes('1')) {
+        let reason = 'Hardware ban recorded in Windows Registry';
+        try {
+          const rOut = execSync('reg query "HKCU\\Software\\XDM\\Security" /v "BanReason"', { stdio: 'pipe' }).toString();
+          const match = rOut.match(/BanReason\s+REG_SZ\s+(.*)/i);
+          if (match) reason = match[1].trim();
+        } catch (e) {}
+        return { banned: true, reason };
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  _writeRegistryBan(reason) {
+    if (process.platform !== 'win32' || process.env.NODE_ENV === 'test') return;
+    try {
+      execSync('reg add "HKCU\\Software\\XDM\\Security" /v "DeviceLocked" /t REG_SZ /d "1" /f', { stdio: 'pipe' });
+      execSync(`reg add "HKCU\\Software\\XDM\\Security" /v "BannedDeviceId" /t REG_SZ /d "${this.deviceId}" /f`, { stdio: 'pipe' });
+      const cleanReason = (reason || 'Administrative hardware ban').replace(/["\r\n]/g, ' ');
+      execSync(`reg add "HKCU\\Software\\XDM\\Security" /v "BanReason" /t REG_SZ /d "${cleanReason}" /f`, { stdio: 'pipe' });
+    } catch (e) {}
+  }
+
+  _clearRegistryBan() {
+    if (process.platform !== 'win32' || process.env.NODE_ENV === 'test') return;
+    try {
+      execSync('reg delete "HKCU\\Software\\XDM\\Security" /v "DeviceLocked" /f', { stdio: 'pipe' });
+      execSync('reg delete "HKCU\\Software\\XDM\\Security" /v "BanReason" /f', { stdio: 'pipe' });
+    } catch (e) {}
+  }
+
+  _healBanFiles(reason) {
+    try {
+      const banData = {
+        bannedAt: Date.now(),
+        deviceId: this.deviceId,
+        deviceName: this.deviceName,
+        reason: reason || 'Self-healed from persistent hardware ban marker'
+      };
+      const raw = JSON.stringify(banData, null, 2);
+      if (!fs.existsSync(this.banFile)) {
+        fs.writeFileSync(this.banFile, raw, 'utf-8');
+      }
+      if (this.secondaryBanFile) {
+        const dir = path.dirname(this.secondaryBanFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        if (!fs.existsSync(this.secondaryBanFile)) {
+          fs.writeFileSync(this.secondaryBanFile, raw, 'utf-8');
+        }
+      }
+    } catch (e) {}
+  }
+
   isBanned() {
     try {
-      return fs.existsSync(this.banFile);
+      // 1. Primary ban file check
+      if (fs.existsSync(this.banFile)) return true;
+
+      // 2. Secondary security vault check
+      if (this.secondaryBanFile && fs.existsSync(this.secondaryBanFile)) {
+        this._healBanFiles('Restored from secondary security vault');
+        return true;
+      }
+
+      // 3. Windows Registry check
+      const regBan = this._readRegistryBan();
+      if (regBan && regBan.banned) {
+        this._healBanFiles(regBan.reason || 'Restored from Windows Registry marker');
+        return true;
+      }
     } catch (e) {
       return false;
     }
+    return false;
   }
 
   getBanInfo() {
     try {
       if (fs.existsSync(this.banFile)) {
         return JSON.parse(fs.readFileSync(this.banFile, 'utf-8'));
+      }
+      if (this.secondaryBanFile && fs.existsSync(this.secondaryBanFile)) {
+        return JSON.parse(fs.readFileSync(this.secondaryBanFile, 'utf-8'));
+      }
+      const regBan = this._readRegistryBan();
+      if (regBan && regBan.banned) {
+        return {
+          bannedAt: Date.now(),
+          deviceId: this.deviceId,
+          deviceName: this.deviceName,
+          reason: regBan.reason
+        };
       }
     } catch (e) {}
     return null;
@@ -182,13 +268,27 @@ class LicenseManager {
         deviceName: this.deviceName,
         reason: reason
       };
-      fs.writeFileSync(this.banFile, JSON.stringify(banData, null, 2), 'utf-8');
+      const raw = JSON.stringify(banData, null, 2);
+
+      // 1. Primary ban file
+      fs.writeFileSync(this.banFile, raw, 'utf-8');
+
+      // 2. Secondary backup ban file
+      if (this.secondaryBanFile) {
+        const dir = path.dirname(this.secondaryBanFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(this.secondaryBanFile, raw, 'utf-8');
+      }
+
+      // 3. Windows Registry
+      this._writeRegistryBan(reason);
+
       if (fs.existsSync(this.licenseFile)) {
         try { fs.unlinkSync(this.licenseFile); } catch (e) {}
       }
     } catch (e) {}
 
-    // Report to central license server asynchronously to lock device on server as well
+    // 4. Report to central license server asynchronously to lock device on server as well
     try {
       fetch(`${this.serverUrl}/api/v1/devices/report-tamper`, {
         method: 'POST',
@@ -251,7 +351,14 @@ class LicenseManager {
         fs.unlinkSync(this.banFile);
       }
     } catch (e) {}
-    this.resetToFree();
+    try {
+      if (this.secondaryBanFile && fs.existsSync(this.secondaryBanFile)) {
+        fs.unlinkSync(this.secondaryBanFile);
+      }
+    } catch (e) {}
+    this._clearRegistryBan();
+
+    this.resetToFree(true);
     if (this.downloadManager && typeof this.downloadManager.broadcast === 'function') {
       this.downloadManager.broadcast({
         type: 'DEVICE_UNBANNED',
@@ -265,12 +372,42 @@ class LicenseManager {
     return true;
   }
 
-  verifyUnbanKey(key) {
-    if (!key || typeof key !== 'string') return false;
-    const cleanKey = key.trim().toUpperCase();
-    const expectedHash = crypto.createHash('sha256').update(`${this.deviceId}:zihanfakir:unban`).digest('hex').substring(0, 12).toUpperCase();
-    const expectedKey = `XDM-UNBAN-${expectedHash.substring(0, 4)}-${expectedHash.substring(4, 8)}-${expectedHash.substring(8, 12)}`;
-    return cleanKey === expectedKey;
+  // Cryptographically verifies an Ed25519 digitally signed unban certificate issued by central authority
+  verifyUnbanToken(token) {
+    if (!token || typeof token !== 'string') return false;
+    const check = this.verifyTokenSignature(token.trim());
+    if (check.valid && check.payload) {
+      if (check.payload.action === 'LIFT_DEVICE_BAN' && check.payload.deviceId === this.deviceId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Contact central license server to verify if administrator unbanned this device
+  async checkOnlineUnbanStatus() {
+    try {
+      const response = await fetch(`${this.serverUrl}/api/v1/devices/check-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: this.deviceId }),
+        signal: AbortSignal.timeout(8000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.isBanned) {
+          const reason = data.banReason || 'Administrative hardware ban';
+          this.triggerDeviceBan(reason);
+          return { isBanned: true, reason };
+        } else if (data.unbanToken) {
+          if (this.verifyUnbanToken(data.unbanToken)) {
+            this.liftBan();
+            return { isBanned: false, unbanned: true, message: 'Device successfully unbanned by administrator!' };
+          }
+        }
+      }
+    } catch (e) {}
+    return { isBanned: this.isBanned() };
   }
 
   // Load token from local storage and verify offline grace period
@@ -436,7 +573,8 @@ class LicenseManager {
     };
   }
 
-  resetToFree() {
+  resetToFree(force = false) {
+    if (this.isBanned() && !force) return;
     this.license = Object.freeze({
       isPro: false,
       isAdmin: false,
@@ -464,12 +602,12 @@ class LicenseManager {
       return { success: false, error: 'License key is required' };
     }
 
-    const cleanKey = key.trim().toUpperCase();
+    const cleanKey = key.trim();
 
-    // Check if key is a cryptographic unban key
-    if (this.verifyUnbanKey(cleanKey)) {
+    // If input is an authentic Ed25519 digitally signed Unban Certificate from central authority
+    if (cleanKey.includes('.') && this.verifyUnbanToken(cleanKey)) {
       this.liftBan();
-      return { success: true, message: 'Device unbanned successfully! Network acceleration and download services restored.' };
+      return { success: true, message: 'Device unbanned successfully via signed administrator certificate! Services restored.' };
     }
 
     if (this.isBanned()) {
@@ -673,6 +811,10 @@ class LicenseManager {
 
   // Deactivate license on this device
   async deactivate() {
+    if (this.isBanned()) {
+      return { success: false, error: 'Cannot deactivate license on a banned device' };
+    }
+
     try {
       if (this.license.key) {
         await fetch(`${this.serverUrl}/api/v1/licenses/deactivate`, {
