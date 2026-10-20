@@ -969,3 +969,82 @@ test('Admin Purge Test Data: Rejects without confirmation, wipes data with valid
   assert.equal(ovData.metrics.totalLicenses, 0);
   assert.equal(ovData.metrics.totalDevices, 0);
 });
+
+test('License Durations: Multi-duration keys (3day, 7day, 14day, 1month, 3month, 6month, 1year, 3year, lifetime)', async () => {
+  const durations = ['3day', '7day', '14day', '1month', '3month', '6month', '1year', '3year', 'lifetime'];
+  const expectedDays = [3, 7, 14, 30, 90, 180, 365, 1095, null];
+
+  for (let i = 0; i < durations.length; i++) {
+    const dur = durations[i];
+    const expDays = expectedDays[i];
+
+    const res = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        edition: 'pro',
+        maxDevices: 1,
+        duration: dur,
+        customerName: `Duration ${dur} Test`
+      })
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.equal(data.licenses.length, 1);
+    const lic = data.licenses[0];
+
+    if (expDays === null) {
+      assert.equal(lic.expires_at, null, 'Lifetime license must have null expires_at');
+    } else {
+      assert.ok(lic.expires_at, `License for ${dur} must have expires_at`);
+      const diffMs = lic.expires_at - Date.now();
+      const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+      assert.equal(diffDays, expDays, `Duration ${dur} should match expected ${expDays} days`);
+    }
+  }
+});
+
+test('Client Server Sync: 60s syncWithServer synchronizes unban, ban, and license heartbeat', async () => {
+  // Create a 1-seat PRO key
+  const licRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+    body: JSON.stringify({ edition: 'pro', maxDevices: 1, duration: '1month' })
+  });
+  const licData = await licRes.json();
+  assert.equal(licRes.status, 200);
+  const testKey = licData.licenses[0].key;
+
+  const testStorageDir = path.join(os.tmpdir(), `xdm_test_sync_${Date.now()}`);
+  const client = new LicenseManager({
+    storageDir: testStorageDir,
+    serverUrl: SERVER_URL
+  });
+
+  // Activate client
+  const actRes = await client.activate(testKey, 'Sync User');
+  assert.equal(actRes.success, true);
+  assert.equal(client.isPro(), true);
+
+  // Run syncWithServer: should succeed and keep PRO active
+  await client.syncWithServer();
+  assert.equal(client.isPro(), true);
+
+  // Admin suspends license on server
+  await fetch(`${SERVER_URL}/api/v1/admin/licenses/${licData.licenses[0].id}/suspend`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+    body: JSON.stringify({ reason: 'Sync test suspend' })
+  });
+
+  // Client runs syncWithServer: remote suspension detected, reverts to free
+  await client.syncWithServer();
+  assert.equal(client.isPro(), false);
+  assert.equal(client.getStatus().status, 'free');
+
+  client.destroy();
+});

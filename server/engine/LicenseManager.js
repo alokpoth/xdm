@@ -52,18 +52,18 @@ class LicenseManager {
     this.cleanLegacyLicense();
     this.loadAndVerifyLocalToken();
 
-    // Heartbeat loop every 1 minute for real-time remote license validation
+    // Heartbeat and ban/unban synchronization loop every 60 seconds
     this.heartbeatInterval = setInterval(() => {
-      this.sendHeartbeat().catch(() => {});
+      this.syncWithServer().catch(() => {});
     }, 60 * 1000);
     if (this.heartbeatInterval && this.heartbeatInterval.unref) {
       this.heartbeatInterval.unref();
     }
 
-    // Initial heartbeat attempt in background
+    // Initial server sync attempt in background after 2.5 seconds
     this.initialHeartbeatTimeout = setTimeout(() => {
-      this.sendHeartbeat().catch(() => {});
-    }, 3000);
+      this.syncWithServer().catch(() => {});
+    }, 2500);
     if (this.initialHeartbeatTimeout && this.initialHeartbeatTimeout.unref) {
       this.initialHeartbeatTimeout.unref();
     }
@@ -397,17 +397,36 @@ class LicenseManager {
         const data = await response.json();
         if (data.isBanned) {
           const reason = data.banReason || 'Administrative hardware ban';
-          this.triggerDeviceBan(reason);
+          if (!this.isBanned()) {
+            this.triggerDeviceBan(reason);
+          }
           return { isBanned: true, reason };
         } else if (data.unbanToken) {
           if (this.verifyUnbanToken(data.unbanToken)) {
-            this.liftBan();
+            if (this.isBanned()) {
+              this.liftBan();
+            }
             return { isBanned: false, unbanned: true, message: 'Device successfully unbanned by administrator!' };
           }
         }
       }
     } catch (e) {}
     return { isBanned: this.isBanned() };
+  }
+
+  // 60-Second Real-Time Server Sync: Keeps device ban/unban status & active PRO key strictly up to date
+  async syncWithServer() {
+    // 1. Device Ban / Unban sync with Central License Server
+    try {
+      await this.checkOnlineUnbanStatus();
+    } catch (e) {}
+
+    // 2. Active PRO License Key validation & heartbeat
+    if (!this.isBanned() && this.license && this.license.isPro && this.license.key) {
+      try {
+        await this.sendHeartbeat();
+      } catch (e) {}
+    }
   }
 
   // Load token from local storage and verify offline grace period
@@ -768,6 +787,10 @@ class LicenseManager {
       const data = await response.json();
 
       if (!response.ok || !data.valid) {
+        if (data && data.isBanned) {
+          this.triggerDeviceBan(data.error || 'Device banned by license server');
+          return;
+        }
         console.warn(`[LicenseManager] Heartbeat failed from server: ${data.error || 'License invalid'}. Reverting to free.`);
         try { if (fs.existsSync(this.licenseFile)) fs.unlinkSync(this.licenseFile); } catch(e){}
         this.resetToFree();

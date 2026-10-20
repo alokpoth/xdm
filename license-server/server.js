@@ -69,6 +69,7 @@ app.use((req, res, next) => {
 const rateLimitBuckets = new Map();
 function rateLimit(limit = 60, windowMs = 60 * 1000) {
   return (req, res, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
     const ip = getClientIp(req);
     const key = `${ip}:${req.path}`;
     const now = Date.now();
@@ -483,8 +484,8 @@ const handleDeviceCheckStatus = async (req, res) => {
   }
 };
 
-app.post('/api/v1/devices/check-status', rateLimit(30, 60000), handleDeviceCheckStatus);
-app.post('/api/devices/check-status', rateLimit(30, 60000), handleDeviceCheckStatus);
+app.post('/api/v1/devices/check-status', rateLimit(120, 60000), handleDeviceCheckStatus);
+app.post('/api/devices/check-status', rateLimit(120, 60000), handleDeviceCheckStatus);
 
 // ==========================================
 // 2. ADMIN GOVERNANCE ENDPOINTS
@@ -630,8 +631,25 @@ app.get('/api/admin/licenses', requireAdminAuth, handleAdminGetLicenses);
 // Admin Create New License(s)
 const handleAdminCreateLicenses = async (req, res) => {
   try {
-    const { edition, maxDevices, customerName, customerEmail, notes, expiresAt, count } = req.body;
+    const { edition, maxDevices, customerName, customerEmail, notes, expiresAt, duration, count } = req.body;
     const totalCount = Math.min(Math.max(parseInt(count, 10) || 1, 1), 50);
+
+    let finalExpiresAt = null;
+    const now = Date.now();
+    if (expiresAt !== undefined && expiresAt !== null && expiresAt !== '') {
+      finalExpiresAt = parseInt(expiresAt, 10);
+    } else if (duration) {
+      const dur = String(duration).toLowerCase().trim();
+      if (dur === '3day' || dur === '3days') finalExpiresAt = now + (3 * 24 * 60 * 60 * 1000);
+      else if (dur === '7day' || dur === '7days') finalExpiresAt = now + (7 * 24 * 60 * 60 * 1000);
+      else if (dur === '14day' || dur === '14days') finalExpiresAt = now + (14 * 24 * 60 * 60 * 1000);
+      else if (dur === '1month' || dur === '30day' || dur === '30days') finalExpiresAt = now + (30 * 24 * 60 * 60 * 1000);
+      else if (dur === '3month' || dur === '90day' || dur === '90days') finalExpiresAt = now + (90 * 24 * 60 * 60 * 1000);
+      else if (dur === '6month' || dur === '180day' || dur === '180days') finalExpiresAt = now + (180 * 24 * 60 * 60 * 1000);
+      else if (dur === '1year' || dur === '365day' || dur === '365days') finalExpiresAt = now + (365 * 24 * 60 * 60 * 1000);
+      else if (dur === '3year' || dur === '1095day' || dur === '1095days') finalExpiresAt = now + (1095 * 24 * 60 * 60 * 1000);
+      else if (dur === 'lifetime') finalExpiresAt = null;
+    }
 
     const created = [];
     for (let i = 0; i < totalCount; i++) {
@@ -641,7 +659,7 @@ const handleAdminCreateLicenses = async (req, res) => {
         customerName: customerName || null,
         customerEmail: customerEmail || null,
         notes: notes || null,
-        expiresAt: expiresAt ? parseInt(expiresAt, 10) : null
+        expiresAt: finalExpiresAt
       });
       created.push(lic);
     }

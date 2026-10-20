@@ -102,11 +102,9 @@
       if (!playerContainer) return;
 
       const existingPanel = playerContainer.querySelector('.xdm-video-panel');
-      if (existingPanel) {
-        // Keep panel always as the very last child so it stays on top of any newly inserted overlays
-        if (playerContainer.lastElementChild !== existingPanel) {
-          playerContainer.appendChild(existingPanel);
-        }
+      if (existingPanel && existingPanel.isConnected) {
+        // Panel is already securely mounted and connected.
+        // Never re-append to prevent layout thrashing and DOM jitter.
         return;
       }
 
@@ -416,12 +414,38 @@
 
   // Monitor DOM for new videos (Single Page Apps like YouTube and Facebook dynamically insert video tags)
   let grabberDebounce = null;
-  const triggerGrabber = () => {
+  const triggerGrabber = (mutationsList) => {
+    if (mutationsList && mutationsList.length) {
+      // Filter out internal mutations from XDM to prevent feedback loops
+      let hasExternalVideoMutation = false;
+      for (let i = 0; i < mutationsList.length; i++) {
+        const m = mutationsList[i];
+        if (m.target) {
+          if (m.target.closest && m.target.closest('.xdm-video-panel')) continue;
+          if (m.target.id === 'xdm-floating-toast' || (m.target.closest && m.target.closest('#xdm-floating-toast'))) continue;
+        }
+        if (m.addedNodes && m.addedNodes.length > 0) {
+          for (let j = 0; j < m.addedNodes.length; j++) {
+            const node = m.addedNodes[j];
+            if (node.nodeType === 1) {
+              const tag = node.tagName;
+              if (tag === 'VIDEO' || tag === 'YTD-WATCH-FLEXY' || tag === 'YTD-REEL-VIDEO-RENDERER' || (node.querySelector && node.querySelector('video'))) {
+                hasExternalVideoMutation = true;
+                break;
+              }
+            }
+          }
+        }
+        if (hasExternalVideoMutation) break;
+      }
+      if (!hasExternalVideoMutation) return;
+    }
+
     if (grabberDebounce) return;
     grabberDebounce = setTimeout(() => {
       grabberDebounce = null;
       setupVideoGrabber();
-    }, 250);
+    }, 300);
   };
 
   const domObserver = new MutationObserver(triggerGrabber);
@@ -433,6 +457,6 @@
     });
   }
 
-  setInterval(setupVideoGrabber, 1500);
+  setInterval(setupVideoGrabber, 2500);
   setupVideoGrabber();
 })();

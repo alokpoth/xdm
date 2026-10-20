@@ -48,7 +48,7 @@ app.use(express.json({ limit: '2mb' }));
 // If device is banned, all engine features, download endpoints, and controls are completely shut down
 app.use('/api', (req, res, next) => {
   // Allow health check, checking license status, and checking unban status / activating valid token
-  if (req.path === '/health' || req.path === '/license' || req.path === '/license/activate' || req.path === '/license/check-ban-status') {
+  if (req.path === '/health' || req.path === '/license' || req.path === '/license/activate' || req.path === '/license/check-ban-status' || req.path === '/license/sync') {
     return next();
   }
 
@@ -354,6 +354,15 @@ app.post('/api/license/check-ban-status', async (req, res) => {
   try {
     const result = await manager.licenseManager.checkOnlineUnbanStatus();
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/license/sync', async (req, res) => {
+  try {
+    await manager.licenseManager.syncWithServer();
+    res.json({ success: true, license: manager.licenseManager.getStatus() });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
