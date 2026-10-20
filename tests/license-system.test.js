@@ -1008,7 +1008,7 @@ test('License Durations: Multi-duration keys (3day, 7day, 14day, 1month, 3month,
   }
 });
 
-test('Client Server Sync: 60s syncWithServer synchronizes unban, ban, and license heartbeat', async () => {
+test('Client Server Sync: syncWithServer synchronizes unban, ban, and license heartbeat', async () => {
   // Create a 1-seat PRO key
   const licRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
     method: 'POST',

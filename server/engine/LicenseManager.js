@@ -52,10 +52,18 @@ class LicenseManager {
     this.cleanLegacyLicense();
     this.loadAndVerifyLocalToken();
 
-    // Heartbeat and ban/unban synchronization loop every 60 seconds
+    // Local offline token & anti-tamper audit loop every 20 seconds (0 network calls, 100% in-memory)
+    this.localAuditInterval = setInterval(() => {
+      this.loadAndVerifyLocalToken();
+    }, 20 * 1000);
+    if (this.localAuditInterval && this.localAuditInterval.unref) {
+      this.localAuditInterval.unref();
+    }
+
+    // Online cloud synchronization loop every 24 hours (protects Vercel and Turso free tiers)
     this.heartbeatInterval = setInterval(() => {
       this.syncWithServer().catch(() => {});
-    }, 60 * 1000);
+    }, 24 * 60 * 60 * 1000);
     if (this.heartbeatInterval && this.heartbeatInterval.unref) {
       this.heartbeatInterval.unref();
     }
@@ -895,6 +903,10 @@ class LicenseManager {
   }
 
   destroy() {
+    if (this.localAuditInterval) {
+      clearInterval(this.localAuditInterval);
+      this.localAuditInterval = null;
+    }
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;

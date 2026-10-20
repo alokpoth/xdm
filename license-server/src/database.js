@@ -561,9 +561,9 @@ class LicenseDatabase {
       this._heartbeatWriteCache = new Map();
     }
     const lastWrite = this._heartbeatWriteCache.get(deviceId) || 0;
-    // Throttle DB writes: only write to DB if > 5 minutes have elapsed since last write for this device.
-    // This dramatically saves Turso row write quota (reduces writes by 80%).
-    if (now - lastWrite < 5 * 60 * 1000) {
+    // Throttle DB writes: only write to DB if > 24 hours have elapsed since last write for this device.
+    // This dramatically saves Turso row write quota (1 write/day per user, allowing 333,000+ 24/7 users on free tier).
+    if (now - lastWrite < 24 * 60 * 60 * 1000) {
       return;
     }
     this._heartbeatWriteCache.set(deviceId, now);
