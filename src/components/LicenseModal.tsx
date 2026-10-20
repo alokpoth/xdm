@@ -136,7 +136,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
             </div>
             <div>
               <h2 className="font-bold text-sm text-white theme-text-primary flex items-center space-x-2 tracking-tight">
-                <span>{isBanned ? '⛔ Device Permanently Banned' : isPro ? 'XDM Turbo PRO' : 'XDM Turbo Activation'}</span>
+                <span>{isBanned ? 'Device Permanently Banned' : isPro ? 'XDM Turbo PRO' : 'XDM Turbo Activation'}</span>
                 {isBanned ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
                     LOCKED

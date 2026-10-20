@@ -491,7 +491,7 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
               <div className="flex items-center justify-between text-slate-400">
                 <span className="font-mono text-[11px]">Resume Supported:</span>
                 <span className={`font-mono text-xs font-semibold ${probeResult.resumable ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {probeResult.resumable ? '✓ Yes (Turbo Multi-threading Active)' : '⚠ No (Single Stream Only)'}
+                  {probeResult.resumable ? 'Yes (Turbo Multi-threading Active)' : 'No (Single Stream Only)'}
                 </span>
               </div>
             </div>

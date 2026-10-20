@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Zap, ExternalLink, ShieldCheck } from 'lucide-react';
+import { X, Globe, Check, Zap, ExternalLink, ShieldCheck, Film } from 'lucide-react';
 
 interface BrowserIntegrationModalProps {
   isOpen: boolean;
@@ -118,8 +118,9 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
 
           {/* Video Grabber Feature Card */}
           <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-2">
-            <h4 className="text-xs font-bold text-slate-200 theme-text-primary flex items-center space-x-1.5">
-              <span>🎬 4K & Ultra HD Video Grabber</span>
+            <h4 className="text-xs font-bold text-slate-200 theme-text-primary flex items-center space-x-2">
+              <Film className="w-3.5 h-3.5 text-rose-400" />
+              <span>4K &amp; Ultra HD Video Grabber</span>
             </h4>
             <p className="text-slate-400 theme-text-secondary text-[11px] leading-relaxed">
               When playing videos on YouTube, Facebook, Vimeo, or web video players, a floating <strong>Download Video</strong> button appears above the player so you can save videos in up to 4K resolution with 1 click.

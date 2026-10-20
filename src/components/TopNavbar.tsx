@@ -15,7 +15,8 @@ import {
   Command,
   Sun,
   Moon,
-  AlertTriangle
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { LicenseInfo } from '../types';
 
@@ -159,9 +160,9 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-[10px] font-mono cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-[10px] cursor-pointer flex items-center justify-center"
             >
-              ✕
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -275,7 +276,7 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
               onOpenLicenseModal();
             }}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-rose-300 text-xs font-bold transition-all shadow-md shadow-rose-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
-            title="⛔ Hardware Locked due to Security / Tamper Detection"
+            title="Hardware Locked due to Security / Tamper Detection"
           >
             <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span className="font-mono text-[11px] font-extrabold tracking-wide">BANNED</span>

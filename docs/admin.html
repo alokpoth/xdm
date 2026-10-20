@@ -436,7 +436,9 @@
           <i data-lucide="user-cog" class="w-4 h-4 text-emerald-400"></i>
           <span>Change Admin Credentials</span>
         </h3>
-        <button type="button" id="closePassModalBtn" class="text-slate-400 hover:text-white text-sm cursor-pointer">✕</button>
+        <button type="button" id="closePassModalBtn" class="text-slate-400 hover:text-white text-sm cursor-pointer flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
 
       <div id="passAlert" class="hidden p-3 rounded-xl text-xs font-mono"></div>
@@ -817,8 +819,9 @@
           </td>
           <td class="py-3 px-3">
             ${isBanned ? `
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                🔒 BANNED (${dev.failed_attempts || 10} fails)
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1">
+                <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
+                <span>BANNED (${dev.failed_attempts || 10} fails)</span>
               </span>
             ` : `
               <span class="px-2 py-0.5 rounded text-[10px] font-bold ${dev.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
@@ -829,8 +832,9 @@
           </td>
           <td class="py-3 px-4 text-right space-x-1">
             ${isBanned ? `
-              <button class="unban-device-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer" data-dev="${dev.id}">
-                🔓 Unban
+              <button class="unban-device-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer inline-flex items-center gap-1" data-dev="${dev.id}">
+                <i data-lucide="unlock" class="w-3 h-3"></i>
+                <span>Unban</span>
               </button>
             ` : `
               ${dev.is_active && dev.license_id !== 'NONE' ? `
@@ -1015,7 +1019,7 @@
       const confirmPassword = document.getElementById('confirmPassInput').value.trim();
 
       if (!newUsername && !newPassword) {
-        passAlert.textContent = '❌ Please enter a new username or a new password to update.';
+        passAlert.textContent = 'Please enter a new username or a new password to update.';
         passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
         passAlert.classList.remove('hidden');
         return;
@@ -1023,13 +1027,13 @@
 
       if (newPassword) {
         if (newPassword.length < 6) {
-          passAlert.textContent = '❌ New password must be at least 6 characters.';
+          passAlert.textContent = 'New password must be at least 6 characters.';
           passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
           passAlert.classList.remove('hidden');
           return;
         }
         if (newPassword !== confirmPassword) {
-          passAlert.textContent = '❌ New password and confirmation do not match.';
+          passAlert.textContent = 'New password and confirmation do not match.';
           passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
           passAlert.classList.remove('hidden');
           return;
@@ -1047,7 +1051,7 @@
         });
 
         if (res.success) {
-          passAlert.textContent = '✅ ' + (res.message || 'Credentials updated successfully!');
+          passAlert.textContent = res.message || 'Credentials updated successfully!';
           passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
           passAlert.classList.remove('hidden');
           if (res.token) {
@@ -1058,12 +1062,12 @@
             closePassModal();
           }, 1500);
         } else {
-          passAlert.textContent = '❌ ' + (res.error || 'Failed to update credentials');
+          passAlert.textContent = res.error || 'Failed to update credentials';
           passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
           passAlert.classList.remove('hidden');
         }
       } catch (err) {
-        passAlert.textContent = '❌ ' + err.message;
+        passAlert.textContent = err.message;
         passAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
         passAlert.classList.remove('hidden');
       }
@@ -1073,7 +1077,7 @@
     const purgeDataBtn = document.getElementById('purgeDataBtn');
     if (purgeDataBtn) {
       purgeDataBtn.addEventListener('click', async () => {
-        const input = prompt("⚠️ WARNING: This will permanently wipe all test licenses, devices, and audit logs and reset all counters to 0.\n\nType 'RESET' to confirm:");
+        const input = prompt("WARNING: This will permanently wipe all test licenses, devices, and audit logs and reset all counters to 0.\n\nType 'RESET' to confirm:");
         if (input !== 'RESET') {
           if (input !== null) alert("Reset cancelled: You must type 'RESET' to confirm.");
           return;

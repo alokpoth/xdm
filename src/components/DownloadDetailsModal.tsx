@@ -261,8 +261,9 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
                 <span>
                   Active Download Streams: <strong className="text-white theme-text-primary font-bold">{item.segments?.length || 1}</strong>
                 </span>
-                <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[10px] font-semibold">
-                  ⚡ High-Speed Acceleration Active
+                <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[10px] font-semibold inline-flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-emerald-400" />
+                  <span>High-Speed Acceleration Active</span>
                 </span>
               </div>
 

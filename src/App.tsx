@@ -166,7 +166,7 @@ export const App: React.FC = () => {
               if (isUserPro && settingsRef.current.windowsNotifications !== false && typeof window !== 'undefined' && (window as any).electronAPI?.showNotification) {
                 const latestFinished = completedDownloads[0];
                 (window as any).electronAPI.showNotification({
-                  title: 'Download Completed! 🚀',
+                  title: 'Download Completed',
                   body: latestFinished ? latestFinished.fileName : 'File downloaded successfully',
                   filePath: latestFinished ? latestFinished.filePath : undefined
                 });
