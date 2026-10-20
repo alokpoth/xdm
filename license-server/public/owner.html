@@ -292,14 +292,10 @@
             <p class="text-[11px] text-slate-400">
               Issues authentic server-backed keys signed with the authority's private Ed25519 key. Supports device limits and expiration dates.
             </p>
-            <div class="pt-3 border-t border-slate-800/80 space-y-2">
+            <div class="pt-3 border-t border-slate-800/80">
               <button id="optimizeDbBtn" class="w-full py-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 text-cyan-300 hover:text-white text-xs font-mono transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
                 <i data-lucide="database" class="w-3.5 h-3.5 text-cyan-400"></i>
                 <span>Optimize &amp; Defrag Database</span>
-              </button>
-              <button id="purgeDataBtn" class="w-full py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 hover:text-white text-xs font-mono transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
-                <span>Clean All Test Data (Reset to 0)</span>
               </button>
             </div>
           </div>
@@ -1847,28 +1843,6 @@
           resetSubAdminAlert.textContent = err.message;
           resetSubAdminAlert.className = 'p-3 rounded-xl text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20';
           resetSubAdminAlert.classList.remove('hidden');
-        }
-      });
-    }
-
-    // Purge / Clean All Test Data Handler
-    const purgeDataBtn = document.getElementById('purgeDataBtn');
-    if (purgeDataBtn) {
-      purgeDataBtn.addEventListener('click', async () => {
-        const input = prompt("WARNING: This will permanently wipe all test licenses, devices, and audit logs and reset all counters to 0.\n\nType 'RESET' to confirm:");
-        if (input !== 'RESET') {
-          if (input !== null) alert("Reset cancelled: You must type 'RESET' to confirm.");
-          return;
-        }
-        try {
-          const res = await apiRequest('/api/v1/admin/purge-all', {
-            method: 'POST',
-            body: JSON.stringify({ confirm: 'PURGE_ALL_DATA' })
-          });
-          alert(res.message || 'All test data has been cleanly purged! Counters reset to 0.');
-          loadAllData();
-        } catch (e) {
-          alert('Failed to reset data: ' + e.message);
         }
       });
     }
