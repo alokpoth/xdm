@@ -280,8 +280,8 @@ const handleActivate = async (req, res) => {
       expiresAt: license.expires_at,
       graceUntil: graceUntil,
       features: {
-        maxStreams: (license.edition === 'admin' || license.edition === 'pro') ? 64 : 4,
-        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro') ? 10 : 1,
+        maxStreams: (license.edition === 'admin' || license.edition === 'pro' || license.edition === 'trial') ? 64 : 4,
+        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro' || license.edition === 'trial') ? 10 : 1,
         videoGrabber4k: true,
         workStealing: true,
         audioMerge: true
@@ -385,8 +385,8 @@ const handleHeartbeat = async (req, res) => {
       expiresAt: license.expires_at,
       graceUntil: graceUntil,
       features: {
-        maxStreams: (license.edition === 'admin' || license.edition === 'pro') ? 64 : 4,
-        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro') ? 10 : 1,
+        maxStreams: (license.edition === 'admin' || license.edition === 'pro' || license.edition === 'trial') ? 64 : 4,
+        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro' || license.edition === 'trial') ? 10 : 1,
         videoGrabber4k: true,
         workStealing: true,
         audioMerge: true

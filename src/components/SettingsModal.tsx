@@ -17,7 +17,7 @@ import {
   Zap,
   FolderOpen
 } from 'lucide-react';
-import { Settings as SettingsType } from '../types';
+import { Settings as SettingsType, LicenseInfo } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ interface SettingsModalProps {
   settings: SettingsType;
   onSave: (newSettings: Partial<SettingsType>) => Promise<void>;
   isPro?: boolean;
+  license?: LicenseInfo | null;
   onOpenLicenseModal?: () => void;
 }
 
@@ -34,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onSave,
   isPro = false,
+  license,
   onOpenLicenseModal
 }) => {
   const [form, setForm] = useState<SettingsType>({
@@ -55,37 +57,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [saved, setSaved] = useState(false);
   const [autoLaunchOnStartup, setAutoLaunchOnStartup] = useState(false);
 
+  // Initialize form strictly when modal opens.
+  // Never let periodic background telemetry packets wipe or revert the user's active unsaved edits!
   useEffect(() => {
-    setForm({
-      defaultSaveDir: '',
-      maxConcurrentDownloads: 3,
-      defaultConnections: 64,
-      autoStart: true,
-      soundNotification: true,
-      speedLimit: 0,
-      categoriesDir: true,
-      clipboardMonitoring: true,
-      windowsNotifications: true,
-      schedulerEnabled: false,
-      scheduleStartTime: '01:00',
-      scheduleStopTime: '06:00',
-      shutdownOnCompletion: false,
-      ...settings
-    });
+    if (isOpen) {
+      setForm({
+        defaultSaveDir: '',
+        maxConcurrentDownloads: 3,
+        defaultConnections: 64,
+        autoStart: true,
+        soundNotification: true,
+        speedLimit: 0,
+        categoriesDir: true,
+        clipboardMonitoring: true,
+        windowsNotifications: true,
+        schedulerEnabled: false,
+        scheduleStartTime: '01:00',
+        scheduleStopTime: '06:00',
+        shutdownOnCompletion: false,
+        ...settings
+      });
+      setSaved(false);
 
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.getAutoStart) {
+        (window as any).electronAPI.getAutoStart().then((enabled: boolean) => {
+          setAutoLaunchOnStartup(Boolean(enabled));
+        }).catch(() => {});
+      }
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
-
-    if (isOpen && typeof window !== 'undefined' && (window as any).electronAPI?.getAutoStart) {
-      (window as any).electronAPI.getAutoStart().then((enabled: boolean) => {
-        setAutoLaunchOnStartup(Boolean(enabled));
-      }).catch(() => {});
-    }
-
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [settings, isOpen, onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -148,7 +157,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ) : (
                   <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center space-x-1">
                     <Crown className="w-3 h-3 text-emerald-400 fill-emerald-400" />
-                    <span>PRO Lifetime</span>
+                    <span>
+                      {license?.expiresAt ? (() => {
+                        const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                        return `PRO (${days} Days)`;
+                      })() : 'PRO Lifetime'}
+                    </span>
                   </span>
                 )}
               </div>

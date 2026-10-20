@@ -768,6 +768,7 @@ export const App: React.FC = () => {
         settings={settings}
         onSave={handleSaveSettings}
         isPro={Boolean(license?.isPro || license?.isAdmin)}
+        license={license}
         onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
       />
 

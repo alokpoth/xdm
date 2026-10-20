@@ -157,7 +157,10 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                 {isBanned
                   ? 'Unauthorized cracking attempt detected • Hardware permanently locked'
                   : isPro 
-                    ? 'Authenticated via Central License Server • 64 Parallel Streams • Lifetime Access' 
+                    ? `Authenticated via Central License Server • 64 Parallel Streams • ${license?.expiresAt ? (() => {
+                        const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                        return `${days} Days Validity`;
+                      })() : 'Lifetime Access'}`
                     : 'Online Activation & Instant Multi-Threaded Unlock'}
               </p>
             </div>
@@ -224,10 +227,15 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                   </div>
                 </div>
                 <div className="theme-modal-subcard bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                  <div className="text-slate-500 font-mono text-[10px]">OFFLINE GRACE PERIOD</div>
-                  <div className="font-mono font-semibold flex items-center space-x-1 mt-0.5 text-emerald-500 dark:text-emerald-400">
+                  <div className="text-slate-500 font-mono text-[10px]">LICENSE VALIDITY</div>
+                  <div className="font-mono font-semibold flex items-center space-x-1 mt-0.5 text-emerald-400">
                     <Clock className="w-3 h-3" />
-                    <span>{license?.offlineGraceRemainingHours ? `${Math.round(license.offlineGraceRemainingHours / 24)} days (${license.offlineGraceRemainingHours}h)` : 'Active'}</span>
+                    <span>
+                      {license?.expiresAt ? (() => {
+                        const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                        return `${days} Days Left (${new Date(license.expiresAt).toLocaleDateString()})`;
+                      })() : 'Lifetime Perpetual Access'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -243,6 +251,12 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                 <div className="flex items-center justify-between text-slate-400 theme-text-secondary">
                   <span>Turbo Streams:</span>
                   <span className="font-mono font-bold text-emerald-400">64 Parallel Streams Unlocked</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400 theme-text-secondary">
+                  <span>Offline Defense Shield:</span>
+                  <span className="font-mono text-slate-300 theme-text-primary">
+                    {license?.offlineGraceRemainingHours ? `${Math.round(license.offlineGraceRemainingHours / 24)} Days Protection Cached` : '7 Days Active'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-400 theme-text-secondary">
                   <span>Bound Device Name:</span>

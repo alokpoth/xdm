@@ -237,14 +237,19 @@ const SidebarComponent: React.FC<SidebarProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <Crown className="w-4 h-4 text-emerald-400 fill-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
-              <span className="theme-sidebar-pro-title text-xs font-extrabold text-white tracking-wide">PRO Lifetime</span>
+              <span className="theme-sidebar-pro-title text-xs font-extrabold text-white tracking-wide">
+                {license?.expiresAt ? (() => {
+                  const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                  return `PRO (${days} Days)`;
+                })() : 'PRO Lifetime'}
+              </span>
             </div>
             <span className="theme-sidebar-pro-badge text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
               64 STREAMS
             </span>
           </div>
           <div className="theme-sidebar-pro-sub text-[10px] text-slate-400 font-mono mt-1.5 flex items-center justify-between">
-            <span>Hardware Locked</span>
+            <span>{license?.expiresAt ? `Expires: ${new Date(license.expiresAt).toLocaleDateString()}` : 'Hardware Locked'}</span>
             <span className="text-emerald-500 dark:text-emerald-400 font-bold flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
               <span>Active</span>

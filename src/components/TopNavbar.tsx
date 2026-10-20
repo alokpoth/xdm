@@ -289,10 +289,15 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
               onOpenLicenseModal();
             }}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 active:scale-95 cursor-pointer focus:outline-none select-none"
-            title="PRO Lifetime Active (64 Turbo Streams & 4K Video Unlocked)"
+            title={license?.expiresAt ? `PRO Active (Expires: ${new Date(license.expiresAt).toLocaleDateString()})` : "PRO Lifetime Active (64 Turbo Streams & 4K Video Unlocked)"}
           >
             <Crown className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400 shrink-0" />
-            <span className="font-mono text-[11px] font-extrabold tracking-wide">PRO</span>
+            <span className="font-mono text-[11px] font-extrabold tracking-wide">
+              {license?.expiresAt ? (() => {
+                const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
+                return `PRO (${days}d)`;
+              })() : 'PRO'}
+            </span>
           </button>
         ) : (
           <button
