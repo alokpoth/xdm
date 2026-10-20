@@ -767,7 +767,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsModalOpen(false)}
         settings={settings}
         onSave={handleSaveSettings}
-        isPro={Boolean(license?.isPro || license?.isAdmin)}
+        isPro={Boolean(license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace')}
         license={license}
         onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
       />

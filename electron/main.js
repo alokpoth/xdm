@@ -17,18 +17,17 @@ function getIconPath(fileName = 'icon.ico') {
   return path.join(__dirname, '../public', fileName);
 }
 
+// Disable hardware acceleration to completely eliminate GPU process crashes & black screens on Windows
+app.disableHardwareAcceleration();
+
 // Performance & Memory flags for Chromium - Turbo launch & sub-1s cold start
 app.commandLine.appendSwitch('disable-site-isolation-trials');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('v8-cache-options', 'code');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('enable-fast-unload');
 app.commandLine.appendSwitch('disable-breakpad');
 app.commandLine.appendSwitch('disable-component-update');
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128');
 app.commandLine.appendSwitch('renderer-process-limit', '2');
 
 // Ignore EADDRINUSE silently if already running
@@ -85,7 +84,7 @@ function createWindow() {
     minHeight: 600,
     frame: false, // Sleek modern frameless window with custom titlebar
     titleBarStyle: 'hidden',
-    backgroundColor: '#0b0f17',
+    backgroundColor: '#070b13',
     show: false, // Avoid white/black flash, display instantly on dom-ready/ready-to-show
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -119,7 +118,7 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Ultra-fast sub-second display: show on dom-ready with dark canvas, or ready-to-show
+  // Resilient window presentation: only display window when UI has fully painted to prevent white/black flash
   if (!isHidden) {
     let windowShown = false;
     const revealWindow = () => {
@@ -130,10 +129,10 @@ function createWindow() {
       }
     };
 
-    mainWindow.webContents.once('dom-ready', revealWindow);
     mainWindow.once('ready-to-show', revealWindow);
-    // Instant fallback guarantee
-    setTimeout(revealWindow, 350);
+    mainWindow.webContents.once('did-finish-load', revealWindow);
+    // Safe fallback guarantee so window always appears even if load event delays
+    setTimeout(revealWindow, 1500);
   }
 
   // Security: Lock down DevTools in production packaged builds
@@ -156,30 +155,42 @@ function createWindow() {
     }
   });
 
-  // Resilient rapid UI loader
+  // Resilient rapid UI loader with backend readiness check
   let loadAttempts = 0;
-  const maxAttempts = 50;
+  const maxAttempts = 60;
 
   const tryLoad = () => {
     // In dev mode, probe Vite dev server first
     if (!app.isPackaged && process.env.NODE_ENV !== 'production') {
       http.get('http://127.0.0.1:5173', () => {
-        mainWindow.loadURL('http://127.0.0.1:5173');
+        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:5173');
       }).on('error', () => {
-        mainWindow.loadURL('http://127.0.0.1:19684');
+        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
       });
     } else {
-      // In production packaged app, load the internal engine immediately for sub-1s launch!
-      mainWindow.loadURL('http://127.0.0.1:19684');
+      // In production packaged app, verify backend engine has bound port 19684 before loading URL
+      http.get('http://127.0.0.1:19684/api/stats', () => {
+        if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
+      }).on('error', () => {
+        loadAttempts++;
+        if (loadAttempts < maxAttempts) {
+          setTimeout(tryLoad, 100);
+        } else {
+          if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
+        }
+      });
     }
   };
 
   tryLoad();
 
   mainWindow.webContents.on('did-fail-load', () => {
-    setTimeout(() => {
-      if (mainWindow) mainWindow.loadURL('http://127.0.0.1:19684');
-    }, 150);
+    if (loadAttempts < maxAttempts) {
+      loadAttempts++;
+      setTimeout(() => {
+        if (mainWindow) tryLoad();
+      }, 250);
+    }
   });
 
   mainWindow.on('close', (event) => {

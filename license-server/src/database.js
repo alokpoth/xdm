@@ -311,7 +311,34 @@ class LicenseDatabase {
     const edition = options.edition || 'pro';
     const maxDevices = parseInt(options.maxDevices, 10) || 1;
     const issuedAt = Date.now();
-    const expiresAt = options.expiresAt ? parseInt(options.expiresAt, 10) : null;
+    let expiresAt = null;
+    if (options.expiresAt !== undefined && options.expiresAt !== null && options.expiresAt !== '') {
+      expiresAt = parseInt(options.expiresAt, 10);
+    } else if (options.days !== undefined && options.days !== null) {
+      const daysCount = parseInt(options.days, 10);
+      if (daysCount > 0) expiresAt = issuedAt + (daysCount * 24 * 60 * 60 * 1000);
+    } else if (options.duration) {
+      const dur = String(options.duration).toLowerCase().trim();
+      if (dur === '3day' || dur === '3days' || dur === '3d') expiresAt = issuedAt + (3 * 24 * 60 * 60 * 1000);
+      else if (dur === '7day' || dur === '7days' || dur === '7d') expiresAt = issuedAt + (7 * 24 * 60 * 60 * 1000);
+      else if (dur === '14day' || dur === '14days' || dur === '14d') expiresAt = issuedAt + (14 * 24 * 60 * 60 * 1000);
+      else if (dur === '1month' || dur === '30day' || dur === '30days') expiresAt = issuedAt + (30 * 24 * 60 * 60 * 1000);
+      else if (dur === '3month' || dur === '90day' || dur === '90days') expiresAt = issuedAt + (90 * 24 * 60 * 60 * 1000);
+      else if (dur === '6month' || dur === '180day' || dur === '180days') expiresAt = issuedAt + (180 * 24 * 60 * 60 * 1000);
+      else if (dur === '1year' || dur === '365day' || dur === '365days') expiresAt = issuedAt + (365 * 24 * 60 * 60 * 1000);
+      else if (dur === '3year' || dur === '1095day' || dur === '1095days') expiresAt = issuedAt + (1095 * 24 * 60 * 60 * 1000);
+      else if (dur === 'lifetime') expiresAt = null;
+      else {
+        const match = dur.match(/^(\d+)\s*(d|day|days|m|month|months|y|year|years)?$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          const unit = match[2] || 'd';
+          if (unit.startsWith('d')) expiresAt = issuedAt + (num * 24 * 60 * 60 * 1000);
+          else if (unit.startsWith('m')) expiresAt = issuedAt + (num * 30 * 24 * 60 * 60 * 1000);
+          else if (unit.startsWith('y')) expiresAt = issuedAt + (num * 365 * 24 * 60 * 60 * 1000);
+        }
+      }
+    }
     const customerName = options.customerName || null;
     const customerEmail = options.customerEmail || null;
     const notes = options.notes || null;
@@ -416,6 +443,15 @@ class LicenseDatabase {
       args: [parseInt(maxDevices, 10), id]
     });
     await this.logEvent('license_max_devices_changed', id, null, 'admin', { maxDevices });
+    return await this.getLicenseById(id);
+  }
+
+  async updateLicenseExpiresAt(id, expiresAt) {
+    await this.client.execute({
+      sql: 'UPDATE licenses SET expires_at = ? WHERE id = ?',
+      args: [expiresAt !== null ? parseInt(expiresAt, 10) : null, id]
+    });
+    await this.logEvent('license_expires_at_changed', id, null, 'admin', { expiresAt });
     return await this.getLicenseById(id);
   }
 

@@ -74,6 +74,29 @@ Function customWelcomeShow
   ${EndIf}
 FunctionEnd
 
+Function customDirectoryShow
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  ${If} $0 != 0
+    SetCtlColors $0 0xF1F5F9 0x070B13
+    GetDlgItem $1 $0 1006
+    ${If} $1 != 0
+      SetCtlColors $1 0xF1F5F9 0x070B13
+    ${EndIf}
+    GetDlgItem $1 $0 1019
+    ${If} $1 != 0
+      SetCtlColors $1 0xF1F5F9 0x161920
+    ${EndIf}
+    GetDlgItem $1 $0 1023
+    ${If} $1 != 0
+      SetCtlColors $1 0x94A3B8 0x070B13
+    ${EndIf}
+    GetDlgItem $1 $0 1024
+    ${If} $1 != 0
+      SetCtlColors $1 0x94A3B8 0x070B13
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
+
 Function customInstFilesShow
   FindWindow $0 "#32770" "" $HWNDPARENT
   ${If} $0 != 0
@@ -87,9 +110,14 @@ FunctionEnd
 
 !macro customWelcomePage
   !define MUI_WELCOMEPAGE_TITLE "Welcome to XDM Turbo"
-  !define MUI_WELCOMEPAGE_TEXT "Get ready for the fastest, most powerful download experience on Windows.$\r$\n$\r$\n✦ Turbo Multi-Stream Speed Acceleration (64 Parallel Streams)$\r$\n✦ 4K & High-Definition Video Downloader$\r$\n✦ 1-Click Browser Integration for Chrome, Edge & Brave$\r$\n✦ 100% Secure, Clean & Ad-Free$\r$\n$\r$\nClick Next to start the quick installation."
+  !define MUI_WELCOMEPAGE_TEXT "Get ready for the fastest, most powerful download experience on Windows.$\r$\n$\r$\n- Turbo Multi-Stream Speed Acceleration (64 Parallel Streams)$\r$\n- 4K & High-Definition Video Downloader$\r$\n- 1-Click Browser Integration for Chrome, Edge & Brave$\r$\n- 100% Secure, Clean & Ad-Free$\r$\n$\r$\nClick Next to start the quick installation."
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW customWelcomeShow
   !insertmacro MUI_PAGE_WELCOME
+!macroend
+
+!macro customDirectoryPage
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW customDirectoryShow
+  !insertmacro MUI_PAGE_DIRECTORY
 !macroend
 
 !macro customPageAfterChangeDir
@@ -103,13 +131,23 @@ FunctionEnd
   StrCpy $isForceCurrentInstall "1"
 !macroend
 
+# Aggressive process cleanup at installer start to prevent file locking & retry popups
+!macro customInit
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
+  Sleep 600
+!macroend
+
 !macro customCheckAppRunning
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe"'
-  Sleep 500
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
+  Sleep 800
 !macroend
 
 !macro customUnInstallCheck
@@ -157,11 +195,11 @@ FunctionEnd
 !macroend
 
 !macro customUnInstall
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe"'
-  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe"'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "XDM.Turbo.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "xdm.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "ffmpeg.exe" /T'
+  nsExec::Exec '$SYSDIR\cmd.exe /c taskkill /F /IM "yt-dlp.exe" /T'
 
   Delete "$SMPROGRAMS\XDM Turbo\XDM Turbo.lnk"
   RMDir "$SMPROGRAMS\XDM Turbo"

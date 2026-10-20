@@ -255,7 +255,13 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                 <div className="flex items-center justify-between text-slate-400 theme-text-secondary">
                   <span>Offline Defense Shield:</span>
                   <span className="font-mono text-slate-300 theme-text-primary">
-                    {license?.offlineGraceRemainingHours ? `${Math.round(license.offlineGraceRemainingHours / 24)} Days Protection Cached` : '7 Days Active'}
+                    {license?.offlineGraceRemainingHours ? (() => {
+                      const shieldDays = Math.max(1, Math.ceil(license.offlineGraceRemainingHours / 24));
+                      return `${shieldDays} Days Protection Cached`;
+                    })() : (license?.expiresAt ? (() => {
+                      const maxDays = Math.max(1, Math.min(7, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000))));
+                      return `${maxDays} Days Active`;
+                    })() : '7 Days Active')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-400 theme-text-secondary">

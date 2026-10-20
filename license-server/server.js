@@ -265,9 +265,13 @@ const handleActivate = async (req, res) => {
       throw seatErr;
     }
 
-    // 7-day offline grace period (renewed on every online heartbeat)
-    const graceDays = 7;
-    const graceUntil = Date.now() + (graceDays * 24 * 60 * 60 * 1000);
+    // 7-day offline grace period (renewed on every online heartbeat, capped by license expiration)
+    const maxGraceDays = 7;
+    let graceUntil = Date.now() + (maxGraceDays * 24 * 60 * 60 * 1000);
+    if (license.expires_at && license.expires_at < graceUntil) {
+      graceUntil = license.expires_at;
+    }
+    const graceDays = Math.max(1, Math.ceil((graceUntil - Date.now()) / (24 * 60 * 60 * 1000)));
 
     // Cryptographic Ed25519 Payload (Commercial Model: PRO Edition receives 64 streams)
     const tokenPayload = {
@@ -371,9 +375,13 @@ const handleHeartbeat = async (req, res) => {
     // Update heartbeat timestamp
     await db.updateDeviceHeartbeat(deviceId, license.id, ip);
 
-    // Refresh 7-day offline grace period
-    const graceDays = 7;
-    const graceUntil = Date.now() + (graceDays * 24 * 60 * 60 * 1000);
+    // Refresh 7-day offline grace period (capped by license expiration)
+    const maxGraceDays = 7;
+    let graceUntil = Date.now() + (maxGraceDays * 24 * 60 * 60 * 1000);
+    if (license.expires_at && license.expires_at < graceUntil) {
+      graceUntil = license.expires_at;
+    }
+    const graceDays = Math.max(1, Math.ceil((graceUntil - Date.now()) / (24 * 60 * 60 * 1000)));
 
     const tokenPayload = {
       licenseId: license.id,
@@ -757,6 +765,23 @@ app.post('/api/v1/admin/purge-all', requireAdminAuth, async (req, res) => {
 app.post('/api/v1/admin/licenses/:id/limit', requireAdminAuth, async (req, res) => {
   const { maxDevices } = req.body || {};
   const updated = await db.updateLicenseMaxDevices(req.params.id, maxDevices);
+  res.json({ success: true, license: updated });
+});
+app.post('/api/admin/licenses/:id/limit', requireAdminAuth, async (req, res) => {
+  const { maxDevices } = req.body || {};
+  const updated = await db.updateLicenseMaxDevices(req.params.id, maxDevices);
+  res.json({ success: true, license: updated });
+});
+
+// Admin Update Expiration
+app.post('/api/v1/admin/licenses/:id/expires', requireAdminAuth, async (req, res) => {
+  const { expiresAt } = req.body || {};
+  const updated = await db.updateLicenseExpiresAt(req.params.id, expiresAt);
+  res.json({ success: true, license: updated });
+});
+app.post('/api/admin/licenses/:id/expires', requireAdminAuth, async (req, res) => {
+  const { expiresAt } = req.body || {};
+  const updated = await db.updateLicenseExpiresAt(req.params.id, expiresAt);
   res.json({ success: true, license: updated });
 });
 

@@ -38,6 +38,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   license,
   onOpenLicenseModal
 }) => {
+  const isEffectivePro = Boolean(isPro || license?.isPro || license?.isAdmin || license?.status === 'pro' || license?.status === 'grace');
+
   const [form, setForm] = useState<SettingsType>({
     defaultSaveDir: '',
     maxConcurrentDownloads: 3,
@@ -115,7 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSave = async () => {
     const payload = { ...form };
-    if (!isPro) {
+    if (!isEffectivePro) {
       payload.speedLimit = 0;
       payload.schedulerEnabled = false;
       payload.shutdownOnCompletion = false;
@@ -125,7 +127,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       payload.maxConcurrentDownloads = 1;
     }
     if (typeof window !== 'undefined' && (window as any).electronAPI?.setClipboardMonitoring) {
-      (window as any).electronAPI.setClipboardMonitoring(isPro ? (payload.clipboardMonitoring ?? true) : false);
+      (window as any).electronAPI.setClipboardMonitoring(isEffectivePro ? (payload.clipboardMonitoring ?? true) : false);
     }
     await onSave(payload);
     setSaved(true);
@@ -150,7 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="font-bold text-sm text-white theme-text-primary tracking-tight">Preferences</h2>
-                {!isPro ? (
+                {!isEffectivePro ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 theme-text-secondary border border-white/[0.1] font-semibold">
                     Free Edition
                   </span>
@@ -213,7 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>Download Acceleration (Parallel Streams)</span>
               </div>
               <span className="text-xs font-bold text-emerald-300 bg-emerald-500/15 px-3 py-0.5 rounded-full border border-emerald-500/30 font-mono">
-                {isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)} Active Streams
+                {form.defaultConnections} Active Streams
               </span>
             </div>
 
@@ -228,8 +230,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 { val: 32, label: '32 Streams', desc: 'Ultra', proOnly: true },
                 { val: 64, label: '64 Streams', desc: 'Max PRO', proOnly: true, highlight: true }
               ].map(preset => {
-                const isSelected = (isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === preset.val;
-                const isLocked = !isPro && preset.proOnly;
+                const isSelected = form.defaultConnections === preset.val;
+                const isLocked = !isEffectivePro && preset.proOnly;
 
                 return (
                   <button
@@ -269,12 +271,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 min="0"
                 max={6}
                 step="1"
-                value={[1, 2, 4, 8, 16, 32, 64].findIndex(s => s >= (isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)))}
+                value={[1, 2, 4, 8, 16, 32, 64].indexOf(form.defaultConnections) !== -1 ? [1, 2, 4, 8, 16, 32, 64].indexOf(form.defaultConnections) : (isEffectivePro ? 6 : 2)}
                 onChange={(e) => {
                   const steps = [1, 2, 4, 8, 16, 32, 64];
                   const idx = parseInt(e.target.value, 10);
                   const targetStreams = steps[idx] || 4;
-                  if (!isPro && targetStreams > 4) {
+                  if (!isEffectivePro && targetStreams > 4) {
                     setForm({ ...form, defaultConnections: 4 });
                     if (onOpenLicenseModal) onOpenLicenseModal();
                   } else {
@@ -284,17 +286,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="w-full accent-emerald-500 cursor-pointer h-2.5 rounded-lg bg-black/40"
               />
               <div className="grid grid-cols-7 text-[10px] text-center font-mono">
-                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 1 ? "text-emerald-400 font-bold" : "text-slate-400"}>1</span>
-                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 2 ? "text-emerald-400 font-bold" : "text-slate-400"}>2</span>
-                <span className={(isPro ? form.defaultConnections : Math.min(form.defaultConnections, 4)) === 4 ? "text-emerald-400 font-bold" : "text-slate-400"}>4 (Free)</span>
-                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 8 ? "text-emerald-400 font-bold" : "text-slate-400"}>8 PRO</span>
-                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 16 ? "text-emerald-400 font-bold" : "text-slate-400"}>16 PRO</span>
-                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 32 ? "text-emerald-400 font-bold" : "text-slate-400"}>32 PRO</span>
-                <span className={!isPro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 64 ? "text-emerald-400 font-bold" : "text-slate-400"}>64 Turbo</span>
+                <span className={form.defaultConnections === 1 ? "text-emerald-400 font-bold" : "text-slate-400"}>1</span>
+                <span className={form.defaultConnections === 2 ? "text-emerald-400 font-bold" : "text-slate-400"}>2</span>
+                <span className={form.defaultConnections === 4 ? "text-emerald-400 font-bold" : "text-slate-400"}>4 (Free)</span>
+                <span className={!isEffectivePro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 8 ? "text-emerald-400 font-bold" : "text-slate-400"}>8 PRO</span>
+                <span className={!isEffectivePro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 16 ? "text-emerald-400 font-bold" : "text-slate-400"}>16 PRO</span>
+                <span className={!isEffectivePro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 32 ? "text-emerald-400 font-bold" : "text-slate-400"}>32 PRO</span>
+                <span className={!isEffectivePro ? "text-amber-400 font-medium opacity-80" : form.defaultConnections === 64 ? "text-emerald-400 font-bold" : "text-slate-400"}>64 Turbo</span>
               </div>
             </div>
 
-            {!isPro && (
+            {!isEffectivePro && (
               <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-center justify-between shadow-sm">
                 <div className="flex items-center space-x-2.5 text-xs text-slate-300 theme-text-secondary">
                   <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
@@ -321,22 +323,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>Simultaneous Active Downloads</span>
               </div>
               <span className="text-xs font-bold text-slate-200 theme-text-primary bg-white/[0.06] px-2.5 py-0.5 rounded-full border border-white/10">
-                {isPro ? form.maxConcurrentDownloads : 1} File{isPro && form.maxConcurrentDownloads > 1 ? 's' : ''} at a time
+                {form.maxConcurrentDownloads} File{form.maxConcurrentDownloads > 1 ? 's' : ''} at a time
               </span>
             </div>
 
             <input
               type="range"
               min="1"
-              max={isPro ? 10 : 1}
+              max={isEffectivePro ? 10 : 1}
               step="1"
-              value={isPro ? form.maxConcurrentDownloads : 1}
-              onChange={(e) => setForm({ ...form, maxConcurrentDownloads: parseInt(e.target.value, 10) })}
+              value={form.maxConcurrentDownloads}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10) || 1;
+                if (!isEffectivePro && val > 1) {
+                  setForm({ ...form, maxConcurrentDownloads: 1 });
+                  if (onOpenLicenseModal) onOpenLicenseModal();
+                } else {
+                  setForm({ ...form, maxConcurrentDownloads: val });
+                }
+              }}
               className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg disabled:opacity-40"
-              disabled={!isPro}
+              disabled={!isEffectivePro}
             />
 
-            {!isPro && (
+            {!isEffectivePro && (
               <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-[11px] text-slate-300 theme-text-secondary">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -362,7 +372,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <Gauge className="w-4 h-4 text-amber-400" />
                 <span>Speed Limiter</span>
               </div>
-              {!isPro ? (
+              {!isEffectivePro ? (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-amber-400 border border-amber-400/30 font-bold flex items-center space-x-1">
                   <Lock className="w-2.5 h-2.5" />
                   <span>PRO Feature</span>
@@ -374,7 +384,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            {!isPro ? (
+            {!isEffectivePro ? (
               <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between">
                 <p className="text-[11px] text-slate-400 theme-text-secondary">
                   Throttle download speed to prevent home lag while gaming or watching videos.
@@ -422,7 +432,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <Clock className="w-4 h-4 text-purple-400" />
                 <span>Scheduled Downloads & Auto-Shutdown</span>
               </div>
-              {!isPro ? (
+              {!isEffectivePro ? (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-amber-400 border border-amber-400/30 font-bold flex items-center space-x-1">
                   <Lock className="w-2.5 h-2.5" />
                   <span>PRO Feature</span>
@@ -440,7 +450,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            {!isPro ? (
+            {!isEffectivePro ? (
               <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between">
                 <p className="text-[11px] text-slate-400 theme-text-secondary">
                   Schedule downloads for night hours and automatically turn off your PC when finished.
@@ -549,7 +559,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <label 
                 onClick={(e) => {
-                  if (!isPro && onOpenLicenseModal) {
+                  if (!isEffectivePro && onOpenLicenseModal) {
                     e.preventDefault();
                     onOpenLicenseModal();
                   }
@@ -559,8 +569,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center space-x-2.5">
                   <input
                     type="checkbox"
-                    disabled={!isPro}
-                    checked={isPro ? (form.clipboardMonitoring ?? true) : false}
+                    disabled={!isEffectivePro}
+                    checked={isEffectivePro ? (form.clipboardMonitoring ?? true) : false}
                     onChange={(e) => setForm({ ...form, clipboardMonitoring: e.target.checked })}
                     className="rounded bg-black/40 border-white/20 text-emerald-500 focus:ring-0 disabled:opacity-40"
                   />
@@ -569,7 +579,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span>Automatic clipboard link detection</span>
                   </div>
                 </div>
-                {!isPro && (
+                {!isEffectivePro && (
                   <span className="text-[10px] text-amber-400 bg-white/[0.06] px-2 py-0.5 rounded-full border border-amber-400/30 font-bold flex items-center space-x-1">
                     <Lock className="w-2.5 h-2.5" />
                     <span>PRO</span>
@@ -579,7 +589,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <label 
                 onClick={(e) => {
-                  if (!isPro && onOpenLicenseModal) {
+                  if (!isEffectivePro && onOpenLicenseModal) {
                     e.preventDefault();
                     onOpenLicenseModal();
                   }
@@ -589,8 +599,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center space-x-2.5">
                   <input
                     type="checkbox"
-                    disabled={!isPro}
-                    checked={isPro ? (form.windowsNotifications ?? true) : false}
+                    disabled={!isEffectivePro}
+                    checked={isEffectivePro ? (form.windowsNotifications ?? true) : false}
                     onChange={(e) => setForm({ ...form, windowsNotifications: e.target.checked })}
                     className="rounded bg-black/40 border-white/20 text-emerald-500 focus:ring-0 disabled:opacity-40"
                   />
@@ -599,7 +609,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span>Windows desktop notifications</span>
                   </div>
                 </div>
-                {!isPro && (
+                {!isEffectivePro && (
                   <span className="text-[10px] text-amber-400 bg-white/[0.06] px-2 py-0.5 rounded-full border border-amber-400/30 font-bold flex items-center space-x-1">
                     <Lock className="w-2.5 h-2.5" />
                     <span>PRO</span>

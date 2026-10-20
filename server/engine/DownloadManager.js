@@ -383,7 +383,9 @@ class DownloadManager {
 
   // Cryptographic Defense-in-Depth: Validate token signature directly rather than trusting boolean flag alone
   isProVerified() {
-    if (!this.licenseManager || !this.licenseManager.isPro()) return false;
+    if (!this.licenseManager) return false;
+    if (this.licenseManager.isBanned()) return false;
+    if (this.licenseManager.isPro()) return true;
     try {
       if (this.licenseManager.licenseFile && fs.existsSync(this.licenseManager.licenseFile)) {
         const raw = JSON.parse(fs.readFileSync(this.licenseManager.licenseFile, 'utf-8'));
@@ -395,7 +397,7 @@ class DownloadManager {
         }
       }
     } catch (e) {}
-    return Boolean(this.licenseManager && this.licenseManager.isPro());
+    return Boolean(this.licenseManager && (this.licenseManager.isPro() || this.licenseManager.license?.status === 'pro' || this.licenseManager.license?.status === 'grace'));
   }
 
   async addVideoDownload(options) {

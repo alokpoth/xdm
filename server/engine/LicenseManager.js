@@ -502,8 +502,12 @@ class LicenseManager {
         return;
       }
 
-      // Check Offline Grace Period
-      const graceRemainingMs = Math.max(0, (payload.graceUntil || 0) - now);
+      // Check Offline Grace Period (capped by license expiration)
+      let effectiveGraceUntil = payload.graceUntil;
+      if (payload.expiresAt && (!effectiveGraceUntil || effectiveGraceUntil > payload.expiresAt)) {
+        effectiveGraceUntil = payload.expiresAt;
+      }
+      const graceRemainingMs = Math.max(0, (effectiveGraceUntil || 0) - now);
       const graceRemainingHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
 
       if (graceRemainingMs === 0) {
@@ -734,7 +738,11 @@ class LicenseManager {
       };
       fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
 
-      const graceRemainingMs = Math.max(0, (payload.graceUntil || 0) - Date.now());
+      let effectiveGraceUntil = payload.graceUntil;
+      if (payload.expiresAt && (!effectiveGraceUntil || effectiveGraceUntil > payload.expiresAt)) {
+        effectiveGraceUntil = payload.expiresAt;
+      }
+      const graceRemainingMs = Math.max(0, (effectiveGraceUntil || 0) - Date.now());
       const graceHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
 
       this.license = Object.freeze({
@@ -817,12 +825,16 @@ class LicenseManager {
           };
           fs.writeFileSync(this.licenseFile, JSON.stringify(record, null, 2), 'utf-8');
 
-          const graceRemainingMs = Math.max(0, (check.payload.graceUntil || 0) - Date.now());
+          let effectiveGraceUntil = check.payload.graceUntil;
+          if (check.payload.expiresAt && (!effectiveGraceUntil || effectiveGraceUntil > check.payload.expiresAt)) {
+            effectiveGraceUntil = check.payload.expiresAt;
+          }
+          const graceRemainingMs = Math.max(0, (effectiveGraceUntil || 0) - Date.now());
           const graceHours = Math.round(graceRemainingMs / (1000 * 60 * 60));
 
           this.license = Object.freeze({
             ...this.license,
-            graceUntil: check.payload.graceUntil,
+            graceUntil: effectiveGraceUntil,
             offlineGraceRemainingHours: graceHours,
             lastOnlineCheck: Date.now()
           });

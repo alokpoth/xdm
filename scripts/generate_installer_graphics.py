@@ -79,16 +79,16 @@ def create_sidebar_bmp(filename, is_uninstall=False):
     # Separator
     draw.line([(20, 144), (width - 20, 144)], fill=(30, 48, 68))
 
-    # Features
+    # Features (Strictly zero emojis)
     features = [
-        "⚡ 32-Stream Core Engine",
-        "🎬 4K 60fps Video Grabber",
-        "🌐 Chrome, Edge & Brave",
-        "🔒 100% Virus & Ad Free"
+        "- 64-Stream Turbo Engine",
+        "- 4K 60fps Video Grabber",
+        "- Chrome, Edge & Brave",
+        "- 100% Virus & Ad Free"
     ] if not is_uninstall else [
-        "🗑 Clean System Removal",
-        "🌐 Deregister Extensions",
-        "📁 Preserves User Files"
+        "- Clean System Removal",
+        "- Deregister Extensions",
+        "- Preserves User Files"
     ]
 
     y_pos = 158

@@ -1049,6 +1049,64 @@ test('Client Server Sync: syncWithServer synchronizes unban, ban, and license he
   client.destroy();
 });
 
+test('License Duration & Grace Period Capping: 3-day license calculates expires_at and caps grace period strictly within 3 days', async () => {
+  // 1. Create a 3-day license via duration string
+  const createRes = await fetch(`${SERVER_URL}/api/v1/admin/licenses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({
+      edition: 'pro',
+      maxDevices: 1,
+      duration: '3day',
+      customerName: 'Three Day Tester'
+    })
+  });
+  assert.equal(createRes.status, 200);
+  const createData = await createRes.json();
+  const lic = createData.licenses[0];
+
+  assert.ok(lic.expires_at, '3-day license must have non-null expires_at');
+  const now = Date.now();
+  const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+  assert.ok(lic.expires_at > now && lic.expires_at <= now + threeDaysMs + 5000, 'expires_at must be ~3 days from now');
+
+  // 2. Activate the 3-day license on a client
+  const actRes = await fetch(`${SERVER_URL}/api/v1/licenses/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: lic.key,
+      deviceId: 'XDM-DEV-3DAY-PC1',
+      deviceName: '3-Day PC'
+    })
+  });
+  assert.equal(actRes.status, 200);
+  const actData = await actRes.json();
+  assert.equal(actData.success, true);
+
+  // graceUntil MUST NOT exceed expires_at (must be capped at ~3 days, not 7 days)
+  assert.ok(actData.graceUntil <= lic.expires_at, 'graceUntil must never exceed license expiration');
+  assert.ok(actData.graceDays <= 3, 'graceDays must be at most 3 days for a 3-day license');
+
+  // 3. Heartbeat also caps grace period within 3 days
+  const hbRes = await fetch(`${SERVER_URL}/api/v1/licenses/heartbeat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: lic.key,
+      deviceId: 'XDM-DEV-3DAY-PC1',
+      token: actData.token
+    })
+  });
+  assert.equal(hbRes.status, 200);
+  const hbData = await hbRes.json();
+  assert.equal(hbData.valid, true);
+  assert.ok(hbData.graceUntil <= lic.expires_at, 'Heartbeat graceUntil must not exceed expiration');
+});
+
 test('Admin Database Optimization: Reclaims disk space and prunes stale records via /api/v1/admin/database/optimize', async () => {
   const res = await fetch(`${SERVER_URL}/api/v1/admin/database/optimize`, {
     method: 'POST',
