@@ -1,7 +1,5 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/", "destination": "/docs/index.html" },
-    { "source": "/(.*)", "destination": "/docs/$1" }
-  ]
+  "buildCommand": null,
+  "outputDirectory": "docs",
+  "cleanUrls": true
 }
