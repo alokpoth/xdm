@@ -22,7 +22,8 @@ let primaryLicenseId = '';
 test.before(async () => {
   // Clear any existing bans for clean test isolation
   try {
-    db.db.exec('DELETE FROM device_security');
+    await db.ready();
+    await db.exec('DELETE FROM device_security');
   } catch (e) {}
   // Start server on test port
   await new Promise((resolve, reject) => {
@@ -605,4 +606,133 @@ test('Brute Force: Device is automatically banned after 10 invalid key attempts 
   assert.equal(client.isPro(), true);
 
   client.destroy();
+});
+
+
+test('Vercel API Aliases: /api/license/* and /api/admin/* endpoints work identically', async () => {
+  const createRes = await fetch(`${SERVER_URL}/api/admin/licenses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({
+      edition: 'pro',
+      maxDevices: 1,
+      customerName: 'Alias Tester',
+      customerEmail: 'alias@example.com'
+    })
+  });
+  assert.equal(createRes.status, 200);
+  const createData = await createRes.json();
+  assert.equal(createData.success, true);
+  const aliasLic = createData.licenses[0];
+
+  const actRes = await fetch(`${SERVER_URL}/api/license/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: aliasLic.key,
+      deviceId: 'XDM-DEV-ALIAS-PC1',
+      deviceName: 'Alias PC'
+    })
+  });
+  assert.equal(actRes.status, 200);
+  const actData = await actRes.json();
+  assert.equal(actData.success, true);
+  assert.ok(actData.token);
+
+  const hbRes = await fetch(`${SERVER_URL}/api/license/heartbeat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: aliasLic.key,
+      deviceId: 'XDM-DEV-ALIAS-PC1'
+    })
+  });
+  assert.equal(hbRes.status, 200);
+  const hbData = await hbRes.json();
+  assert.equal(hbData.valid, true);
+
+  const revRes = await fetch(`${SERVER_URL}/api/admin/licenses/revoke`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({
+      key: aliasLic.key,
+      reason: 'Alias revoke test'
+    })
+  });
+  assert.equal(revRes.status, 200);
+
+  const hbPostRev = await fetch(`${SERVER_URL}/api/license/heartbeat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      licenseKey: aliasLic.key,
+      deviceId: 'XDM-DEV-ALIAS-PC1'
+    })
+  });
+  assert.equal(hbPostRev.status, 403);
+});
+
+test('Concurrency: Parallel activations on a 1-device key ensure strict atomic seat limit', async () => {
+  const lic = await createTestLicense({ maxDevices: 1, customerName: 'Concurrency Test' });
+
+  const attempts = [
+    fetch(`${SERVER_URL}/api/v1/licenses/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: lic.key, deviceId: 'XDM-DEV-RACE-01' })
+    }),
+    fetch(`${SERVER_URL}/api/v1/licenses/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: lic.key, deviceId: 'XDM-DEV-RACE-02' })
+    }),
+    fetch(`${SERVER_URL}/api/v1/licenses/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: lic.key, deviceId: 'XDM-DEV-RACE-03' })
+    })
+  ];
+
+  const results = await Promise.all(attempts);
+  const statuses = results.map(r => r.status);
+
+  const successCount = statuses.filter(s => s === 200).length;
+  const blockedCount = statuses.filter(s => s === 403).length;
+
+  assert.equal(successCount, 1, 'Exactly one concurrent request must win the single seat');
+  assert.equal(blockedCount, 2, 'Other concurrent requests must be rejected with 403');
+});
+
+test('Anti-Backdoor: Client strictly rejects activation when server denies fake key', async () => {
+  const testStorageDir = path.join(os.tmpdir(), `xdm_test_${Date.now()}_nobackdoor`);
+  const client = new LicenseManager({
+    storageDir: testStorageDir,
+    serverUrl: SERVER_URL
+  });
+
+  const res = await client.activate('XDM-FAKE-NONEXISTENT-KEY', 'Pirate User');
+  assert.equal(res.success, false);
+  assert.equal(client.isPro(), false);
+  assert.equal(client.getStatus().status, 'free');
+
+  client.destroy();
+});
+
+test('Stateless HMAC Admin Auth: Rejects forged or expired admin tokens', async () => {
+  const forgedToken = 'xdm_adm_eyJhZG1pbklkIjoiYWRtaW5fcm9vdCIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoic3VwZXJhZG1pbiIsImV4cCI6OTk5OTk5OTk5OTk5OX0.FORGED_INVALID_SIGNATURE';
+  const resForged = await fetch(`${SERVER_URL}/api/v1/admin/overview`, {
+    headers: { 'Authorization': `Bearer ${forgedToken}` }
+  });
+  assert.equal(resForged.status, 401);
+
+  const resMalformed = await fetch(`${SERVER_URL}/api/v1/admin/overview`, {
+    headers: { 'Authorization': 'Bearer random_garbage' }
+  });
+  assert.equal(resMalformed.status, 401);
 });

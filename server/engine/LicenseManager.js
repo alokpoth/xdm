@@ -17,7 +17,7 @@ class LicenseManager {
     this.banFile = path.join(this.storageDir, '.xdm_ban');
     // In production, serverUrl and publicKey cannot be overridden by ambient environment variables
     const isTestMode = process.env.NODE_ENV === 'test';
-    this.serverUrl = options.serverUrl || (isTestMode ? process.env.XDM_LICENSE_SERVER_URL : null) || 'https://license.xdm.zihan.uk';
+    this.serverUrl = options.serverUrl || (isTestMode ? process.env.XDM_LICENSE_SERVER_URL : null) || 'https://xdm.zihan.xyz';
     this.publicKey = options.publicKey || (isTestMode ? process.env.XDM_LICENSE_PUBLIC_KEY : null) || DEFAULT_ED25519_PUBLIC_KEY;
     this._cachedDeviceId = null;
     this.deviceId = options.deviceId || this.computeDeviceId();
@@ -446,9 +446,6 @@ class LicenseManager {
         if (data.isBanned) {
           this.triggerDeviceBan(data.error || 'Device banned by license server');
         }
-        if (process.env.NODE_ENV !== 'test' && (cleanKey.includes('ADMIN') || cleanKey.includes('MASTER') || cleanKey.startsWith('XDM-'))) {
-          return this.activateOffline(cleanKey, customerName, customerEmail);
-        }
         return { success: false, error: data.error || 'Activation rejected by license server' };
       }
 
@@ -499,9 +496,6 @@ class LicenseManager {
         license: this.getStatus()
       };
     } catch (err) {
-      if (process.env.NODE_ENV !== 'test' && (cleanKey.includes('ADMIN') || cleanKey.includes('MASTER') || cleanKey.startsWith('XDM-'))) {
-        return this.activateOffline(cleanKey, customerName, customerEmail);
-      }
       return {
         success: false,
         error: `Could not connect to license server (${err.message}). Please check your internet connection or server status.`
@@ -533,9 +527,6 @@ class LicenseManager {
       const data = await response.json();
 
       if (!response.ok || !data.valid) {
-        if (process.env.NODE_ENV !== 'test') {
-          return;
-        }
         console.warn(`[LicenseManager] Heartbeat failed from server: ${data.error || 'License invalid'}. Reverting to free.`);
         try { if (fs.existsSync(this.licenseFile)) fs.unlinkSync(this.licenseFile); } catch(e){}
         this.resetToFree();

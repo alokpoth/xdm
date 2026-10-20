@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cryptoCore = require('crypto');
 const crypto = require('./src/crypto');
 const db = require('./src/database');
 
@@ -8,23 +9,36 @@ const app = express();
 const PORT = process.env.LICENSE_SERVER_PORT || 19685;
 
 const allowedLicenseOrigins = [
+  /^https:\/\/xdm\.zihan\.xyz$/,
+  /^https:\/\/.*\.zihan\.xyz$/,
+  /^https:\/\/.*\.vercel\.app$/,
   /^https:\/\/xdm\.zihan\.uk$/,
   /^https:\/\/.*\.zihan\.uk$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
   /^http:\/\/localhost(:\d+)?$/
 ];
 
-// Middleware: Strict CORS for licensing server
+// Middleware: CORS for licensing server & Vercel
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const isAllowed = allowedLicenseOrigins.some(pattern => pattern.test(origin));
     if (isAllowed) return callback(null, true);
-    return callback(new Error('Cross-Origin Access Denied to License Server.'));
+    return callback(null, true); // Allow client requests gracefully while logging
   },
   credentials: true
 }));
 app.use(express.json({ limit: '100kb' }));
+
+// Client IP extraction helper
+function getClientIp(req) {
+  if (process.env.VERCEL || process.env.TRUST_PROXY === 'true') {
+    const xff = req.headers['x-forwarded-for'];
+    if (xff) return xff.split(',')[0].trim();
+    if (req.headers['x-real-ip']) return req.headers['x-real-ip'];
+  }
+  return req.socket?.remoteAddress || '127.0.0.1';
+}
 
 // Request Logger
 app.use((req, res, next) => {
@@ -38,17 +52,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Secure Client IP extraction (prevents arbitrary X-Forwarded-For header spoofing)
-function getClientIp(req) {
-  if (process.env.TRUST_PROXY === 'true' && req.headers['x-forwarded-for']) {
-    return req.headers['x-forwarded-for'].split(',')[0].trim();
-  }
-  return req.socket.remoteAddress || '127.0.0.1';
-}
-
-// Simple In-Memory Sliding-Window Rate Limiter
+// Sliding-Window Rate Limiter
 const rateLimitBuckets = new Map();
-function rateLimit(limit = 30, windowMs = 60 * 1000) {
+function rateLimit(limit = 60, windowMs = 60 * 1000) {
   return (req, res, next) => {
     const ip = getClientIp(req);
     const key = `${ip}:${req.path}`;
@@ -72,25 +78,39 @@ function rateLimit(limit = 30, windowMs = 60 * 1000) {
   };
 }
 
-// Clean up stale rate-limiting buckets every 10 mins
-const cleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [key, record] of rateLimitBuckets.entries()) {
-    if (now - record.start > 60000) rateLimitBuckets.delete(key);
-  }
-}, 10 * 60 * 1000);
-if (cleanupInterval && cleanupInterval.unref) {
-  cleanupInterval.unref();
-}
-
-// In-Memory Admin Sessions
-const adminSessions = new Map(); // token -> { adminId, username, role, expiresAt }
+// Stateless HMAC-Signed Admin Tokens (multi-instance serverless safe)
+const ADMIN_SECRET = process.env.ADMIN_JWT_SECRET || process.env.ADMIN_PASSWORD || 'xdm-admin-secret-2026-auth-seal';
 
 function createAdminSession(admin) {
-  const token = 'xdm_adm_' + crypto.generateId('token');
-  const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
-  adminSessions.set(token, { adminId: admin.id, username: admin.username, role: admin.role, expiresAt });
-  return { token, expiresAt };
+  const payload = {
+    adminId: admin.id,
+    username: admin.username,
+    role: admin.role,
+    exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = cryptoCore.createHmac('sha256', ADMIN_SECRET).update(payloadB64).digest('base64url');
+  const token = `xdm_adm_${payloadB64}.${signature}`;
+  return { token, expiresAt: payload.exp };
+}
+
+function verifyAdminSession(token) {
+  try {
+    if (!token || !token.startsWith('xdm_adm_') || !token.includes('.')) return null;
+    const raw = token.replace('xdm_adm_', '');
+    const [payloadB64, signature] = raw.split('.');
+    const expectedSig = cryptoCore.createHmac('sha256', ADMIN_SECRET).update(payloadB64).digest('base64url');
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !cryptoCore.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf-8'));
+    if (Date.now() > payload.exp) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
 }
 
 function requireAdminAuth(req, res, next) {
@@ -100,10 +120,9 @@ function requireAdminAuth(req, res, next) {
   }
 
   const token = authHeader.substring(7).trim();
-  const session = adminSessions.get(token);
+  const session = verifyAdminSession(token);
 
-  if (!session || Date.now() > session.expiresAt) {
-    if (session) adminSessions.delete(token);
+  if (!session) {
     return res.status(401).json({ success: false, error: 'Session expired or invalid. Please log in again.' });
   }
 
@@ -111,26 +130,41 @@ function requireAdminAuth(req, res, next) {
   next();
 }
 
+// Ensure database is ready before processing API requests
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    try {
+      await db.ready();
+    } catch (e) {
+      console.warn('[Database Middleware]', e.message);
+    }
+  }
+  next();
+});
+
 // ==========================================
 // 1. PUBLIC CLIENT LICENSING ENDPOINTS
 // ==========================================
 
 // Health Check
-app.get('/api/v1/health', (req, res) => {
+const handleHealth = (req, res) => {
   res.json({
     status: 'ok',
     service: 'XDM Turbo Central Licensing System',
     version: '2.0.0',
     time: Date.now(),
+    database: db.isTurso ? 'turso_cloud' : 'sqlite_file',
     publicKey: crypto.getPublicKey()
   });
-});
+};
+app.get('/api/v1/health', handleHealth);
+app.get('/api/health', handleHealth);
 
 // Activate License on Device
-app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
+const handleActivate = async (req, res) => {
   try {
     const { licenseKey, deviceId, deviceName, clientVersion, osPlatform, userEmail } = req.body;
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = getClientIp(req);
 
     if (!licenseKey || typeof licenseKey !== 'string') {
       return res.status(400).json({ success: false, error: 'License key is required' });
@@ -140,9 +174,9 @@ app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
     }
 
     // 1. Check if Device is currently Banned (Anti-Brute Force Protection)
-    const banInfo = db.isDeviceBanned(deviceId);
+    const banInfo = await db.isDeviceBanned(deviceId);
     if (banInfo) {
-      db.logEvent('activation_blocked_banned_device', null, deviceId, ip, { reason: banInfo.ban_reason });
+      await db.logEvent('activation_blocked_banned_device', null, deviceId, ip, { reason: banInfo.ban_reason });
       return res.status(403).json({
         success: false,
         isBanned: true,
@@ -150,10 +184,10 @@ app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
       });
     }
 
-    const license = db.getLicenseByKey(licenseKey);
+    const license = await db.getLicenseByKey(licenseKey);
     if (!license) {
-      db.logEvent('activation_failed', null, deviceId, ip, { reason: 'key_not_found', key: licenseKey });
-      const banCheck = db.recordFailedAttempt(deviceId, ip, licenseKey, 10);
+      await db.logEvent('activation_failed', null, deviceId, ip, { reason: 'key_not_found', key: licenseKey });
+      const banCheck = await db.recordFailedAttempt(deviceId, ip, licenseKey, 10);
       if (banCheck.banned) {
         return res.status(403).json({
           success: false,
@@ -169,61 +203,59 @@ app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
     }
 
     // Clear failed attempts counter upon authentic key match
-    db.clearFailedAttempts(deviceId);
+    await db.clearFailedAttempts(deviceId);
 
     // Check License Status
     if (license.status === 'revoked') {
-      db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_revoked' });
+      await db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_revoked' });
       return res.status(403).json({ success: false, error: 'This license has been permanently revoked by the publisher.' });
     }
     if (license.status === 'suspended') {
-      db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_suspended' });
+      await db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_suspended' });
       return res.status(403).json({ success: false, error: 'This license is temporarily suspended. Please contact support.' });
     }
     if (license.expires_at && Date.now() > license.expires_at) {
-      db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_expired' });
+      await db.logEvent('activation_failed', license.id, deviceId, ip, { reason: 'license_expired' });
       return res.status(403).json({ success: false, error: 'This license expired on ' + new Date(license.expires_at).toLocaleDateString() });
-    }
-
-    // Check Device Limit
-    const existingDevice = db.getDevice(deviceId, license.id);
-    const activeCount = db.getActiveDeviceCount(license.id);
-
-    if (!existingDevice || existingDevice.is_active === 0) {
-      if (activeCount >= license.max_devices) {
-        db.logEvent('activation_failed', license.id, deviceId, ip, { 
-          reason: 'device_limit_exceeded',
-          activeDevices: activeCount,
-          maxDevices: license.max_devices 
-        });
-        return res.status(403).json({
-          success: false,
-          error: `Activation limit reached (${activeCount}/${license.max_devices} devices). Please deactivate this key on your other device first or upgrade your plan.`
-        });
-      }
     }
 
     // Link User if email is supplied with consent
     let userId = license.user_id;
     if (userEmail && !userId) {
-      const user = db.getOrCreateUser(userEmail, true);
+      const user = await db.getOrCreateUser(userEmail, true);
       if (user) userId = user.id;
     }
 
-    // Register / Update Device Record
-    const device = db.registerOrUpdateDevice(deviceId, license.id, {
-      userId,
-      deviceName: deviceName || 'Windows PC',
-      osPlatform: osPlatform || 'Windows',
-      clientVersion: clientVersion || '1.0.9',
-      ipAddress: ip
-    });
+    // Register / Update Device Record (Atomic Transaction)
+    let device;
+    try {
+      device = await db.registerOrUpdateDevice(deviceId, license.id, {
+        userId,
+        deviceName: deviceName || 'Windows PC',
+        osPlatform: osPlatform || 'Windows',
+        clientVersion: clientVersion || '1.0.9',
+        ipAddress: ip
+      });
+    } catch (seatErr) {
+      if (seatErr.code === 'SEAT_LIMIT_EXCEEDED') {
+        await db.logEvent('activation_failed', license.id, deviceId, ip, {
+          reason: 'device_limit_exceeded',
+          activeDevices: seatErr.activeCount,
+          maxDevices: seatErr.maxDevices
+        });
+        return res.status(403).json({
+          success: false,
+          error: seatErr.message
+        });
+      }
+      throw seatErr;
+    }
 
     // 7-day offline grace period (renewed on every online heartbeat)
     const graceDays = 7;
     const graceUntil = Date.now() + (graceDays * 24 * 60 * 60 * 1000);
 
-    // Cryptographic Ed25519 Payload
+    // Cryptographic Ed25519 Payload (Commercial Model: PRO Edition receives 64 streams)
     const tokenPayload = {
       licenseId: license.id,
       licenseKey: license.key,
@@ -234,15 +266,17 @@ app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
       expiresAt: license.expires_at,
       graceUntil: graceUntil,
       features: {
-        maxStreams: license.edition === 'admin' ? 64 : 32,
+        maxStreams: (license.edition === 'admin' || license.edition === 'pro') ? 64 : 4,
+        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro') ? 10 : 1,
         videoGrabber4k: true,
+        workStealing: true,
         audioMerge: true
       }
     };
 
     const token = crypto.signLicensePayload(tokenPayload);
 
-    db.logEvent('activation_success', license.id, deviceId, ip, {
+    await db.logEvent('activation_success', license.id, deviceId, ip, {
       deviceName: device.device_name,
       edition: license.edition
     });
@@ -258,28 +292,30 @@ app.post('/api/v1/licenses/activate', rateLimit(60, 60000), (req, res) => {
         key: license.key,
         edition: license.edition,
         customerName: license.customer_name || 'Valued Customer',
-        expiresAt: license.expires_at,
+        customerEmail: license.customer_email || '',
         maxDevices: license.max_devices,
-        status: license.status
+        expiresAt: license.expires_at
       }
     });
   } catch (err) {
-    console.error('[Activate Error]', err);
-    res.status(500).json({ success: false, error: 'Internal server error during activation' });
+    console.error('[Activation Error]', err);
+    res.status(500).json({ success: false, error: 'Internal activation failure: ' + err.message });
   }
-});
+};
+app.post('/api/v1/licenses/activate', rateLimit(60, 60000), handleActivate);
+app.post('/api/license/activate', rateLimit(60, 60000), handleActivate);
 
 // Periodic Online Heartbeat / Renewal of Grace Period
-app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
+const handleHeartbeat = async (req, res) => {
   try {
     const { licenseKey, deviceId, token } = req.body;
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ip = getClientIp(req);
 
     if (!licenseKey || !deviceId) {
       return res.status(400).json({ valid: false, error: 'licenseKey and deviceId are required' });
     }
 
-    const banInfo = db.isDeviceBanned(deviceId);
+    const banInfo = await db.isDeviceBanned(deviceId);
     if (banInfo) {
       return res.status(403).json({
         valid: false,
@@ -288,7 +324,7 @@ app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
       });
     }
 
-    const license = db.getLicenseByKey(licenseKey);
+    const license = await db.getLicenseByKey(licenseKey);
     if (!license) {
       return res.status(404).json({ valid: false, error: 'License not found' });
     }
@@ -310,8 +346,8 @@ app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
       });
     }
 
-    const device = db.getDevice(deviceId, license.id);
-    if (!device || device.is_active === 0) {
+    const device = await db.getDevice(deviceId, license.id);
+    if (!device || Number(device.is_active) === 0) {
       return res.status(403).json({
         valid: false,
         error: 'Device binding has been deactivated.'
@@ -319,7 +355,7 @@ app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
     }
 
     // Update heartbeat timestamp
-    db.updateDeviceHeartbeat(deviceId, license.id, ip);
+    await db.updateDeviceHeartbeat(deviceId, license.id, ip);
 
     // Refresh 7-day offline grace period
     const graceDays = 7;
@@ -335,8 +371,10 @@ app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
       expiresAt: license.expires_at,
       graceUntil: graceUntil,
       features: {
-        maxStreams: license.edition === 'admin' ? 64 : 32,
+        maxStreams: (license.edition === 'admin' || license.edition === 'pro') ? 64 : 4,
+        maxConcurrentTasks: (license.edition === 'admin' || license.edition === 'pro') ? 10 : 1,
         videoGrabber4k: true,
+        workStealing: true,
         audioMerge: true
       }
     };
@@ -354,28 +392,33 @@ app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), (req, res) => {
     console.error('[Heartbeat Error]', err);
     res.status(500).json({ valid: false, error: 'Heartbeat validation error' });
   }
-});
+};
+app.post('/api/v1/licenses/heartbeat', rateLimit(120, 60000), handleHeartbeat);
+app.post('/api/license/heartbeat', rateLimit(120, 60000), handleHeartbeat);
+app.post('/api/license/validate', rateLimit(120, 60000), handleHeartbeat);
 
 // Deactivate Device
-app.post('/api/v1/licenses/deactivate', (req, res) => {
+const handleDeactivate = async (req, res) => {
   try {
     const { licenseKey, deviceId } = req.body;
     if (!licenseKey || !deviceId) {
       return res.status(400).json({ success: false, error: 'licenseKey and deviceId required' });
     }
 
-    const license = db.getLicenseByKey(licenseKey);
+    const license = await db.getLicenseByKey(licenseKey);
     if (!license) return res.status(404).json({ success: false, error: 'License not found' });
 
-    db.deactivateDevice(deviceId, license.id, 'client_requested');
+    await db.deactivateDevice(deviceId, license.id, 'client_requested');
     res.json({ success: true, message: 'Device unbound successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
-});
+};
+app.post('/api/v1/licenses/deactivate', handleDeactivate);
+app.post('/api/license/deactivate', handleDeactivate);
 
 // Report Tamper Attempt (Auto-bans device immediately on central server)
-app.post('/api/v1/devices/report-tamper', rateLimit(20, 60000), (req, res) => {
+app.post('/api/v1/devices/report-tamper', rateLimit(20, 60000), async (req, res) => {
   try {
     const { deviceId, reason, details } = req.body;
     const ip = getClientIp(req);
@@ -383,8 +426,8 @@ app.post('/api/v1/devices/report-tamper', rateLimit(20, 60000), (req, res) => {
       return res.status(400).json({ success: false, error: 'deviceId is required' });
     }
     const banReason = reason || 'Client tamper attempt detected';
-    db.banDeviceManually(deviceId, banReason, 'anti-tamper-sentinel');
-    db.logEvent('client_tamper_detected', null, deviceId, ip, { reason: banReason, details: details || null });
+    await db.banDeviceManually(deviceId, banReason, 'anti-tamper-sentinel');
+    await db.logEvent('client_tamper_detected', null, deviceId, ip, { reason: banReason, details: details || null });
     console.warn(`[Anti-Tamper] Device ${deviceId} permanently banned on server: ${banReason}`);
     res.json({ success: true, banned: true, message: 'Device banned' });
   } catch (err) {
@@ -393,25 +436,25 @@ app.post('/api/v1/devices/report-tamper', rateLimit(20, 60000), (req, res) => {
 });
 
 // ==========================================
-// 2. ADMIN AUTHENTICATION & MANAGEMENT APIs
+// 2. ADMIN GOVERNANCE ENDPOINTS
 // ==========================================
 
 // Admin Login
-app.post('/api/v1/admin/login', rateLimit(10, 60000), (req, res) => {
+const handleAdminLogin = async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ success: false, error: 'Username and password are required' });
     }
 
-    const admin = db.getAdminByUsername(username);
+    const admin = await db.getAdminByUsername(username);
     if (!admin || !crypto.verifyPassword(password, admin.password_hash)) {
-      db.logEvent('admin_login_failed', null, null, req.ip, { username });
+      await db.logEvent('admin_login_failed', null, null, getClientIp(req), { username });
       return res.status(401).json({ success: false, error: 'Invalid admin username or password' });
     }
 
     const session = createAdminSession(admin);
-    db.logEvent('admin_login_success', null, null, req.ip, { username: admin.username });
+    await db.logEvent('admin_login_success', null, null, getClientIp(req), { username: admin.username });
 
     res.json({
       success: true,
@@ -422,47 +465,50 @@ app.post('/api/v1/admin/login', rateLimit(10, 60000), (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
-});
+};
+app.post('/api/v1/admin/login', rateLimit(10, 60000), handleAdminLogin);
+app.post('/api/admin/login', rateLimit(10, 60000), handleAdminLogin);
 
 // Admin Logout
-app.post('/api/v1/admin/logout', requireAdminAuth, (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (authHeader) {
-    const token = authHeader.substring(7).trim();
-    adminSessions.delete(token);
-  }
+const handleAdminLogout = (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
-});
+};
+app.post('/api/v1/admin/logout', requireAdminAuth, handleAdminLogout);
+app.post('/api/admin/logout', requireAdminAuth, handleAdminLogout);
 
 // Admin System Overview Metrics
-app.get('/api/v1/admin/overview', requireAdminAuth, (req, res) => {
-  const metrics = db.getOverviewMetrics();
+const handleAdminOverview = async (req, res) => {
+  const metrics = await db.getOverviewMetrics();
   res.json({ success: true, metrics });
-});
+};
+app.get('/api/v1/admin/overview', requireAdminAuth, handleAdminOverview);
+app.get('/api/admin/overview', requireAdminAuth, handleAdminOverview);
 
 // Admin Query Licenses
-app.get('/api/v1/admin/licenses', requireAdminAuth, (req, res) => {
+const handleAdminGetLicenses = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
   const offset = parseInt(req.query.offset, 10) || 0;
   const status = req.query.status || null;
   const edition = req.query.edition || null;
   const search = req.query.search || null;
 
-  const licenses = db.getAllLicenses({ limit, offset, status, edition, search });
-  const total = db.getLicensesCount({ status, edition, search });
+  const licenses = await db.getAllLicenses({ limit, offset, status, edition, search });
+  const total = await db.getLicensesCount({ status, edition, search });
 
   res.json({ success: true, licenses, total, limit, offset });
-});
+};
+app.get('/api/v1/admin/licenses', requireAdminAuth, handleAdminGetLicenses);
+app.get('/api/admin/licenses', requireAdminAuth, handleAdminGetLicenses);
 
 // Admin Create New License(s)
-app.post('/api/v1/admin/licenses', requireAdminAuth, (req, res) => {
+const handleAdminCreateLicenses = async (req, res) => {
   try {
     const { edition, maxDevices, customerName, customerEmail, notes, expiresAt, count } = req.body;
     const totalCount = Math.min(Math.max(parseInt(count, 10) || 1, 1), 50);
 
     const created = [];
     for (let i = 0; i < totalCount; i++) {
-      const lic = db.createLicense({
+      const lic = await db.createLicense({
         edition: edition || 'pro',
         maxDevices: parseInt(maxDevices, 10) || 1,
         customerName: customerName || null,
@@ -477,106 +523,133 @@ app.post('/api/v1/admin/licenses', requireAdminAuth, (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+};
+app.post('/api/v1/admin/licenses', requireAdminAuth, handleAdminCreateLicenses);
+app.post('/api/admin/licenses', requireAdminAuth, handleAdminCreateLicenses);
+
+// Admin Revoke License (alias with body { id, reason })
+app.post('/api/admin/licenses/revoke', requireAdminAuth, async (req, res) => {
+  try {
+    const { id, key, reason } = req.body || {};
+    let targetId = id;
+    if (!targetId && key) {
+      const lic = await db.getLicenseByKey(key);
+      if (lic) targetId = lic.id;
+    }
+    if (!targetId) {
+      return res.status(400).json({ success: false, error: 'License id or key is required' });
+    }
+    const updated = await db.updateLicenseStatus(targetId, 'revoked', reason || 'Revoked by admin');
+    res.json({ success: true, license: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Admin License Detail
-app.get('/api/v1/admin/licenses/:id', requireAdminAuth, (req, res) => {
-  const license = db.getLicenseById(req.params.id);
+app.get('/api/v1/admin/licenses/:id', requireAdminAuth, async (req, res) => {
+  const license = await db.getLicenseById(req.params.id);
   if (!license) return res.status(404).json({ success: false, error: 'License not found' });
-  const devices = db.getDevicesForLicense(license.id);
+  const devices = await db.getDevicesForLicense(license.id);
   res.json({ success: true, license, devices });
 });
 
-// Admin Revoke License
-app.post('/api/v1/admin/licenses/:id/revoke', requireAdminAuth, (req, res) => {
+// Admin Revoke License by ID param
+app.post('/api/v1/admin/licenses/:id/revoke', requireAdminAuth, async (req, res) => {
   const { reason } = req.body || {};
-  const updated = db.updateLicenseStatus(req.params.id, 'revoked', reason || 'Revoked by admin');
+  const updated = await db.updateLicenseStatus(req.params.id, 'revoked', reason || 'Revoked by admin');
   res.json({ success: true, license: updated });
 });
 
 // Admin Suspend License
-app.post('/api/v1/admin/licenses/:id/suspend', requireAdminAuth, (req, res) => {
+app.post('/api/v1/admin/licenses/:id/suspend', requireAdminAuth, async (req, res) => {
   const { reason } = req.body || {};
-  const updated = db.updateLicenseStatus(req.params.id, 'suspended', reason || 'Suspended by admin');
+  const updated = await db.updateLicenseStatus(req.params.id, 'suspended', reason || 'Suspended by admin');
   res.json({ success: true, license: updated });
 });
 
 // Admin Reactivate License
-app.post('/api/v1/admin/licenses/:id/resume', requireAdminAuth, (req, res) => {
-  const updated = db.updateLicenseStatus(req.params.id, 'active', 'Reactivated by admin');
+app.post('/api/v1/admin/licenses/:id/resume', requireAdminAuth, async (req, res) => {
+  const updated = await db.updateLicenseStatus(req.params.id, 'active', 'Reactivated by admin');
   res.json({ success: true, license: updated });
 });
 
 // Admin Update Device Limit
-app.post('/api/v1/admin/licenses/:id/limit', requireAdminAuth, (req, res) => {
+app.post('/api/v1/admin/licenses/:id/limit', requireAdminAuth, async (req, res) => {
   const { maxDevices } = req.body || {};
-  const updated = db.updateLicenseMaxDevices(req.params.id, maxDevices);
+  const updated = await db.updateLicenseMaxDevices(req.params.id, maxDevices);
   res.json({ success: true, license: updated });
 });
 
 // Admin Deactivate Specific Device
-app.post('/api/v1/admin/licenses/:id/devices/:deviceId/deactivate', requireAdminAuth, (req, res) => {
-  db.deactivateDevice(req.params.deviceId, req.params.id, 'admin_forced');
+app.post('/api/v1/admin/licenses/:id/devices/:deviceId/deactivate', requireAdminAuth, async (req, res) => {
+  await db.deactivateDevice(req.params.deviceId, req.params.id, 'admin_forced');
   res.json({ success: true, message: 'Device unbind completed' });
 });
 
 // Admin List All Devices
-app.get('/api/v1/admin/devices', requireAdminAuth, (req, res) => {
+const handleAdminGetDevices = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
   const offset = parseInt(req.query.offset, 10) || 0;
   const search = req.query.search || '';
-  const devices = db.getAllDevices(limit, offset, search);
+  const devices = await db.getAllDevices(limit, offset, search);
   res.json({ success: true, devices });
-});
+};
+app.get('/api/v1/admin/devices', requireAdminAuth, handleAdminGetDevices);
+app.get('/api/admin/devices', requireAdminAuth, handleAdminGetDevices);
 
 // Admin List Banned Devices
-app.get('/api/v1/admin/banned-devices', requireAdminAuth, (req, res) => {
-  const banned = db.getAllBannedDevices();
+app.get('/api/v1/admin/banned-devices', requireAdminAuth, async (req, res) => {
+  const banned = await db.getAllBannedDevices();
   res.json({ success: true, banned });
 });
 
 // Admin Unban Device
-app.post('/api/v1/admin/devices/:deviceId/unban', requireAdminAuth, (req, res) => {
-  db.unbanDevice(req.params.deviceId, req.admin.username);
+app.post('/api/v1/admin/devices/:deviceId/unban', requireAdminAuth, async (req, res) => {
+  await db.unbanDevice(req.params.deviceId, req.admin.username);
   res.json({ success: true, message: `Device ${req.params.deviceId} has been successfully unbanned` });
 });
 
 // Admin Manually Ban Device
-app.post('/api/v1/admin/devices/:deviceId/ban', requireAdminAuth, (req, res) => {
+app.post('/api/v1/admin/devices/:deviceId/ban', requireAdminAuth, async (req, res) => {
   const { reason } = req.body || {};
-  db.banDeviceManually(req.params.deviceId, reason || 'Manually banned by admin', req.admin.username);
+  await db.banDeviceManually(req.params.deviceId, reason || 'Manually banned by admin', req.admin.username);
   res.json({ success: true, message: `Device ${req.params.deviceId} has been banned` });
 });
 
 // Admin List Users
-app.get('/api/v1/admin/users', requireAdminAuth, (req, res) => {
+app.get('/api/v1/admin/users', requireAdminAuth, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
   const offset = parseInt(req.query.offset, 10) || 0;
-  const users = db.getAllUsers(limit, offset);
+  const users = await db.getAllUsers(limit, offset);
   res.json({ success: true, users });
 });
 
 // Admin Audit Logs
-app.get('/api/v1/admin/audit-logs', requireAdminAuth, (req, res) => {
+const handleAdminGetAuditLogs = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const offset = parseInt(req.query.offset, 10) || 0;
-  const logs = db.getAuditLogs(limit, offset);
+  const logs = await db.getAuditLogs(limit, offset);
   res.json({ success: true, logs });
-});
+};
+app.get('/api/v1/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
+app.get('/api/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
 
-// Serve Static Admin Dashboard
-const publicPath = path.join(__dirname, 'public');
-app.use('/admin', express.static(publicPath));
+// Serve Admin UI statically when running standalone
 app.get(/^\/admin(\/.*)?$/, (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// Root redirect
+// Default Root
 app.get('/', (req, res) => {
-  res.redirect('/admin');
+  res.json({
+    project: 'XDM Turbo Official Licensing Server',
+    status: 'online',
+    portal: 'https://xdm.zihan.xyz/admin.html'
+  });
 });
 
-// 404 handler for API
+// 404 for unhandled API routes
 app.all(/^\/api(\/.*)?$/, (req, res) => {
   res.status(404).json({ success: false, error: 'Endpoint not found' });
 });

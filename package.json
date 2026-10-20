@@ -93,6 +93,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "bytenode": "^1.7.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

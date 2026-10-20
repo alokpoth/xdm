@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy & Device Telemetry — XDM Turbo</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            slate: { 950: '#030712' }
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-[#030712] text-slate-200 antialiased font-sans selection:bg-emerald-500/20 selection:text-emerald-300 min-h-screen flex flex-col justify-between">
+
+  <!-- Navigation -->
+  <nav class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2.5 group">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <span class="font-bold tracking-tight text-white font-mono text-base">XDM<span class="text-emerald-400 font-sans ml-1 text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">TURBO</span></span>
+      </a>
+      <a href="index.html" class="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+        <span>← Back to Home</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main class="max-w-4xl mx-auto px-6 py-14 flex-1">
+    <div class="mb-10">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4">
+        Transparency & Non-Invasive Data Policy
+      </span>
+      <h1 class="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Privacy Policy & Device Identifiers</h1>
+      <p class="text-slate-400 text-sm mt-2">Effective Date: October 2026 • Official Publisher: Zihan Fakir (xdm.zihan.xyz)</p>
+    </div>
+
+    <div class="space-y-8 text-sm leading-relaxed text-slate-300">
+      <section class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 font-mono">1.</span> Core Principle: Zero Personal Data Collection
+        </h2>
+        <p class="text-slate-400">
+          XDM Turbo respects your privacy. We believe a download manager should accelerate your downloads and get out of your way. 
+          <strong class="text-white">We never collect, inspect, or log your download history, URLs, file contents, browser cookies, search history, or personal files.</strong> All download activity occurs strictly between your computer and the remote web server.
+        </p>
+      </section>
+
+      <section class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 font-mono">2.</span> Why and How Device Identifiers Are Used
+        </h2>
+        <p class="text-slate-400 mb-3">
+          To provide single-seat and multi-seat commercial licenses without requiring invasive rootkits or dongles, XDM Turbo computes a stable, one-way pseudonym:
+        </p>
+        <ul class="list-disc pl-5 space-y-2 text-slate-400">
+          <li>
+            <strong class="text-slate-200">One-Way Pseudonymization:</strong> A cryptographic SHA-256 hash is computed using Windows machine attributes (MachineGuid and motherboard metadata). The raw hardware identifiers are discarded immediately and never transmitted.
+          </li>
+          <li>
+            <strong class="text-slate-200">Format:</strong> The transmitted device ID appears strictly as a 12-character format (e.g. <code class="text-emerald-400 bg-slate-950 px-2 py-0.5 rounded font-mono text-xs">XDM-DEV-A1B2-C3D4-E5F6</code>).
+          </li>
+          <li>
+            <strong class="text-slate-200">Strict Purpose:</strong> This identifier is used exclusively to enforce the device seat limit (e.g. 1 device per purchased PRO license) and prevent duplicate fraudulent activations.
+          </li>
+        </ul>
+      </section>
+
+      <section class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 font-mono">3.</span> IP Address & Transient Security Logs
+        </h2>
+        <p class="text-slate-400 mb-2">
+          When activating a license key or performing an automated heartbeat validation, your IP address is received by our secure Vercel edge infrastructure:
+        </p>
+        <ul class="list-disc pl-5 space-y-1.5 text-slate-400">
+          <li>IP addresses are utilized solely for rate-limiting (anti-brute-force defense) and blocking malicious botnets.</li>
+          <li>IP addresses are never sold, rented, or shared with third-party advertisers.</li>
+          <li>No passwords, private signing keys, or file paths are ever written to server audit logs.</li>
+        </ul>
+      </section>
+
+      <section class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 font-mono">4.</span> Offline Grace Period & Heartbeats
+        </h2>
+        <p class="text-slate-400">
+          XDM Turbo does not require a constant 24/7 internet connection to work. Once activated with a valid Ed25519 digital signature, the software maintains a generous <strong class="text-white">7-day offline grace period</strong>. If you travel or lose connectivity, PRO features remain fully unlocked for up to 7 consecutive days without contacting the server.
+        </p>
+      </section>
+
+      <section class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+          <span class="text-emerald-400 font-mono">5.</span> Device Deactivation & License Portability
+        </h2>
+        <p class="text-slate-400">
+          If you purchase a new PC or reinstall Windows, you can transfer your license at any time. Simply deactivate your license within the desktop app or request an administrative slot release through the official portal (<a href="admin.html" class="text-emerald-400 hover:underline">xdm.zihan.xyz/admin.html</a>).
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-950 py-6 text-center text-xs text-slate-500 font-mono">
+    <div class="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <span>© 2026 XDM Turbo. Built for speed, engineered for privacy.</span>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="hover:text-emerald-400 transition-colors">Home</a>
+        <a href="privacy.html" class="text-emerald-400">Privacy</a>
+        <a href="admin.html" class="hover:text-emerald-400 transition-colors">Admin Portal</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
