@@ -4,7 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>XDM Turbo • Next-Gen Modern Internet Download Manager</title>
-  <meta name="description" content="Saturate 100% of your device's bandwidth. 64-stream dynamic range acceleration, universal browser video grabber (YouTube, Facebook), and zero ads. 100% free and open source.">
+  <meta name="description" content="Saturate 100% of your internet bandwidth with 64 parallel turbo streams. Universal 4K browser video grabber, lifetime PRO unlocked, zero ads, and zero admin rights required.">
+  
+  <!-- Canonical & Social Metadata -->
+  <link rel="canonical" href="https://xdm.zihan.xyz/">
+  <meta property="og:title" content="XDM Turbo • Next-Gen Modern Internet Download Manager">
+  <meta property="og:description" content="64 parallel turbo range acceleration, universal 4K video grabber, zero ads, lifetime PRO. Modern IDM alternative for Windows.">
+  <meta property="og:url" content="https://xdm.zihan.xyz/">
+  <meta property="og:type" content="website">
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/></svg>">
@@ -12,7 +19,7 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -32,10 +39,12 @@
               600: '#059669',
             },
             dark: {
-              900: '#070a10',
-              800: '#0b0f17',
-              700: '#121826',
-              600: '#1c2438'
+              950: '#030712',
+              900: '#070a12',
+              850: '#0b0f19',
+              800: '#111827',
+              700: '#1f293d',
+              600: '#374151'
             }
           }
         }
@@ -48,56 +57,85 @@
 
   <style>
     body {
-      background-color: #070a10;
-      color: #f1f5f9;
+      background-color: #030712;
+      color: #f3f4f6;
       font-family: 'Plus Jakarta Sans', sans-serif;
       overflow-x: hidden;
     }
 
-    /* Glow utilities */
-    .glow-emerald {
-      box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.35);
+    /* Ambient Glows */
+    .glow-radial-emerald {
+      background: radial-gradient(circle at 50% -10%, rgba(16, 185, 129, 0.18) 0%, rgba(3, 7, 18, 0) 70%);
     }
 
-    .glow-hero {
-      background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.15) 0%, rgba(7, 10, 16, 0) 70%);
+    .glow-card {
+      box-shadow: 0 0 50px -15px rgba(16, 185, 129, 0.25);
+    }
+
+    .glow-pill {
+      box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Subtle background grid pattern */
+    .bg-grid-pattern {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     }
 
     /* Custom scrollbar */
     ::-webkit-scrollbar {
-      width: 6px;
+      width: 7px;
     }
     ::-webkit-scrollbar-track {
-      background: #070a10;
+      background: #030712;
     }
     ::-webkit-scrollbar-thumb {
       background: rgba(148, 163, 184, 0.2);
       border-radius: 9999px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.4);
+      background: rgba(16, 185, 129, 0.4);
+    }
+
+    /* Smooth accordion animation */
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .faq-open .faq-answer {
+      max-height: 350px;
+    }
+    .faq-open .faq-icon {
+      transform: rotate(180deg);
     }
   </style>
 </head>
-<body class="selection:bg-emerald-500 selection:text-black">
+<body class="selection:bg-emerald-500 selection:text-black bg-grid-pattern">
 
   <!-- Top Announcement Bar -->
-  <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-b border-emerald-500/20 py-2 px-4 text-center text-xs text-emerald-300 font-medium select-none">
-    <span>🚀 <strong>XDM Turbo v1.0.9 is here!</strong> 64-stream ultra-turbo range engine, butter-smooth UI & universal Lifetime PRO.</span>
-    <a href="#download" class="ml-2 underline font-bold hover:text-white transition-colors">Download Now &rarr;</a>
+  <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-b border-emerald-500/25 py-2 px-4 text-center text-xs text-emerald-300 font-medium select-none">
+    <div class="max-w-7xl mx-auto flex items-center justify-center space-x-2">
+      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500 text-black">NEW</span>
+      <span><strong>XDM Turbo v1.0.9 is Live!</strong> 64-stream parallel acceleration, universal 4K video sniffer & Lifetime PRO unlocked for all.</span>
+      <a href="#download" class="ml-2 underline font-bold hover:text-white transition-colors">Download Now &rarr;</a>
+    </div>
   </div>
 
   <!-- Navigation -->
-  <nav class="sticky top-0 z-50 backdrop-blur-xl bg-[#070a10]/80 border-b border-slate-800/80 px-6 py-4">
+  <nav class="sticky top-0 z-50 backdrop-blur-2xl bg-dark-950/80 border-b border-slate-800/80 px-6 py-3.5 transition-all">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
       <!-- Logo -->
-      <a href="#" class="flex items-center space-x-2.5 group">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform">
-          <i data-lucide="zap" class="w-4 h-4 text-black fill-current stroke-[2.5]"></i>
+      <a href="#" class="flex items-center space-x-3 group">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-emerald-300 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-105 transition-transform">
+          <i data-lucide="zap" class="w-5 h-5 text-black fill-current stroke-[2.5]"></i>
         </div>
         <div class="flex items-baseline space-x-1.5">
-          <span class="font-extrabold text-lg tracking-tight text-white font-mono">XDM</span>
-          <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
+          <span class="font-extrabold text-xl tracking-tight text-white font-mono">XDM</span>
+          <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/90 px-2 py-0.5 rounded-full border border-emerald-500/40 font-mono tracking-wider">
             TURBO
           </span>
         </div>
@@ -106,12 +144,13 @@
       <!-- Desktop Links -->
       <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-400">
         <a href="#features" class="hover:text-emerald-400 transition-colors">Features</a>
-        <a href="#video-grabber" class="hover:text-emerald-400 transition-colors">Video Grabber</a>
+        <a href="#calculator" class="hover:text-emerald-400 transition-colors">Speed Calculator</a>
+        <a href="#video-grabber" class="hover:text-emerald-400 transition-colors">4K Video Grabber</a>
         <a href="#comparison" class="hover:text-emerald-400 transition-colors">vs IDM</a>
-        <a href="#extension" class="hover:text-emerald-400 transition-colors">Browser Extension</a>
-        <a href="https://github.com/zihanfakir/xdm" target="_blank" class="hover:text-white flex items-center space-x-1.5 transition-colors">
-          <i data-lucide="github" class="w-4 h-4"></i>
-          <span>GitHub</span>
+        <a href="#faq" class="hover:text-emerald-400 transition-colors">FAQ</a>
+        <a href="https://gitlab.com/zihanfakir/xdm" target="_blank" class="hover:text-white flex items-center space-x-1.5 transition-colors">
+          <i data-lucide="git-branch" class="w-4 h-4 text-orange-400"></i>
+          <span>GitLab</span>
         </a>
       </div>
 
@@ -119,7 +158,7 @@
       <div class="flex items-center space-x-3">
         <a 
           href="#download"
-          class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center space-x-2 active:scale-95"
+          class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all flex items-center space-x-2 active:scale-95 glow-pill"
         >
           <i data-lucide="download" class="w-4 h-4 stroke-[2.5]"></i>
           <span>Download Free</span>
@@ -129,138 +168,149 @@
   </nav>
 
   <!-- Hero Section -->
-  <section class="relative pt-20 pb-28 px-4 sm:px-6 overflow-hidden glow-hero">
-    <div class="max-w-5xl mx-auto text-center space-y-6">
+  <section class="relative pt-20 pb-28 px-4 sm:px-6 overflow-hidden glow-radial-emerald">
+    <div class="max-w-5xl mx-auto text-center space-y-7">
       
-      <!-- Version Pill -->
-      <div class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-medium">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Version 1.0.9 Ultra Stable Release</span>
-        <span>•</span>
-        <span class="text-slate-400">Windows 10/11 (64-bit)</span>
+      <!-- Version & Status Pill -->
+      <div class="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-medium">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-white font-semibold">Version 1.0.9 Production Release</span>
+        <span class="text-emerald-500">•</span>
+        <span class="text-emerald-400 font-bold">64 Streams Turbo Active</span>
+        <span class="text-emerald-500">•</span>
+        <span class="text-slate-400">Windows 10/11</span>
       </div>
 
       <!-- Headline -->
-      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
         Saturate 100% of Your Bandwidth.
         <br>
-        <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-400 bg-clip-text text-transparent">
+        <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
           Download Everything at Turbo Speed.
         </span>
       </h1>
 
       <!-- Subtitle -->
       <p class="max-w-2xl mx-auto text-slate-400 text-base sm:text-lg leading-relaxed">
-        The minimal, modern, and open-source IDM clone built for Windows. Equipped with 64-connection dynamic range acceleration, universal browser video capture (YouTube, Facebook, TikTok), and zero ads.
+        The minimal, lightning-fast, and open-source IDM alternative built specifically for Windows. Equipped with 64-connection dynamic range acceleration, universal browser video sniffer, and lifetime PRO access out of the box.
       </p>
 
-      <!-- CTA Buttons -->
-      <div id="download" class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+      <!-- Primary Download CTA Group -->
+      <div id="download" class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <!-- Main Installer Button -->
         <a 
           href="https://github.com/zihanfakir/xdm/releases/download/v1.0.9/XDM.Turbo.Setup.1.0.9.exe"
-          class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center justify-center space-x-2.5 active:scale-95 group"
+          class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-extrabold text-base shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all flex items-center justify-center space-x-3 active:scale-95 group"
         >
           <i data-lucide="download" class="w-5 h-5 stroke-[2.5] group-hover:-translate-y-0.5 transition-transform"></i>
-          <span>Download Windows Setup (v1.0.9)</span>
+          <span>Download Windows Setup (.exe)</span>
+          <span class="text-xs bg-black/20 text-black px-2 py-0.5 rounded-full font-mono font-bold">123 MB</span>
         </a>
 
+        <!-- Portable Version Button -->
         <a 
           href="https://github.com/zihanfakir/xdm/releases/download/v1.0.9/XDM.Turbo.1.0.9.exe"
-          class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#121826] hover:bg-[#182033] border border-slate-700/80 text-slate-200 font-semibold text-sm sm:text-base transition-all flex items-center justify-center space-x-2 active:scale-95"
+          class="w-full sm:w-auto px-7 py-4 rounded-2xl bg-dark-800 hover:bg-dark-700 border border-slate-700/80 text-slate-200 font-semibold text-base transition-all flex items-center justify-center space-x-2.5 active:scale-95"
         >
-          <i data-lucide="box" class="w-5 h-5 text-slate-400"></i>
+          <i data-lucide="package" class="w-5 h-5 text-slate-400"></i>
           <span>Portable Edition (.exe)</span>
         </a>
       </div>
 
-      <!-- SmartScreen Notice Banner -->
-      <div class="max-w-xl mx-auto mt-4 px-4 py-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-left text-xs text-slate-300 space-y-1">
-        <div class="flex items-center space-x-2 text-blue-400 font-bold">
-          <i data-lucide="shield-alert" class="w-4 h-4"></i>
-          <span>Windows SmartScreen Notice:</span>
+      <!-- Zero Admin & SmartScreen Banner -->
+      <div class="max-w-xl mx-auto mt-4 px-4 py-3 rounded-2xl bg-dark-850/90 border border-slate-800/90 text-left text-xs text-slate-300 space-y-2">
+        <div class="flex items-center space-x-2 text-emerald-400 font-bold">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+          <span>Zero Administrator Privileges Required</span>
         </div>
-        <p class="text-slate-400 leading-relaxed text-[11px]">
-          As an open-source project without a costly enterprise EV certificate, Windows Defender SmartScreen may show <em>"Windows protected your PC"</em>. Simply click <strong>"More info" (অতিরিক্ত তথ্য) ➔ "Run anyway" (তবুও চালান)</strong>. 100% clean, virus-free, and open source!
+        <p class="text-slate-400 leading-relaxed text-[11.5px]">
+          XDM Turbo installs directly to your local user profile without requiring administrator passwords, UAC prompts, or elevated privileges. 100% clean, virus-free, and open source!
         </p>
       </div>
 
       <!-- Trust Badges -->
-      <div class="pt-2 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 font-mono">
+      <div class="pt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400 font-mono">
         <span class="flex items-center space-x-1.5">
           <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
           <span>100% Free & Open Source</span>
         </span>
         <span class="flex items-center space-x-1.5">
-          <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
+          <i data-lucide="lock" class="w-4 h-4 text-blue-400"></i>
+          <span>V8 Bytecode Protected</span>
+        </span>
+        <span class="flex items-center space-x-1.5">
+          <i data-lucide="shield-off" class="w-4 h-4 text-amber-400"></i>
           <span>Zero Ads or Telemetry</span>
         </span>
         <span class="flex items-center space-x-1.5">
-          <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
-          <span>Up to 64 Parallel Connections</span>
+          <i data-lucide="cpu" class="w-4 h-4 text-teal-400"></i>
+          <span>64 Parallel Streams</span>
         </span>
       </div>
 
-      <!-- Mockup Window -->
+      <!-- Interactive Mockup Window -->
       <div class="pt-10 max-w-5xl mx-auto">
-        <div class="rounded-2xl border border-slate-800 bg-[#0d121d] shadow-2xl overflow-hidden glow-emerald text-left">
+        <div class="rounded-2xl border border-slate-800/90 bg-dark-900 shadow-2xl overflow-hidden glow-card text-left">
+          
           <!-- Window Titlebar -->
-          <div class="h-10 bg-[#070a10] border-b border-slate-800/80 px-4 flex items-center justify-between select-none">
-            <div class="flex items-center space-x-2">
+          <div class="h-11 bg-dark-950 border-b border-slate-800/90 px-4 flex items-center justify-between select-none">
+            <div class="flex items-center space-x-2.5">
               <div class="w-3 h-3 rounded-full bg-rose-500/80"></div>
               <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
               <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
-              <span class="ml-3 font-mono text-xs font-bold text-slate-300">XDM TURBO • Multi-threaded Engine Active</span>
+              <span class="ml-3 font-mono text-xs font-bold text-slate-300">XDM TURBO PRO • 64 Parallel Streams Engine</span>
             </div>
-            <div class="flex items-center space-x-2 text-xs font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+            <div class="flex items-center space-x-2.5 text-xs font-mono text-emerald-400 bg-emerald-950/70 px-2.5 py-1 rounded-full border border-emerald-500/30">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span>84.6 MB/s MAX TURBO</span>
+              <span class="font-bold">118.4 MB/s TURBO</span>
             </div>
           </div>
 
           <!-- App Mockup Content -->
-          <div class="p-6 space-y-4">
+          <div class="p-6 space-y-4 bg-dark-900">
             <!-- Simulated Active Row -->
-            <div class="rounded-xl p-4 bg-[#121826] border border-slate-800 space-y-3">
-              <div class="flex items-center justify-between">
+            <div class="rounded-xl p-4 bg-dark-800 border border-slate-800 space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-rose-400">
+                  <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-center text-rose-400 shrink-0">
                     <i data-lucide="film" class="w-5 h-5"></i>
                   </div>
-                  <div>
-                    <h4 class="text-sm font-semibold text-white">4K_Cyberpunk_Showcase_HDR_120FPS.mkv</h4>
-                    <p class="text-xs text-slate-400 font-mono">1.82 GB of 2.40 GB • <strong class="text-emerald-400">76.2%</strong> • <span class="text-slate-300 font-semibold">68.4 MB/s</span> (00:09 left)</p>
+                  <div class="truncate">
+                    <h4 class="text-sm font-semibold text-white truncate">Cyberpunk_2077_Full_Cinematic_4K_HDR_60FPS.mkv</h4>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5">3.42 GB of 4.20 GB • <strong class="text-emerald-400">81.4%</strong> • <span class="text-slate-200 font-semibold">118.4 MB/s</span> (00:06 left)</p>
                   </div>
                 </div>
-                <div class="flex items-center space-x-2 font-mono text-xs">
-                  <span class="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                <div class="flex items-center space-x-2 font-mono text-xs shrink-0">
+                  <span class="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
                     64 Streams Active
                   </span>
                 </div>
               </div>
 
-              <!-- Segmented Bar Preview -->
-              <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden flex gap-[2px] p-[1px] border border-slate-800">
-                <div class="h-full bg-emerald-400 rounded-l" style="width: 25%"></div>
-                <div class="h-full bg-teal-300" style="width: 20%"></div>
-                <div class="h-full bg-emerald-500 animate-pulse" style="width: 18%"></div>
-                <div class="h-full bg-teal-400" style="width: 15%"></div>
-                <div class="h-full bg-slate-800" style="width: 22%"></div>
+              <!-- Segmented Bar Preview (Simulating 64 parallel streams) -->
+              <div class="w-full h-3.5 bg-slate-900 rounded-full overflow-hidden flex gap-[2px] p-[1px] border border-slate-800">
+                <div class="h-full bg-emerald-400 rounded-l" style="width: 22%"></div>
+                <div class="h-full bg-teal-300" style="width: 18%"></div>
+                <div class="h-full bg-emerald-500 animate-pulse" style="width: 20%"></div>
+                <div class="h-full bg-teal-400" style="width: 14%"></div>
+                <div class="h-full bg-cyan-400" style="width: 8%"></div>
+                <div class="h-full bg-slate-800" style="width: 18%"></div>
               </div>
             </div>
 
-            <!-- Second Mockup Row -->
-            <div class="rounded-xl p-4 bg-[#121826]/60 border border-slate-800/80 flex items-center justify-between">
+            <!-- Second Mockup Row (Completed) -->
+            <div class="rounded-xl p-4 bg-dark-800/60 border border-slate-800/80 flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400">
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 shrink-0">
                   <i data-lucide="archive" class="w-5 h-5"></i>
                 </div>
                 <div>
-                  <h4 class="text-sm font-semibold text-white">UnrealEngine_5.5_SDK_Windows.zip</h4>
-                  <p class="text-xs text-slate-400 font-mono">14.2 GB • <strong class="text-blue-400">Finished</strong> • 100% Verified</p>
+                  <h4 class="text-sm font-semibold text-white">Visual_Studio_Enterprise_2026_Setup.iso</h4>
+                  <p class="text-xs text-slate-400 font-mono mt-0.5">24.8 GB • <strong class="text-blue-400">Completed</strong> • SHA-256 Verified</p>
                 </div>
               </div>
-              <span class="px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-mono text-xs font-semibold">
-                ✓ Completed
+              <span class="px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-mono text-xs font-semibold">
+                ✓ 100% Verified
               </span>
             </div>
           </div>
@@ -270,191 +320,264 @@
     </div>
   </section>
 
-  <!-- Core Features Grid -->
-  <section id="features" class="py-24 px-4 sm:px-6 bg-[#0a0e18] border-t border-slate-800/80">
-    <div class="max-w-7xl mx-auto space-y-16">
-      <div class="text-center space-y-4 max-w-2xl mx-auto">
-        <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Why Choose XDM Turbo</h2>
-        <p class="text-3xl sm:text-4xl font-extrabold text-white">Engineered for pure speed and modern minimalism</p>
+  <!-- Interactive Speed Calculator Section -->
+  <section id="calculator" class="py-20 px-4 sm:px-6 bg-dark-900 border-t border-slate-800/80">
+    <div class="max-w-4xl mx-auto space-y-10 text-center">
+      <div class="space-y-3">
+        <span class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Interactive Performance Benchmark</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white">How fast is 64 parallel streams?</h2>
+        <p class="text-slate-400 text-sm max-w-xl mx-auto">
+          Standard browser downloaders only open 1 single connection, leaving most of your internet bandwidth idle. See the time difference with XDM Turbo.
+        </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Feature 1 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="cpu" class="w-6 h-6"></i>
+      <!-- Calculator Card -->
+      <div class="p-6 sm:p-8 rounded-3xl bg-dark-800 border border-slate-700/80 shadow-2xl text-left space-y-6">
+        
+        <!-- Controls: File Size & Line Speed -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-mono uppercase text-slate-400 mb-2 font-bold">Select File Size:</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setFileSize(2, '2 GB (HD Movie)')" class="size-btn py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold active">2 GB</button>
+              <button onclick="setFileSize(10, '10 GB (Game Update)')" class="size-btn py-2 px-3 rounded-xl border border-slate-700 bg-dark-850 hover:bg-slate-800 text-slate-300 font-mono text-xs font-bold">10 GB</button>
+              <button onclick="setFileSize(50, '50 GB (AAA Game/SDK)')" class="size-btn py-2 px-3 rounded-xl border border-slate-700 bg-dark-850 hover:bg-slate-800 text-slate-300 font-mono text-xs font-bold">50 GB</button>
+            </div>
           </div>
-          <h3 class="text-lg font-bold text-white">64-Stream Turbo Range Engine</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Opens up to 64 parallel HTTP range streams per file, saturating 100% of your ISP's bandwidth limit without bottlenecks.
-          </p>
+
+          <div>
+            <label class="block text-xs font-mono uppercase text-slate-400 mb-2 font-bold">Your Internet Speed:</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setSpeed(50, '50 Mbps')" class="speed-btn py-2 px-3 rounded-xl border border-slate-700 bg-dark-850 hover:bg-slate-800 text-slate-300 font-mono text-xs font-bold">50 Mbps</button>
+              <button onclick="setSpeed(200, '200 Mbps')" class="speed-btn py-2 px-3 rounded-xl border border-emerald-500 bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold active">200 Mbps</button>
+              <button onclick="setSpeed(1000, '1 Gbps (Gigabit)')" class="speed-btn py-2 px-3 rounded-xl border border-slate-700 bg-dark-850 hover:bg-slate-800 text-slate-300 font-mono text-xs font-bold">1 Gbps</button>
+            </div>
+          </div>
         </div>
 
-        <!-- Feature 2 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="video" class="w-6 h-6"></i>
+        <!-- Comparison Output Display -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-700/80">
+          
+          <!-- Default Browser Box -->
+          <div class="p-5 rounded-2xl bg-dark-850 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>Standard Browser (1 Stream)</span>
+              <span class="text-rose-400 font-bold">Throttled</span>
+            </div>
+            <div id="browser-time" class="text-3xl font-extrabold text-slate-300 font-mono">11m 32s</div>
+            <p class="text-[11px] text-slate-500">Subject to server TCP congestion & high latency delay.</p>
           </div>
-          <h3 class="text-lg font-bold text-white">Universal Video Grabber</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Floating download bar pops up seamlessly over YouTube, Facebook, TikTok, Vimeo, and Instagram with one-click 1080p/4K and MP3 extraction.
-          </p>
+
+          <!-- XDM Turbo Box -->
+          <div class="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/60 to-dark-850 border border-emerald-500/50 space-y-2 relative overflow-hidden">
+            <div class="flex items-center justify-between text-xs font-mono text-emerald-400 font-bold">
+              <span>XDM Turbo (64 Streams)</span>
+              <span class="bg-emerald-500 text-black px-2 py-0.5 rounded text-[10px]">100% SATURATED</span>
+            </div>
+            <div id="xdm-time" class="text-3xl font-extrabold text-emerald-400 font-mono">1m 24s</div>
+            <p id="time-saved" class="text-[11px] text-emerald-300 font-bold">🚀 8.2× Faster • Saves 10m 08s</p>
+          </div>
+
         </div>
 
-        <!-- Feature 3 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="globe" class="w-6 h-6"></i>
-          </div>
-          <h3 class="text-lg font-bold text-white">Auto Browser Integration</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Automatically registers in Windows Registry for Google Chrome, Microsoft Edge, and Brave. Zero manual extension configuration needed.
-          </p>
-        </div>
-
-        <!-- Feature 4 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="sparkles" class="w-6 h-6"></i>
-          </div>
-          <h3 class="text-lg font-bold text-white">Dynamic Work-Stealing</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            When fast connections complete early, the engine dynamically subdivides lagging segments into fresh threads, maximizing throughput.
-          </p>
-        </div>
-
-        <!-- Feature 5 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="gauge" class="w-6 h-6"></i>
-          </div>
-          <h3 class="text-lg font-bold text-white">Bandwidth Throttle Limiter</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Easily dial in speed caps (2 MB/s, 10 MB/s, 50 MB/s) when you need to stream or game online, or switch to Unlimited Turbo mode.
-          </p>
-        </div>
-
-        <!-- Feature 6 -->
-        <div class="p-6 rounded-2xl bg-[#0f1422] border border-slate-800/90 hover:border-emerald-500/40 transition-all space-y-4 group">
-          <div class="w-12 h-12 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-            <i data-lucide="folder-tree" class="w-6 h-6"></i>
-          </div>
-          <h3 class="text-lg font-bold text-white">Smart Category Sorting</h3>
-          <p class="text-sm text-slate-400 leading-relaxed">
-            Automatically organizes incoming files into dedicated folders: Video, Compressed, Music, Documents, and Programs.
-          </p>
-        </div>
       </div>
     </div>
   </section>
 
-  <!-- Video Grabber Showcase -->
-  <section id="video-grabber" class="py-24 px-4 sm:px-6 bg-[#070a10]">
-    <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-12">
+  <!-- Core Features Bento Grid -->
+  <section id="features" class="py-24 px-4 sm:px-6 bg-dark-950 border-t border-slate-800/80">
+    <div class="max-w-7xl mx-auto space-y-16">
+      <div class="text-center space-y-4 max-w-2xl mx-auto">
+        <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Engineered For Performance</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white">Full-Throttle Features Built for Power Users</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- Feature 1 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-emerald-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="cpu" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">64-Stream Turbo Range Engine</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Splits every file into 64 parallel HTTP Range byte chunks. Bypasses server-side per-connection limits and saturates full Gigabit lines.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-rose-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="video" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">Universal 4K Video Grabber</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Floating download button automatically appears over YouTube, Facebook Reels, TikTok, Instagram, and Twitter. 1-click 1080p, 4K, and MP3 extraction.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-blue-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="shield-check" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">Zero-Privilege Portable Setup</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Configured with Windows <code>asInvoker</code> execution level. Installs anywhere without administrator credentials or annoying UAC elevation.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-teal-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">Dynamic Work-Stealing</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            When fast streams finish their chunks, the engine actively subdivides sluggish remaining parts into new sub-segments so bandwidth never dips.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-amber-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="gauge" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">Speed Dial Limiter</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Dial in precise speed limits (2 MB/s, 10 MB/s, 50 MB/s) when you need to stream, game, or conduct video calls, or switch to Unlimited Turbo.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="p-7 rounded-3xl bg-dark-850 border border-slate-800 hover:border-purple-500/40 transition-all space-y-4 group">
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+            <i data-lucide="sun-moon" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">Light & Dark Mode Polish</h3>
+          <p class="text-sm text-slate-400 leading-relaxed">
+            Modern, responsive UI with hand-crafted dark and light themes. Crystal-clear slate typography, clean contrast, and zero eye fatigue.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Grabber Deep Dive -->
+  <section id="video-grabber" class="py-24 px-4 sm:px-6 bg-dark-900 border-t border-slate-800/80">
+    <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-14">
+      
       <!-- Left text -->
       <div class="flex-1 space-y-6">
-        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono font-medium">
           <i data-lucide="film" class="w-3.5 h-3.5"></i>
-          <span>IDM-Style Browser Overlay</span>
+          <span>Built-In Browser Video Overlay</span>
         </div>
         <h2 class="text-3xl sm:text-5xl font-extrabold text-white leading-tight">
           Grab any video instantly from any webpage.
         </h2>
-        <p class="text-slate-400 leading-relaxed">
-          The XDM Turbo extension embeds a sleek, non-intrusive floating bar right on top of any video player. Download YouTube 4K, Facebook Reels, TikTok waterless videos, and Instagram stories with a single click.
+        <p class="text-slate-400 leading-relaxed text-base">
+          The XDM Turbo browser companion injects a sleek, non-intrusive floating button directly on top of video players. Intercept 4K YouTube videos, Facebook Reels, TikTok clips without watermarks, and audio streams in 1 click.
         </p>
 
-        <ul class="space-y-3 text-sm text-slate-300">
-          <li class="flex items-center space-x-2.5">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
-            <span>Multiple resolutions: 1080p, 720p, 480p, 360p, or Audio-Only (MP3)</span>
+        <ul class="space-y-3.5 text-sm text-slate-300">
+          <li class="flex items-center space-x-3">
+            <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+            </div>
+            <span>Multiple resolutions: 4K, 1440p, 1080p, 720p, 480p, and MP3 audio</span>
           </li>
-          <li class="flex items-center space-x-2.5">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
-            <span>Seamless right-click context menu: &quot;Download with XDM Turbo&quot;</span>
+          <li class="flex items-center space-x-3">
+            <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+            </div>
+            <span>Automatic DASH & HLS audio/video stream muxing via embedded FFmpeg</span>
           </li>
-          <li class="flex items-center space-x-2.5">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
-            <span>No external third-party ad converters or shady websites needed</span>
+          <li class="flex items-center space-x-3">
+            <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>
+            </div>
+            <span>Zero sketchy online converter websites or intrusive spam redirects</span>
           </li>
         </ul>
       </div>
 
       <!-- Right Floating Widget Mockup -->
       <div class="flex-1 w-full max-w-md">
-        <div class="rounded-2xl p-6 bg-gradient-to-br from-[#141b2a] to-[#0e1320] border border-slate-800 shadow-2xl relative space-y-4">
+        <div class="rounded-3xl p-6 bg-dark-850 border border-slate-700/80 shadow-2xl relative space-y-4">
           <div class="flex items-center justify-between pb-3 border-b border-slate-800">
             <span class="text-xs font-mono font-semibold text-slate-400">EXTENSION PREVIEW</span>
             <span class="text-[10px] font-bold bg-emerald-500 text-black px-2 py-0.5 rounded">CONNECTED</span>
           </div>
 
           <!-- Video floating pill mockup -->
-          <div class="p-3 rounded-xl bg-slate-900 border border-slate-700/80 shadow-lg space-y-2">
+          <div class="p-4 rounded-2xl bg-dark-900 border border-slate-700/80 shadow-lg space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2 text-xs font-bold text-white">
-                <div class="w-5 h-5 rounded bg-emerald-500 flex items-center justify-center text-black">
-                  <i data-lucide="zap" class="w-3 h-3 fill-current"></i>
+                <div class="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-black">
+                  <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
                 </div>
-                <span>Download this video</span>
+                <span>Download This Video</span>
               </div>
-              <span class="text-[10px] text-slate-400 font-mono">1080p • 60 FPS</span>
+              <span class="text-[10px] text-slate-400 font-mono">4K UHD • 60 FPS</span>
             </div>
             
-            <div class="grid grid-cols-3 gap-1.5 pt-1">
-              <button class="py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-mono font-bold text-center">
+            <div class="grid grid-cols-3 gap-2 pt-1">
+              <button class="py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold text-center">
+                4K UHD
+              </button>
+              <button class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono text-center">
                 1080p
               </button>
-              <button class="py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-mono text-center">
-                720p
-              </button>
-              <button class="py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-mono text-center">
+              <button class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono text-center">
                 MP3
               </button>
             </div>
           </div>
 
-          <p class="text-[11px] text-slate-500 font-mono text-center">
-            Instantly intercepts videos on YouTube, Facebook, Twitter, and 1,000+ sites.
+          <p class="text-xs text-slate-500 font-mono text-center">
+            Compatible with Chrome, Microsoft Edge, Brave, and Firefox.
           </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Comparison Section -->
-  <section id="comparison" class="py-24 px-4 sm:px-6 bg-[#0a0e18] border-t border-slate-800/80">
+  <!-- Comparison Table Section -->
+  <section id="comparison" class="py-24 px-4 sm:px-6 bg-dark-950 border-t border-slate-800/80">
     <div class="max-w-5xl mx-auto space-y-12">
       <div class="text-center space-y-4">
-        <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Feature Comparison</h2>
-        <p class="text-3xl sm:text-4xl font-extrabold text-white">XDM Turbo vs Traditional IDM vs Browsers</p>
+        <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Uncompromising Value</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white">XDM Turbo vs Legacy IDM vs Default Browsers</p>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm border-collapse rounded-2xl overflow-hidden border border-slate-800">
           <thead>
-            <tr class="bg-[#0f1422] border-b border-slate-800 text-xs font-mono text-slate-400 uppercase">
+            <tr class="bg-dark-850 border-b border-slate-800 text-xs font-mono text-slate-400 uppercase">
               <th class="p-4 sm:p-5">Feature</th>
               <th class="p-4 sm:p-5 text-emerald-400 font-bold">XDM Turbo</th>
               <th class="p-4 sm:p-5">Internet Download Manager</th>
               <th class="p-4 sm:p-5">Chrome / Edge Default</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-800/60 bg-[#070a10]">
+          <tbody class="divide-y divide-slate-800/60 bg-dark-900">
             <tr>
               <td class="p-4 font-medium text-slate-300">Price & Licensing</td>
-              <td class="p-4 text-emerald-400 font-bold font-mono">100% Free & Open Source</td>
+              <td class="p-4 text-emerald-400 font-bold font-mono">100% Free • Lifetime PRO</td>
               <td class="p-4 text-slate-400">$24.95 (Trial expires in 30 days)</td>
               <td class="p-4 text-slate-400">Free</td>
             </tr>
             <tr>
-              <td class="p-4 font-medium text-slate-300">Multi-Thread Acceleration</td>
+              <td class="p-4 font-medium text-slate-300">Parallel Connections</td>
               <td class="p-4 text-emerald-400 font-bold font-mono">Up to 64 Connections</td>
               <td class="p-4 text-slate-300">Up to 32 Connections</td>
               <td class="p-4 text-rose-400">Single Connection (Slow)</td>
             </tr>
             <tr>
               <td class="p-4 font-medium text-slate-300">User Interface</td>
-              <td class="p-4 text-emerald-400 font-bold">Minimal, Modern Dark UI</td>
+              <td class="p-4 text-emerald-400 font-bold">Modern Slate (Dark/Light)</td>
               <td class="p-4 text-rose-400">1990s Windows XP Aesthetic</td>
               <td class="p-4 text-slate-400">Basic Browser Bar</td>
             </tr>
@@ -465,9 +588,15 @@
               <td class="p-4 text-rose-400">✕ None</td>
             </tr>
             <tr>
+              <td class="p-4 font-medium text-slate-300">Administrator Privileges</td>
+              <td class="p-4 text-emerald-400 font-bold font-mono">Zero UAC / asInvoker</td>
+              <td class="p-4 text-rose-400">Requires Admin Rights</td>
+              <td class="p-4 text-slate-400">Standard User</td>
+            </tr>
+            <tr>
               <td class="p-4 font-medium text-slate-300">Ads & Telemetry Tracking</td>
               <td class="p-4 text-emerald-400 font-bold font-mono">Zero Ads • Zero Tracking</td>
-              <td class="p-4 text-rose-400">License Popups & Nag Screens</td>
+              <td class="p-4 text-rose-400">Nag Popups & Registration Prompts</td>
               <td class="p-4 text-slate-400">Browser Telemetry</td>
             </tr>
             <tr>
@@ -482,105 +611,200 @@
     </div>
   </section>
 
-  <!-- Browser Extension Section -->
-  <section id="extension" class="py-24 px-4 sm:px-6 bg-[#070a10] border-t border-slate-800/80">
-    <div class="max-w-4xl mx-auto text-center space-y-8">
-      <div class="space-y-4">
-        <h2 class="text-xs uppercase tracking-widest text-blue-400 font-mono font-bold">Seamless Browser Integration</h2>
-        <p class="text-3xl sm:text-4xl font-extrabold text-white">Works with all your favorite browsers</p>
-        <p class="text-slate-400 max-w-xl mx-auto text-sm">
-          Chrome, Edge, Brave, or Firefox. XDM automatically intercepts download links so you never wait for standard single-stream downloads again.
-        </p>
+  <!-- FAQ Accordion Section -->
+  <section id="faq" class="py-24 px-4 sm:px-6 bg-dark-900 border-t border-slate-800/80">
+    <div class="max-w-4xl mx-auto space-y-12">
+      <div class="text-center space-y-4">
+        <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-mono font-bold">Frequently Asked Questions</h2>
+        <p class="text-3xl sm:text-4xl font-extrabold text-white">Got questions? We've got answers.</p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-        <div class="p-5 rounded-xl bg-[#0f1422] border border-slate-800 space-y-2">
-          <div class="flex items-center space-x-2 text-white font-bold text-sm">
-            <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i>
-            <span>Windows Registry</span>
+      <div class="space-y-4">
+        
+        <!-- FAQ 1 -->
+        <div class="faq-item rounded-2xl bg-dark-850 border border-slate-800 overflow-hidden cursor-pointer" onclick="toggleFaq(this)">
+          <div class="p-5 flex items-center justify-between">
+            <span class="text-base font-semibold text-white">Is XDM Turbo really 100% free with all PRO features?</span>
+            <i data-lucide="chevron-down" class="faq-icon w-5 h-5 text-slate-400 transition-transform duration-300"></i>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Registered automatically upon installing XDM Turbo. Chrome & Edge detect the extension instantly.
-          </p>
+          <div class="faq-answer px-5 pb-5 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+            Yes! XDM Turbo is completely free and open-source. All features, including 64 parallel connections, universal 4K video sniffer, bandwidth limiter, and queue scheduling are activated under the universal Lifetime PRO license out of the box with zero subscriptions.
+          </div>
         </div>
 
-        <div class="p-5 rounded-xl bg-[#0f1422] border border-slate-800 space-y-2">
-          <div class="flex items-center space-x-2 text-white font-bold text-sm">
-            <i data-lucide="code" class="w-4 h-4 text-blue-400"></i>
-            <span>Userscript Support</span>
+        <!-- FAQ 2 -->
+        <div class="faq-item rounded-2xl bg-dark-850 border border-slate-800 overflow-hidden cursor-pointer" onclick="toggleFaq(this)">
+          <div class="p-5 flex items-center justify-between">
+            <span class="text-base font-semibold text-white">How does 64-stream parallel acceleration work?</span>
+            <i data-lucide="chevron-down" class="faq-icon w-5 h-5 text-slate-400 transition-transform duration-300"></i>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Compatible with Tampermonkey & Violentmonkey for Firefox, Opera, and Vivaldi users.
-          </p>
+          <div class="faq-answer px-5 pb-5 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+            Standard browsers request files as one single HTTP stream, meaning your speed is limited by server latency and TCP throughput throttles. XDM Turbo splits the file into 64 simultaneous HTTP Range segments and downloads them all in parallel, maxing out your ISP bandwidth limit.
+          </div>
         </div>
 
-        <div class="p-5 rounded-xl bg-[#0f1422] border border-slate-800 space-y-2">
-          <div class="flex items-center space-x-2 text-white font-bold text-sm">
-            <i data-lucide="bookmark" class="w-4 h-4 text-amber-400"></i>
-            <span>1-Click Bookmarklet</span>
+        <!-- FAQ 3 -->
+        <div class="faq-item rounded-2xl bg-dark-850 border border-slate-800 overflow-hidden cursor-pointer" onclick="toggleFaq(this)">
+          <div class="p-5 flex items-center justify-between">
+            <span class="text-base font-semibold text-white">Can I install XDM Turbo on school/office PCs without Admin rights?</span>
+            <i data-lucide="chevron-down" class="faq-icon w-5 h-5 text-slate-400 transition-transform duration-300"></i>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Drag to your bookmarks bar and click whenever you want to turbo-charge an active download.
-          </p>
+          <div class="faq-answer px-5 pb-5 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+            Yes! The Windows Setup installer is compiled with standard <code>asInvoker</code> execution level. It installs straight into your local user AppData folder without ever requiring administrator rights, password prompts, or UAC permission blocks.
+          </div>
         </div>
+
+        <!-- FAQ 4 -->
+        <div class="faq-item rounded-2xl bg-dark-850 border border-slate-800 overflow-hidden cursor-pointer" onclick="toggleFaq(this)">
+          <div class="p-5 flex items-center justify-between">
+            <span class="text-base font-semibold text-white">Why does Windows SmartScreen show a blue warning?</span>
+            <i data-lucide="chevron-down" class="faq-icon w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+          </div>
+          <div class="faq-answer px-5 pb-5 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+            As an open-source community project without an expensive corporate Extended Validation (EV) certificate, Windows SmartScreen may show <em>"Windows protected your PC"</em> on newly released binaries. Simply click <strong>"More info" ➔ "Run anyway"</strong>. All binaries are 100% clean, virus-free, and open source on GitLab.
+          </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="faq-item rounded-2xl bg-dark-850 border border-slate-800 overflow-hidden cursor-pointer" onclick="toggleFaq(this)">
+          <div class="p-5 flex items-center justify-between">
+            <span class="text-base font-semibold text-white">How do I connect the Chrome / Edge / Brave extension?</span>
+            <i data-lucide="chevron-down" class="faq-icon w-5 h-5 text-slate-400 transition-transform duration-300"></i>
+          </div>
+          <div class="faq-answer px-5 pb-5 text-sm text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3">
+            Open XDM Turbo and click the <strong>"Browser"</strong> button on the top navbar. Click <strong>"1-Click Register Extension"</strong> for your installed browser, or load the unpacked <code>extension</code> folder in Developer Mode. The video grabber overlay will immediately appear over media players.
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
 
   <!-- Final CTA -->
-  <section class="py-24 px-4 sm:px-6 bg-gradient-to-b from-[#0a0e18] to-[#070a10] border-t border-slate-800/80 text-center">
-    <div class="max-w-3xl mx-auto space-y-6">
-      <h2 class="text-3xl sm:text-5xl font-extrabold text-white">
-        Ready to supercharge your internet?
+  <section class="py-24 px-4 sm:px-6 bg-gradient-to-b from-dark-900 via-dark-950 to-[#030712] border-t border-slate-800/80 text-center relative overflow-hidden">
+    <div class="max-w-3xl mx-auto space-y-7 relative z-10">
+      <h2 class="text-3xl sm:text-5xl font-extrabold text-white leading-tight">
+        Ready to supercharge your downloads?
       </h2>
-      <p class="text-slate-400 text-sm sm:text-base">
-        Download XDM Turbo for Windows today. 100% free, zero ads, no subscription.
+      <p class="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+        Download XDM Turbo for Windows today. 64 streams, zero ads, no subscription fees.
       </p>
 
       <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
         <a 
           href="https://github.com/zihanfakir/xdm/releases/download/v1.0.9/XDM.Turbo.Setup.1.0.9.exe"
-          class="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-base shadow-xl shadow-emerald-500/25 transition-all flex items-center space-x-2.5 active:scale-95"
+          class="w-full sm:w-auto px-9 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-base shadow-xl shadow-emerald-500/30 transition-all flex items-center justify-center space-x-2.5 active:scale-95"
         >
           <i data-lucide="download" class="w-5 h-5 stroke-[2.5]"></i>
           <span>Download XDM Turbo (v1.0.9)</span>
         </a>
 
         <a 
-          href="https://github.com/zihanfakir/xdm" 
+          href="https://gitlab.com/zihanfakir/xdm" 
           target="_blank"
-          class="px-6 py-4 rounded-2xl bg-[#121826] hover:bg-[#182033] border border-slate-700 text-slate-300 font-semibold text-base transition-all flex items-center space-x-2 active:scale-95"
+          class="w-full sm:w-auto px-7 py-4 rounded-2xl bg-dark-800 hover:bg-dark-700 border border-slate-700 text-slate-300 font-semibold text-base transition-all flex items-center justify-center space-x-2.5 active:scale-95"
         >
-          <i data-lucide="star" class="w-5 h-5 text-amber-400 fill-amber-400"></i>
-          <span>Star on GitHub</span>
+          <i data-lucide="git-branch" class="w-5 h-5 text-orange-400"></i>
+          <span>View on GitLab</span>
         </a>
       </div>
     </div>
   </section>
 
   <!-- Footer -->
-  <footer class="border-t border-slate-800/80 py-12 px-6 bg-[#070a10] text-xs text-slate-500">
+  <footer class="border-t border-slate-800/80 py-12 px-6 bg-dark-950 text-xs text-slate-500">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-      <div class="flex items-center space-x-2">
-        <div class="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-black font-bold">
-          <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
+      
+      <div class="flex items-center space-x-2.5">
+        <div class="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-black font-bold">
+          <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
         </div>
-        <span class="font-bold text-slate-300">XDM Turbo</span>
-        <span>•</span>
+        <span class="font-bold text-slate-200">XDM Turbo</span>
+        <span class="text-slate-600">•</span>
         <span>Crafted with ❤️ by <a href="https://zihan.uk" target="_blank" class="text-slate-300 hover:text-emerald-400 font-medium underline">Zihan Fakir</a></span>
       </div>
 
       <div class="flex items-center space-x-6">
+        <a href="https://xdm.zihan.xyz" class="hover:text-emerald-400 transition-colors font-medium text-slate-300">xdm.zihan.xyz</a>
         <a href="https://zihan.uk" target="_blank" class="hover:text-slate-300 transition-colors">Portfolio (zihan.uk)</a>
-        <a href="https://github.com/zihanfakir" target="_blank" class="hover:text-slate-300 transition-colors">GitHub</a>
-        <a href="https://twitter.com/ZihanFakir" target="_blank" class="hover:text-slate-300 transition-colors">Twitter</a>
+        <a href="https://gitlab.com/zihanfakir/xdm" target="_blank" class="hover:text-slate-300 transition-colors">GitLab</a>
       </div>
     </div>
   </footer>
 
+  <!-- Scripts -->
   <script>
     // Initialize Lucide icons
     lucide.createIcons();
+
+    // Speed benchmark calculation logic
+    let currentFileSizeGB = 2;
+    let currentSpeedMbps = 200;
+
+    function formatDuration(seconds) {
+      if (seconds < 60) return Math.round(seconds) + 's';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+    }
+
+    function updateCalculator() {
+      const fileBytes = currentFileSizeGB * 1024 * 1024 * 1024;
+      const speedBytesPerSec = (currentSpeedMbps * 1000 * 1000) / 8;
+
+      // Realistic overhead: browser single connection gets ~12-15% of bandwidth on high latency
+      const browserSpeed = speedBytesPerSec * 0.14;
+      const browserTime = fileBytes / browserSpeed;
+
+      // XDM Turbo 64 parallel streams gets ~92% saturation
+      const xdmSpeed = speedBytesPerSec * 0.92;
+      const xdmTime = fileBytes / xdmSpeed;
+
+      const speedMultiplier = (browserTime / xdmTime).toFixed(1);
+      const secondsSaved = Math.max(browserTime - xdmTime, 0);
+
+      document.getElementById('browser-time').textContent = formatDuration(browserTime);
+      document.getElementById('xdm-time').textContent = formatDuration(xdmTime);
+      document.getElementById('time-saved').textContent = `🚀 ${speedMultiplier}× Faster • Saves ${formatDuration(secondsSaved)}`;
+    }
+
+    function setFileSize(gb, label) {
+      currentFileSizeGB = gb;
+      document.querySelectorAll('.size-btn').forEach(btn => {
+        btn.classList.remove('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300', 'active');
+        btn.classList.add('border-slate-700', 'bg-dark-850', 'text-slate-300');
+        if (btn.textContent.trim().startsWith(gb.toString())) {
+          btn.classList.remove('border-slate-700', 'bg-dark-850', 'text-slate-300');
+          btn.classList.add('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300', 'active');
+        }
+      });
+      updateCalculator();
+    }
+
+    function setSpeed(mbps, label) {
+      currentSpeedMbps = mbps;
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.remove('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300', 'active');
+        btn.classList.add('border-slate-700', 'bg-dark-850', 'text-slate-300');
+        if (btn.textContent.includes(mbps >= 1000 ? '1 Gbps' : mbps.toString())) {
+          btn.classList.remove('border-slate-700', 'bg-dark-850', 'text-slate-300');
+          btn.classList.add('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-300', 'active');
+        }
+      });
+      updateCalculator();
+    }
+
+    // FAQ Accordion toggle
+    function toggleFaq(item) {
+      const isOpen = item.classList.contains('faq-open');
+      document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('faq-open'));
+      if (!isOpen) {
+        item.classList.add('faq-open');
+      }
+    }
+
+    // Run initial calculator
+    updateCalculator();
   </script>
 </body>
 </html>
