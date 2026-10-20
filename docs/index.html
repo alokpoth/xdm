@@ -1020,7 +1020,7 @@
         </div>
         <div class="flex items-center gap-3 shrink-0 flex-wrap justify-center">
           <a 
-            href="https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License" 
+            href="https://wa.me/zihanfakir" 
             target="_blank"
             class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center space-x-2 shadow-md transition-all active:scale-95"
           >
@@ -1383,7 +1383,7 @@
 
       <div class="flex items-center space-x-6">
         <a href="#pricing" class="hover:text-emerald-400 transition-colors">PRO Plans</a>
-        <a href="https://wa.me/?text=Hello%20Zihan" target="_blank" class="hover:text-emerald-400 transition-colors flex items-center space-x-1">
+        <a href="https://wa.me/zihanfakir" target="_blank" class="hover:text-emerald-400 transition-colors flex items-center space-x-1">
           <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
           <span>WhatsApp: @zihanfakir</span>
         </a>
@@ -1392,7 +1392,6 @@
           <span>Telegram: @zihanfakir</span>
         </a>
         <a href="privacy.html" class="hover:text-emerald-400 transition-colors">Privacy Policy</a>
-        <a href="admin.html" class="hover:text-emerald-400 transition-colors">Admin Portal</a>
         <a href="https://xdm.zihan.xyz" class="hover:text-emerald-400 transition-colors font-medium text-slate-300">xdm.zihan.xyz</a>
         <a href="https://zihan.uk" target="_blank" class="hover:text-slate-300 transition-colors">Portfolio</a>
         <a href="https://gitlab.com/zihanfakir/xdm" target="_blank" class="hover:text-slate-300 transition-colors">GitLab</a>
@@ -1439,7 +1438,7 @@
       <!-- Direct Contact CTA Buttons -->
       <div class="space-y-2.5">
         <a 
-          href="https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License"
+          href="https://wa.me/zihanfakir"
           target="_blank"
           class="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center space-x-2 transition-all active:scale-95 cursor-pointer"
         >
@@ -1529,10 +1528,11 @@
       const progressBar = document.getElementById('scroll-progress');
       if (progressBar) progressBar.style.width = scrolled + '%';
 
-      // Sticky CTA Visibility
+      // Sticky CTA Visibility (Auto-hides near footer to prevent UI overlap)
       const stickyCta = document.getElementById('stickyCta');
       if (stickyCta) {
-        if (winScroll > 600) {
+        const distFromBottom = height - winScroll;
+        if (winScroll > 600 && distFromBottom > 260) {
           stickyCta.classList.remove('opacity-0', 'translate-y-8', 'pointer-events-none');
           stickyCta.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
         } else {

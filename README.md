@@ -50,7 +50,7 @@ Upgrade to **XDM Turbo PRO** to unlock:
 
 ### How to Purchase & Activate:
 1. Contact developer **Zihan Fakir** directly:
-   - **WhatsApp:** `@zihanfakir` ([https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License](https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License))
+   - **WhatsApp:** `@zihanfakir` ([https://wa.me/zihanfakir](https://wa.me/zihanfakir))
    - **Telegram:** `@zihanfakir` ([https://t.me/zihanfakir](https://t.me/zihanfakir))
    - **Email:** `zihanfakir@gmail.com`
 2. Payment methods accepted: **bKash / Nagad / Rocket / Binance USDT / International Card**.

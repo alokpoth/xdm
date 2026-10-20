@@ -341,12 +341,12 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href="https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License"
+                  href="https://wa.me/zihanfakir"
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => {
                     e.preventDefault();
-                    const url = 'https://wa.me/?text=Hello%20Zihan%20Fakir,%20I%20would%20like%20to%20purchase%20an%20XDM%20Turbo%20PRO%20License';
+                    const url = 'https://wa.me/zihanfakir';
                     if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
                       (window as any).electronAPI.openExternal(url);
                     } else {
