@@ -5,7 +5,9 @@ node_modules/
 
 # Build and distribution
 dist/
-release/
+release/*
+!release/XDM.Turbo.Setup.1.0.11.exe
+!release/XDM.Turbo.1.0.11.exe
 XDM Turbo/
 build/
 server/bin/*.exe
