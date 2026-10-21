@@ -750,6 +750,16 @@
       });
     });
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function switchTab(tabName) {
       activeTab = tabName;
       document.querySelectorAll('.nav-tab').forEach(b => {
@@ -768,6 +778,13 @@
         }
       });
 
+      // Explicitly trigger active tab's loader upon tab switch
+      if (tabName === 'overview') loadOverview().catch(e => console.error(e));
+      else if (tabName === 'licenses') loadLicenses().catch(e => console.error(e));
+      else if (tabName === 'devices') loadDevices().catch(e => console.error(e));
+      else if (tabName === 'users') loadUsers().catch(e => console.error(e));
+      else if (tabName === 'audit') loadAuditLogs().catch(e => console.error(e));
+
       lucide.createIcons();
     }
 
@@ -776,104 +793,131 @@
       const headers = options.headers || {};
       headers['Authorization'] = `Bearer ${authToken}`;
       headers['Content-Type'] = 'application/json';
-      const res = await fetch(getApiUrl(endpoint), { ...options, headers });
-      if (res.status === 401) {
-        authToken = null;
-        sessionStorage.removeItem('xdm_admin_token');
-        showLogin();
-        throw new Error('Session expired');
+      try {
+        const res = await fetch(getApiUrl(endpoint), { ...options, headers });
+        if (res.status === 401) {
+          authToken = null;
+          sessionStorage.removeItem('xdm_admin_token');
+          showLogin();
+          throw new Error('Session expired. Please log in again.');
+        }
+        const contentType = res.headers.get('content-type') || '';
+        let data = {};
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const rawText = await res.text();
+          if (!res.ok) {
+            throw new Error(`Server returned HTTP ${res.status}: ${rawText.slice(0, 150)}`);
+          }
+          data = { success: true, text: rawText };
+        }
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}: Request failed`);
+        }
+        return data;
+      } catch (err) {
+        console.error(`[API Request Error] ${endpoint}:`, err);
+        throw err;
       }
-      return await res.json();
     }
 
     // Data Loaders
     async function loadAllData() {
-      try {
-        await loadOverview();
-        await loadLicenses();
-        await loadDevices();
-        await loadUsers();
-        await loadAuditLogs();
-        lucide.createIcons();
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      }
+      // Parallel resilient fetching: an error in any loader NEVER blocks other tabs
+      await Promise.allSettled([
+        loadOverview().catch(err => console.error('Overview error:', err)),
+        loadLicenses().catch(err => console.error('Licenses error:', err)),
+        loadDevices().catch(err => console.error('Devices error:', err)),
+        loadUsers().catch(err => console.error('Users error:', err)),
+        loadAuditLogs().catch(err => console.error('Audit logs error:', err))
+      ]);
+      lucide.createIcons();
     }
 
     async function loadOverview() {
-      const data = await apiRequest('/api/v1/admin/overview');
-      if (data.admin) {
-        currentUserRole = data.admin.role;
-        currentUsername = data.admin.username;
-        sessionStorage.setItem('xdm_admin_role', currentUserRole);
-        sessionStorage.setItem('xdm_admin_username', currentUsername);
-        updateUserBadge();
-      }
-
-      if (data.success && data.metrics) {
-        const m = data.metrics;
-        document.getElementById('statOnlineNow').textContent = m.onlineDevicesNow;
-        document.getElementById('statTotalLicenses').textContent = m.totalLicenses;
-        document.getElementById('statActiveLicenses').textContent = m.activeLicenses;
-        document.getElementById('statRevokedLicenses').textContent = m.revokedLicenses;
-        document.getElementById('statTotalDevices').textContent = m.totalDevices;
-        document.getElementById('statSeen24h').textContent = m.devicesSeen24h;
-        document.getElementById('statTotalUsers').textContent = m.totalUsers;
-        if (document.getElementById('statBannedDevices')) {
-          document.getElementById('statBannedDevices').textContent = m.bannedDevices || 0;
+      try {
+        const data = await apiRequest('/api/v1/admin/overview');
+        if (data.admin) {
+          currentUserRole = data.admin.role;
+          currentUsername = data.admin.username;
+          sessionStorage.setItem('xdm_admin_role', currentUserRole);
+          sessionStorage.setItem('xdm_admin_username', currentUsername);
+          updateUserBadge();
         }
 
-        // Real-Time Database Storage Capacity & Health
-        if (m.storage) {
-          const s = m.storage;
-          const sizeEl = document.getElementById('dbSizeText');
-          if (sizeEl) sizeEl.textContent = s.sizeFormatted;
-          const quotaEl = document.getElementById('dbQuotaText');
-          if (quotaEl) quotaEl.textContent = s.maxQuotaFormatted || '1.00 GB';
-          const percentEl = document.getElementById('dbPercentText');
-          if (percentEl) percentEl.textContent = `${s.usagePercent}% Capacity (${s.sizeFormatted} used)`;
-          const barEl = document.getElementById('dbProgressBar');
-          if (barEl) barEl.style.width = `${Math.max(1, s.usagePercent)}%`;
-          const badgeEl = document.getElementById('dbHealthStatusBadge');
-          if (badgeEl) {
-            badgeEl.textContent = s.status;
-            badgeEl.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${s.statusClass || 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'}`;
+        if (data.success && data.metrics) {
+          const m = data.metrics;
+          if (document.getElementById('statOnlineNow')) document.getElementById('statOnlineNow').textContent = m.onlineDevicesNow;
+          if (document.getElementById('statTotalLicenses')) document.getElementById('statTotalLicenses').textContent = m.totalLicenses;
+          if (document.getElementById('statActiveLicenses')) document.getElementById('statActiveLicenses').textContent = m.activeLicenses;
+          if (document.getElementById('statRevokedLicenses')) document.getElementById('statRevokedLicenses').textContent = m.revokedLicenses;
+          if (document.getElementById('statTotalDevices')) document.getElementById('statTotalDevices').textContent = m.totalDevices;
+          if (document.getElementById('statSeen24h')) document.getElementById('statSeen24h').textContent = m.devicesSeen24h;
+          if (document.getElementById('statTotalUsers')) document.getElementById('statTotalUsers').textContent = m.totalUsers;
+          if (document.getElementById('statBannedDevices')) {
+            document.getElementById('statBannedDevices').textContent = m.bannedDevices || 0;
           }
-          if (s.tableCounts) {
-            if (document.getElementById('dbCountAudit')) document.getElementById('dbCountAudit').textContent = s.tableCounts.auditLogs;
-            if (document.getElementById('dbCountLicenses')) document.getElementById('dbCountLicenses').textContent = s.tableCounts.licenses;
-            if (document.getElementById('dbCountDevices')) document.getElementById('dbCountDevices').textContent = s.tableCounts.devices;
-            if (document.getElementById('dbCountUsers')) document.getElementById('dbCountUsers').textContent = s.tableCounts.users;
-            if (document.getElementById('dbCountSecurity')) document.getElementById('dbCountSecurity').textContent = s.tableCounts.securityEvents;
+
+          // Real-Time Database Storage Capacity & Health
+          if (m.storage) {
+            const s = m.storage;
+            const sizeEl = document.getElementById('dbSizeText');
+            if (sizeEl) sizeEl.textContent = s.sizeFormatted;
+            const quotaEl = document.getElementById('dbQuotaText');
+            if (quotaEl) quotaEl.textContent = s.maxQuotaFormatted || '1.00 GB';
+            const percentEl = document.getElementById('dbPercentText');
+            if (percentEl) percentEl.textContent = `${s.usagePercent}% Capacity (${s.sizeFormatted} used)`;
+            const barEl = document.getElementById('dbProgressBar');
+            if (barEl) barEl.style.width = `${Math.max(1, s.usagePercent)}%`;
+            const badgeEl = document.getElementById('dbHealthStatusBadge');
+            if (badgeEl) {
+              badgeEl.textContent = s.status;
+              badgeEl.className = `text-[10px] font-mono px-2 py-0.5 rounded-full border ${s.statusClass || 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'}`;
+            }
+            if (s.tableCounts) {
+              if (document.getElementById('dbCountAudit')) document.getElementById('dbCountAudit').textContent = s.tableCounts.auditLogs;
+              if (document.getElementById('dbCountLicenses')) document.getElementById('dbCountLicenses').textContent = s.tableCounts.licenses;
+              if (document.getElementById('dbCountDevices')) document.getElementById('dbCountDevices').textContent = s.tableCounts.devices;
+              if (document.getElementById('dbCountUsers')) document.getElementById('dbCountUsers').textContent = s.tableCounts.users;
+              if (document.getElementById('dbCountSecurity')) document.getElementById('dbCountSecurity').textContent = s.tableCounts.securityEvents;
+            }
           }
         }
+      } catch (err) {
+        console.error('Overview metrics error:', err);
       }
 
       // Latest events
-      const logsData = await apiRequest('/api/v1/admin/audit-logs?limit=5');
-      const tbody = document.getElementById('overviewRecentEvents');
-      if (logsData.success && logsData.logs) {
-        tbody.innerHTML = '';
-        if (logsData.logs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No events logged yet.</td></tr>';
-          return;
+      try {
+        const logsData = await apiRequest('/api/v1/admin/audit-logs?limit=5');
+        const tbody = document.getElementById('overviewRecentEvents');
+        if (tbody && logsData.success && logsData.logs) {
+          tbody.innerHTML = '';
+          if (logsData.logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No events logged yet.</td></tr>';
+            return;
+          }
+          logsData.logs.forEach(l => {
+            const tr = document.createElement('tr');
+            const d = new Date(l.created_at).toLocaleTimeString();
+            tr.innerHTML = `
+              <td class="py-2 text-slate-400">${d}</td>
+              <td class="py-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${escapeHtml(l.event_type)}</span></td>
+              <td class="py-2 text-slate-300 truncate max-w-[120px]">${escapeHtml(l.license_id || '—')}</td>
+              <td class="py-2 text-slate-400 truncate max-w-[120px]">${escapeHtml(l.device_id || '—')}</td>
+              <td class="py-2 text-slate-500">${escapeHtml(l.ip_address || '—')}</td>
+            `;
+            tbody.appendChild(tr);
+          });
         }
-        logsData.logs.forEach(l => {
-          const tr = document.createElement('tr');
-          const d = new Date(l.created_at).toLocaleTimeString();
-          tr.innerHTML = `
-            <td class="py-2 text-slate-400">${d}</td>
-            <td class="py-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${l.event_type}</span></td>
-            <td class="py-2 text-slate-300 truncate max-w-[120px]">${l.license_id || '—'}</td>
-            <td class="py-2 text-slate-400 truncate max-w-[120px]">${l.device_id || '—'}</td>
-            <td class="py-2 text-slate-500">${l.ip_address || '—'}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+      } catch (err) {
+        console.error('Overview recent events error:', err);
       }
     }
 
     function getEventColor(type) {
+      if (!type) return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
       if (type.includes('success')) return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
       if (type.includes('failed') || type.includes('revoked')) return 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
       return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
@@ -881,94 +925,114 @@
 
     // Licenses Loader
     async function loadLicenses() {
+      const tbody = document.getElementById('licensesTableBody');
       const search = document.getElementById('licenseSearchInput').value.trim();
       const status = document.getElementById('licenseStatusFilter').value;
       const adminFilter = document.getElementById('licenseAdminFilter')?.value || '';
-      let url = `/api/v1/admin/licenses?search=${encodeURIComponent(search)}&status=${status}&limit=50`;
-      if (adminFilter) {
-        url += `&admin=${encodeURIComponent(adminFilter)}`;
+
+      try {
+        let url = `/api/v1/admin/licenses?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&limit=50`;
+        if (adminFilter) {
+          url += `&admin=${encodeURIComponent(adminFilter)}`;
+        }
+        const data = await apiRequest(url);
+
+        tbody.innerHTML = '';
+
+        if (!data.licenses || data.licenses.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-slate-500">No licenses found.</td></tr>';
+          return;
+        }
+
+        data.licenses.forEach(lic => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-900/50 transition-colors';
+          const createdDate = new Date(lic.created_at).toLocaleDateString();
+          const expiresDate = lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'Lifetime';
+          
+          let statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          if (lic.status === 'revoked') statusBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+          if (lic.status === 'suspended') statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+
+          tr.innerHTML = `
+            <td class="py-3 px-4 font-bold text-white select-all font-mono">${escapeHtml(lic.key)}</td>
+            <td class="py-3 px-3 uppercase text-[10px] font-bold text-slate-400">${escapeHtml(lic.edition)}</td>
+            <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80">${escapeHtml(lic.created_by_admin || 'master')}</span></td>
+            <td class="py-3 px-3 text-slate-300">${escapeHtml(lic.customer_name || '—')}<br><span class="text-[10px] text-slate-500">${escapeHtml(lic.customer_email || '')}</span></td>
+            <td class="py-3 px-3 text-slate-300">${lic.active_devices || 0} / ${lic.max_devices}</td>
+            <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}">${escapeHtml((lic.status || 'unknown').toUpperCase())}</span></td>
+            <td class="py-3 px-3 text-slate-400">${createdDate}</td>
+            <td class="py-3 px-3 text-slate-400">${expiresDate}</td>
+            <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+              ${lic.status === 'active' ? `
+                <button class="revoke-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] cursor-pointer" data-id="${lic.id}">Revoke</button>
+                <button class="suspend-btn px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px] cursor-pointer" data-id="${lic.id}">Suspend</button>
+              ` : `
+                <button class="resume-btn px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] cursor-pointer" data-id="${lic.id}">Reactivate</button>
+              `}
+              <button class="delete-btn px-2 py-1 rounded bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white text-[10px] transition-all cursor-pointer font-bold" data-id="${lic.id}" data-key="${escapeHtml(lic.key)}" title="Delete Key Permanently">Remove</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Actions
+        tbody.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const key = btn.dataset.key;
+            if (!confirm(`Are you sure you want to permanently delete license key "${key}"?\n\nThis will remove it from the database completely and unbind all connected devices.`)) return;
+            try {
+              await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}`, { method: 'DELETE' });
+              loadLicenses();
+              loadOverview();
+            } catch(e) {
+              alert('Error deleting license: ' + e.message);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.revoke-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to permanently revoke this license?')) return;
+            try {
+              await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/revoke`, { method: 'POST', body: JSON.stringify({ reason: 'Admin revoked' }) });
+              loadLicenses();
+              loadOverview();
+            } catch(e) {
+              alert('Error revoking license: ' + e.message);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.suspend-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            try {
+              await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/suspend`, { method: 'POST', body: JSON.stringify({ reason: 'Admin suspended' }) });
+              loadLicenses();
+              loadOverview();
+            } catch(e) {
+              alert('Error suspending license: ' + e.message);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.resume-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            try {
+              await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/resume`, { method: 'POST', body: JSON.stringify({}) });
+              loadLicenses();
+              loadOverview();
+            } catch(e) {
+              alert('Error reactivating license: ' + e.message);
+            }
+          });
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-rose-400 font-mono text-xs">
+          <p class="mb-2">Failed to load licenses: ${escapeHtml(err.message)}</p>
+          <button onclick="loadLicenses()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 cursor-pointer">Retry Loading</button>
+        </td></tr>`;
       }
-      const data = await apiRequest(url);
-
-      const tbody = document.getElementById('licensesTableBody');
-      tbody.innerHTML = '';
-
-      if (!data.licenses || data.licenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-slate-500">No licenses found.</td></tr>';
-        return;
-      }
-
-      data.licenses.forEach(lic => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-900/50 transition-colors';
-        const createdDate = new Date(lic.created_at).toLocaleDateString();
-        const expiresDate = lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'Lifetime';
-        
-        let statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        if (lic.status === 'revoked') statusBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
-        if (lic.status === 'suspended') statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-
-        tr.innerHTML = `
-          <td class="py-3 px-4 font-bold text-white select-all">${lic.key}</td>
-          <td class="py-3 px-3 uppercase text-[10px] font-bold text-slate-400">${lic.edition}</td>
-          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700/80">${lic.created_by_admin || 'master'}</span></td>
-          <td class="py-3 px-3 text-slate-300">${lic.customer_name || '—'}<br><span class="text-[10px] text-slate-500">${lic.customer_email || ''}</span></td>
-          <td class="py-3 px-3 text-slate-300">${lic.active_devices} / ${lic.max_devices}</td>
-          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}">${lic.status.toUpperCase()}</span></td>
-          <td class="py-3 px-3 text-slate-400">${createdDate}</td>
-          <td class="py-3 px-3 text-slate-400">${expiresDate}</td>
-          <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
-            ${lic.status === 'active' ? `
-              <button class="revoke-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px]" data-id="${lic.id}">Revoke</button>
-              <button class="suspend-btn px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px]" data-id="${lic.id}">Suspend</button>
-            ` : `
-              <button class="resume-btn px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px]" data-id="${lic.id}">Reactivate</button>
-            `}
-            <button class="delete-btn px-2 py-1 rounded bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white text-[10px] transition-all cursor-pointer font-bold" data-id="${lic.id}" data-key="${lic.key}" title="Delete Key Permanently">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      // Actions
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const key = btn.dataset.key;
-          if (!confirm(`Are you sure you want to permanently delete license key "${key}"?\n\nThis will remove it from the database completely and unbind all connected devices.`)) return;
-          try {
-            await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}`, { method: 'DELETE' });
-            loadLicenses();
-            loadOverview();
-          } catch(e) {
-            alert('Error deleting license: ' + e.message);
-          }
-        });
-      });
-
-      document.querySelectorAll('.revoke-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Are you sure you want to permanently revoke this license?')) return;
-          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/revoke`, { method: 'POST', body: JSON.stringify({ reason: 'Admin revoked' }) });
-          loadLicenses();
-          loadOverview();
-        });
-      });
-
-      document.querySelectorAll('.suspend-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/suspend`, { method: 'POST', body: JSON.stringify({ reason: 'Admin suspended' }) });
-          loadLicenses();
-          loadOverview();
-        });
-      });
-
-      document.querySelectorAll('.resume-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.id}/resume`, { method: 'POST', body: JSON.stringify({}) });
-          loadLicenses();
-          loadOverview();
-        });
-      });
     }
 
     document.getElementById('licenseSearchInput').addEventListener('input', () => loadLicenses());
@@ -977,154 +1041,190 @@
 
     // Devices Loader
     async function loadDevices() {
-      const search = document.getElementById('deviceSearchInput').value.trim();
-      const data = await apiRequest(`/api/v1/admin/devices?search=${encodeURIComponent(search)}&limit=50`);
       const tbody = document.getElementById('devicesTableBody');
-      tbody.innerHTML = '';
+      const search = document.getElementById('deviceSearchInput').value.trim();
 
-      if (!data.devices || data.devices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No activated devices found.</td></tr>';
-        return;
+      try {
+        const data = await apiRequest(`/api/v1/admin/devices?search=${encodeURIComponent(search)}&limit=50`);
+        tbody.innerHTML = '';
+
+        if (!data.devices || data.devices.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No activated devices found.</td></tr>';
+          return;
+        }
+
+        const now = Date.now();
+        const twoMins = 2 * 60 * 1000;
+
+        data.devices.forEach(dev => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-900/50 transition-colors';
+          const isOnline = (now - dev.last_seen_at) < twoMins;
+          const lastSeenStr = new Date(dev.last_seen_at).toLocaleTimeString();
+          const isBanned = Boolean(dev.is_banned);
+
+          tr.innerHTML = `
+            <td class="py-3 px-4 font-mono font-bold text-slate-200 select-all">
+              <div class="flex items-center space-x-1.5">
+                ${isBanned ? '<i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-400"></i>' : ''}
+                <span>${escapeHtml(dev.id)}</span>
+              </div>
+            </td>
+            <td class="py-3 px-3 text-white font-semibold">${escapeHtml(dev.device_name || 'Device')}</td>
+            <td class="py-3 px-3 text-slate-400">${escapeHtml(dev.os_platform || 'Windows')} (v${escapeHtml(dev.client_version || '1.0')})</td>
+            <td class="py-3 px-3 text-slate-300 font-mono">${escapeHtml(dev.license_key || '—')}</td>
+            <td class="py-3 px-3">
+              <span class="flex items-center space-x-1.5 font-mono">
+                <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}"></span>
+                <span class="${isOnline ? 'text-emerald-300 font-bold' : 'text-slate-400'}">${isOnline ? 'ONLINE' : lastSeenStr}</span>
+              </span>
+            </td>
+            <td class="py-3 px-3">
+              ${isBanned ? `
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1">
+                  <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
+                  <span>BANNED (${dev.failed_attempts || 10} fails)</span>
+                </span>
+              ` : `
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${dev.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
+                  ${dev.is_active ? 'BOUND' : 'DEACTIVATED'}
+                </span>
+                ${dev.failed_attempts > 0 ? `<span class="ml-1 text-[9px] text-amber-400 font-mono">(${dev.failed_attempts}/10 fails)</span>` : ''}
+              `}
+            </td>
+            <td class="py-3 px-4 text-right space-x-1">
+              ${isBanned ? `
+                <button class="unban-device-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer inline-flex items-center gap-1" data-dev="${dev.id}">
+                  <i data-lucide="unlock" class="w-3 h-3"></i>
+                  <span>Unban</span>
+                </button>
+              ` : `
+                ${dev.is_active && dev.license_id !== 'NONE' ? `
+                  <button class="deactivate-device-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] cursor-pointer" data-lic="${dev.license_id}" data-dev="${dev.id}">Unbind</button>
+                ` : ''}
+                <button class="ban-device-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] cursor-pointer" data-dev="${dev.id}">Lock</button>
+              `}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('.unban-device-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm(`Unban device ${btn.dataset.dev} and reset failed attempts counter?`)) return;
+            try {
+              await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/unban`, { method: 'POST' });
+              loadDevices();
+              loadOverview();
+            } catch (e) {
+              alert('Error unbanning device: ' + e.message);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.ban-device-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const reason = prompt(`Enter reason for locking device ${btn.dataset.dev}:`, 'Exceeded invalid attempts or suspicious behavior');
+            if (!reason) return;
+            try {
+              await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/ban`, { method: 'POST', body: JSON.stringify({ reason }) });
+              loadDevices();
+              loadOverview();
+            } catch (e) {
+              alert('Error locking device: ' + e.message);
+            }
+          });
+        });
+
+        tbody.querySelectorAll('.deactivate-device-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Force unbind this device from the license?')) return;
+            try {
+              await apiRequest(`/api/v1/admin/licenses/${btn.dataset.lic}/devices/${btn.dataset.dev}/deactivate`, { method: 'POST' });
+              loadDevices();
+              loadLicenses();
+              loadOverview();
+            } catch (e) {
+              alert('Error unbinding device: ' + e.message);
+            }
+          });
+        });
+
+        lucide.createIcons();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-400 font-mono text-xs">
+          <p class="mb-2">Failed to load devices: ${escapeHtml(err.message)}</p>
+          <button onclick="loadDevices()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 cursor-pointer">Retry Loading</button>
+        </td></tr>`;
       }
-
-      const now = Date.now();
-      const twoMins = 2 * 60 * 1000;
-
-      data.devices.forEach(dev => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-900/50 transition-colors';
-        const isOnline = (now - dev.last_seen_at) < twoMins;
-        const lastSeenStr = new Date(dev.last_seen_at).toLocaleTimeString();
-        const isBanned = Boolean(dev.is_banned);
-
-        tr.innerHTML = `
-          <td class="py-3 px-4 font-mono font-bold text-slate-200 select-all">
-            <div class="flex items-center space-x-1.5">
-              ${isBanned ? '<i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-400"></i>' : ''}
-              <span>${dev.id}</span>
-            </div>
-          </td>
-          <td class="py-3 px-3 text-white font-semibold">${dev.device_name}</td>
-          <td class="py-3 px-3 text-slate-400">${dev.os_platform} (v${dev.client_version})</td>
-          <td class="py-3 px-3 text-slate-300 font-mono">${dev.license_key}</td>
-          <td class="py-3 px-3">
-            <span class="flex items-center space-x-1.5 font-mono">
-              <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}"></span>
-              <span class="${isOnline ? 'text-emerald-300 font-bold' : 'text-slate-400'}">${isOnline ? 'ONLINE' : lastSeenStr}</span>
-            </span>
-          </td>
-          <td class="py-3 px-3">
-            ${isBanned ? `
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1">
-                <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
-                <span>BANNED (${dev.failed_attempts || 10} fails)</span>
-              </span>
-            ` : `
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${dev.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
-                ${dev.is_active ? 'BOUND' : 'DEACTIVATED'}
-              </span>
-              ${dev.failed_attempts > 0 ? `<span class="ml-1 text-[9px] text-amber-400 font-mono">(${dev.failed_attempts}/10 fails)</span>` : ''}
-            `}
-          </td>
-          <td class="py-3 px-4 text-right space-x-1">
-            ${isBanned ? `
-              <button class="unban-device-btn px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 cursor-pointer inline-flex items-center gap-1" data-dev="${dev.id}">
-                <i data-lucide="unlock" class="w-3 h-3"></i>
-                <span>Unban</span>
-              </button>
-            ` : `
-              ${dev.is_active && dev.license_id !== 'NONE' ? `
-                <button class="deactivate-device-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px]" data-lic="${dev.license_id}" data-dev="${dev.id}">Unbind</button>
-              ` : ''}
-              <button class="ban-device-btn px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px]" data-dev="${dev.id}">Lock</button>
-            `}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.querySelectorAll('.unban-device-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm(`Unban device ${btn.dataset.dev} and reset failed attempts counter?`)) return;
-          await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/unban`, { method: 'POST' });
-          loadDevices();
-          loadOverview();
-        });
-      });
-
-      document.querySelectorAll('.ban-device-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const reason = prompt(`Enter reason for locking device ${btn.dataset.dev}:`, 'Exceeded invalid attempts or suspicious behavior');
-          if (!reason) return;
-          await apiRequest(`/api/v1/admin/devices/${btn.dataset.dev}/ban`, { method: 'POST', body: JSON.stringify({ reason }) });
-          loadDevices();
-          loadOverview();
-        });
-      });
-
-      document.querySelectorAll('.deactivate-device-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (!confirm('Force unbind this device from the license?')) return;
-          await apiRequest(`/api/v1/admin/licenses/${btn.dataset.lic}/devices/${btn.dataset.dev}/deactivate`, { method: 'POST' });
-          loadDevices();
-          loadLicenses();
-          loadOverview();
-        });
-      });
     }
 
     document.getElementById('deviceSearchInput').addEventListener('input', () => loadDevices());
 
     // Users Loader
     async function loadUsers() {
-      const data = await apiRequest('/api/v1/admin/users?limit=50');
       const tbody = document.getElementById('usersTableBody');
-      tbody.innerHTML = '';
+      try {
+        const data = await apiRequest('/api/v1/admin/users?limit=50');
+        tbody.innerHTML = '';
 
-      if (!data.users || data.users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No users registered yet.</td></tr>';
-        return;
+        if (!data.users || data.users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No users registered yet.</td></tr>';
+          return;
+        }
+
+        data.users.forEach(u => {
+          const tr = document.createElement('tr');
+          const lastSeen = new Date(u.last_seen_at).toLocaleDateString();
+          tr.innerHTML = `
+            <td class="py-3 px-4 font-mono font-bold text-slate-300">${escapeHtml(u.id)}</td>
+            <td class="py-3 px-3 text-white">${escapeHtml(u.email || '—')}</td>
+            <td class="py-3 px-3 text-slate-400">${u.licenses_count || 0}</td>
+            <td class="py-3 px-3 text-slate-400">${u.active_devices_count || 0}</td>
+            <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">CONSENTED</span></td>
+            <td class="py-3 px-3 text-slate-400">${lastSeen}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-400 font-mono text-xs">
+          <p class="mb-2">Failed to load users: ${escapeHtml(err.message)}</p>
+          <button onclick="loadUsers()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 cursor-pointer">Retry Loading</button>
+        </td></tr>`;
       }
-
-      data.users.forEach(u => {
-        const tr = document.createElement('tr');
-        const lastSeen = new Date(u.last_seen_at).toLocaleDateString();
-        tr.innerHTML = `
-          <td class="py-3 px-4 font-mono font-bold text-slate-300">${u.id}</td>
-          <td class="py-3 px-3 text-white">${u.email || '—'}</td>
-          <td class="py-3 px-3 text-slate-400">${u.licenses_count}</td>
-          <td class="py-3 px-3 text-slate-400">${u.active_devices_count}</td>
-          <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">CONSENTED</span></td>
-          <td class="py-3 px-3 text-slate-400">${lastSeen}</td>
-        `;
-        tbody.appendChild(tr);
-      });
     }
 
     // Audit Logs Loader
     async function loadAuditLogs() {
-      const data = await apiRequest('/api/v1/admin/audit-logs?limit=50');
       const tbody = document.getElementById('auditTableBody');
-      tbody.innerHTML = '';
+      try {
+        const data = await apiRequest('/api/v1/admin/audit-logs?limit=50');
+        tbody.innerHTML = '';
 
-      if (!data.logs || data.logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No audit events recorded.</td></tr>';
-        return;
+        if (!data.logs || data.logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No audit events recorded.</td></tr>';
+          return;
+        }
+
+        data.logs.forEach(l => {
+          const tr = document.createElement('tr');
+          const time = new Date(l.created_at).toLocaleString();
+          tr.innerHTML = `
+            <td class="py-3 px-4 text-slate-400">${time}</td>
+            <td class="py-3 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${escapeHtml(l.event_type)}</span></td>
+            <td class="py-3 px-3 text-slate-300 font-mono text-[10px] truncate max-w-[120px]">${escapeHtml(l.license_id || '—')}</td>
+            <td class="py-3 px-3 text-slate-400 font-mono text-[10px] truncate max-w-[120px]">${escapeHtml(l.device_id || '—')}</td>
+            <td class="py-3 px-3 text-slate-500">${escapeHtml(l.ip_address || '—')}</td>
+            <td class="py-3 px-4 text-slate-400 text-[10px] truncate max-w-[200px]">${escapeHtml(l.details || '')}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-400 font-mono text-xs">
+          <p class="mb-2">Failed to load audit logs: ${escapeHtml(err.message)}</p>
+          <button onclick="loadAuditLogs()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 cursor-pointer">Retry Loading</button>
+        </td></tr>`;
       }
-
-      data.logs.forEach(l => {
-        const tr = document.createElement('tr');
-        const time = new Date(l.created_at).toLocaleString();
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-slate-400">${time}</td>
-          <td class="py-3 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${getEventColor(l.event_type)}">${l.event_type}</span></td>
-          <td class="py-3 px-3 text-slate-300 font-mono text-[10px] truncate max-w-[120px]">${l.license_id || '—'}</td>
-          <td class="py-3 px-3 text-slate-400 font-mono text-[10px] truncate max-w-[120px]">${l.device_id || '—'}</td>
-          <td class="py-3 px-3 text-slate-500">${l.ip_address || '—'}</td>
-          <td class="py-3 px-4 text-slate-400 text-[10px] truncate max-w-[200px]">${l.details || ''}</td>
-        `;
-        tbody.appendChild(tr);
-      });
     }
 
     // Modal Handlers

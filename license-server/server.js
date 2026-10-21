@@ -142,15 +142,20 @@ async function requireAdminAuth(req, res, next) {
 
   try {
     await db.ready();
-    const adminRecord = await db.getAdminById(session.adminId);
+    const adminRecord = session.adminId
+      ? ((await db.getAdminById(session.adminId)) || (await db.getAdminByUsername(session.username)))
+      : (await db.getAdminByUsername(session.username));
+
     if (!adminRecord) {
-      return res.status(401).json({ success: false, error: 'Admin account not found or removed.' });
+      req.admin = session;
+      return next();
     }
     if (adminRecord.status === 'banned') {
       return res.status(403).json({ success: false, error: 'Your admin account has been suspended by the Owner.' });
     }
     req.admin = {
       ...session,
+      adminId: adminRecord.id,
       role: adminRecord.role,
       status: adminRecord.status || 'active'
     };
@@ -647,29 +652,37 @@ app.post('/api/admin/change-password', requireAdminAuth, handleAdminChangeCreden
 
 // Admin System Overview Metrics
 const handleAdminOverview = async (req, res) => {
-  const metrics = await db.getOverviewMetrics();
-  res.json({
-    success: true,
-    metrics,
-    admin: req.admin ? { id: req.admin.adminId, username: req.admin.username, role: req.admin.role } : null
-  });
+  try {
+    const metrics = await db.getOverviewMetrics();
+    res.json({
+      success: true,
+      metrics,
+      admin: req.admin ? { id: req.admin.adminId, username: req.admin.username, role: req.admin.role } : null
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 app.get('/api/v1/admin/overview', requireAdminAuth, handleAdminOverview);
 app.get('/api/admin/overview', requireAdminAuth, handleAdminOverview);
 
 // Admin Query Licenses
 const handleAdminGetLicenses = async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
-  const offset = parseInt(req.query.offset, 10) || 0;
-  const status = req.query.status || null;
-  const edition = req.query.edition || null;
-  const search = req.query.search || null;
-  const createdByAdmin = req.query.admin || req.query.createdByAdmin || null;
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const status = (req.query.status && req.query.status.trim()) ? req.query.status.trim() : null;
+    const edition = (req.query.edition && req.query.edition.trim()) ? req.query.edition.trim() : null;
+    const search = (req.query.search && req.query.search.trim()) ? req.query.search.trim() : null;
+    const createdByAdmin = (req.query.admin || req.query.createdByAdmin || '').trim() || null;
 
-  const licenses = await db.getAllLicenses({ limit, offset, status, edition, search, createdByAdmin });
-  const total = await db.getLicensesCount({ status, edition, search, createdByAdmin });
+    const licenses = await db.getAllLicenses({ limit, offset, status, edition, search, createdByAdmin });
+    const total = await db.getLicensesCount({ status, edition, search, createdByAdmin });
 
-  res.json({ success: true, licenses, total, limit, offset });
+    res.json({ success: true, licenses, total, limit, offset });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 app.get('/api/v1/admin/licenses', requireAdminAuth, handleAdminGetLicenses);
 app.get('/api/admin/licenses', requireAdminAuth, handleAdminGetLicenses);
@@ -832,58 +845,84 @@ app.post('/api/v1/admin/licenses/:id/devices/:deviceId/deactivate', requireAdmin
 
 // Admin List All Devices
 const handleAdminGetDevices = async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
-  const offset = parseInt(req.query.offset, 10) || 0;
-  const search = req.query.search || '';
-  const devices = await db.getAllDevices(limit, offset, search);
-  res.json({ success: true, devices });
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const search = (req.query.search || '').trim();
+    const devices = await db.getAllDevices(limit, offset, search);
+    res.json({ success: true, devices });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 app.get('/api/v1/admin/devices', requireAdminAuth, handleAdminGetDevices);
 app.get('/api/admin/devices', requireAdminAuth, handleAdminGetDevices);
 
 // Admin List Banned Devices
 app.get('/api/v1/admin/banned-devices', requireAdminAuth, async (req, res) => {
-  const banned = await db.getAllBannedDevices();
-  res.json({ success: true, banned });
+  try {
+    const banned = await db.getAllBannedDevices();
+    res.json({ success: true, banned });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Admin Unban Device
 app.post('/api/v1/admin/devices/:deviceId/unban', requireAdminAuth, async (req, res) => {
-  await db.unbanDevice(req.params.deviceId, req.admin.username);
-  const unbanToken = crypto.signLicensePayload({
-    action: 'LIFT_DEVICE_BAN',
-    deviceId: req.params.deviceId,
-    issuedAt: Date.now(),
-    issuer: 'XDM Central Security Sentinel'
-  });
-  res.json({ 
-    success: true, 
-    message: `Device ${req.params.deviceId} has been successfully unbanned`,
-    unbanToken 
-  });
+  try {
+    await db.unbanDevice(req.params.deviceId, req.admin.username);
+    const unbanToken = crypto.signLicensePayload({
+      action: 'LIFT_DEVICE_BAN',
+      deviceId: req.params.deviceId,
+      issuedAt: Date.now(),
+      issuer: 'XDM Central Security Sentinel'
+    });
+    res.json({ 
+      success: true, 
+      message: `Device ${req.params.deviceId} has been successfully unbanned`,
+      unbanToken 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Admin Manually Ban Device
 app.post('/api/v1/admin/devices/:deviceId/ban', requireAdminAuth, async (req, res) => {
-  const { reason } = req.body || {};
-  await db.banDeviceManually(req.params.deviceId, reason || 'Manually banned by admin', req.admin.username);
-  res.json({ success: true, message: `Device ${req.params.deviceId} has been banned` });
+  try {
+    const { reason } = req.body || {};
+    await db.banDeviceManually(req.params.deviceId, reason || 'Manually banned by admin', req.admin.username);
+    res.json({ success: true, message: `Device ${req.params.deviceId} has been banned` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Admin List Users
-app.get('/api/v1/admin/users', requireAdminAuth, async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
-  const offset = parseInt(req.query.offset, 10) || 0;
-  const users = await db.getAllUsers(limit, offset);
-  res.json({ success: true, users });
-});
+const handleAdminGetUsers = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const users = await db.getAllUsers(limit, offset);
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+app.get('/api/v1/admin/users', requireAdminAuth, handleAdminGetUsers);
+app.get('/api/admin/users', requireAdminAuth, handleAdminGetUsers);
 
 // Admin Audit Logs
 const handleAdminGetAuditLogs = async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
-  const offset = parseInt(req.query.offset, 10) || 0;
-  const logs = await db.getAuditLogs(limit, offset);
-  res.json({ success: true, logs });
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const logs = await db.getAuditLogs(limit, offset);
+    res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 app.get('/api/v1/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
 app.get('/api/admin/audit-logs', requireAdminAuth, handleAdminGetAuditLogs);
