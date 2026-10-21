@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Globe, Check, Zap, ExternalLink, ShieldCheck, Film, FolderOpen, ArrowRight, ToggleRight, Sparkles } from 'lucide-react';
+import { X, Globe, Check, Zap, ExternalLink, ShieldCheck, Film, FolderOpen, ArrowRight, ToggleRight, Sparkles, Copy } from 'lucide-react';
 
 interface BrowserIntegrationModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
 }) => {
   const [autoInstalled, setAutoInstalled] = useState(false);
   const [folderOpened, setFolderOpened] = useState(false);
+  const [copiedPath, setCopiedPath] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,6 +42,18 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
       if (data.success) {
         setFolderOpened(true);
         setTimeout(() => setFolderOpened(false), 3000);
+      }
+    } catch (e) {}
+  };
+
+  const handleCopyPath = async () => {
+    try {
+      const res = await fetch('/api/extension/path');
+      const data = await res.json();
+      if (data.path) {
+        navigator.clipboard?.writeText(data.path);
+        setCopiedPath(true);
+        setTimeout(() => setCopiedPath(false), 2500);
       }
     } catch (e) {}
   };
@@ -140,6 +153,15 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
               >
                 {folderOpened ? <Check className="w-3.5 h-3.5" /> : <FolderOpen className="w-3.5 h-3.5" />}
                 <span>{folderOpened ? 'Folder Opened!' : 'Open Extension Folder'}</span>
+              </button>
+
+              <button
+                onClick={handleCopyPath}
+                className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white font-medium text-xs cursor-pointer active:scale-95 flex items-center space-x-1.5"
+                title="Copy folder location to clipboard so you can paste into 'Load unpacked' file picker"
+              >
+                {copiedPath ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-300" />}
+                <span>{copiedPath ? 'Path Copied!' : 'Copy Folder Path'}</span>
               </button>
 
               <button
