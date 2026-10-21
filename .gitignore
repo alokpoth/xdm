@@ -8,6 +8,7 @@ dist/
 release/*
 !release/XDM.Turbo.Setup.1.0.11.exe
 !release/XDM.Turbo.1.0.11.exe
+!release/xdm-turbo-extension.zip
 XDM Turbo/
 build/
 server/bin/*.exe
