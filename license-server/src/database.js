@@ -191,6 +191,10 @@ class LicenseDatabase {
         const ownerCount = ownerCheck.rows[0] ? Number(ownerCheck.rows[0].count) : 0;
         if (ownerCount === 0) {
           await this.client.execute("UPDATE admin_users SET role = 'owner' WHERE username = 'admin' OR username = 'owner' OR role = 'superadmin' OR id = 'admin_root'");
+          const recheck = await this.client.execute("SELECT COUNT(*) as count FROM admin_users WHERE role = 'owner'");
+          if (Number(recheck.rows[0]?.count || 0) === 0) {
+            await this.client.execute("UPDATE admin_users SET role = 'owner' WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)");
+          }
         }
       }
     } catch (e) {
@@ -882,17 +886,25 @@ class LicenseDatabase {
     const twoMinutesAgo = now - (2 * 60 * 1000);
     const oneDayAgo = now - (24 * 60 * 60 * 1000);
 
+    const safeExec = async (query) => {
+      try {
+        return await this.client.execute(query);
+      } catch (e) {
+        return { rows: [{ count: 0 }] };
+      }
+    };
+
     const [u, l, al, rl, sl, d, bd, on, d24, storage] = await Promise.all([
-      this.client.execute('SELECT COUNT(*) as count FROM users'),
-      this.client.execute('SELECT COUNT(*) as count FROM licenses'),
-      this.client.execute("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'"),
-      this.client.execute("SELECT COUNT(*) as count FROM licenses WHERE status = 'revoked'"),
-      this.client.execute("SELECT COUNT(*) as count FROM licenses WHERE status = 'suspended'"),
-      this.client.execute('SELECT COUNT(*) as count FROM devices WHERE is_active = 1'),
-      this.client.execute('SELECT COUNT(*) as count FROM device_security WHERE is_banned = 1'),
-      this.client.execute({ sql: 'SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?', args: [twoMinutesAgo] }),
-      this.client.execute({ sql: 'SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?', args: [oneDayAgo] }),
-      this.getDatabaseStorageStats()
+      safeExec('SELECT COUNT(*) as count FROM users'),
+      safeExec('SELECT COUNT(*) as count FROM licenses'),
+      safeExec("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'"),
+      safeExec("SELECT COUNT(*) as count FROM licenses WHERE status = 'revoked'"),
+      safeExec("SELECT COUNT(*) as count FROM licenses WHERE status = 'suspended'"),
+      safeExec('SELECT COUNT(*) as count FROM devices WHERE is_active = 1'),
+      safeExec('SELECT COUNT(*) as count FROM device_security WHERE is_banned = 1'),
+      safeExec({ sql: 'SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?', args: [twoMinutesAgo] }),
+      safeExec({ sql: 'SELECT COUNT(*) as count FROM devices WHERE is_active = 1 AND last_seen_at >= ?', args: [oneDayAgo] }),
+      this.getDatabaseStorageStats().catch(() => null)
     ]);
 
     return {

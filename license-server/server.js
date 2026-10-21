@@ -1077,6 +1077,8 @@ const handleOwnerDeleteAdmin = async (req, res) => {
 };
 app.delete('/api/v1/owner/admins/:id', requireOwnerAuth, handleOwnerDeleteAdmin);
 app.delete('/api/owner/admins/:id', requireOwnerAuth, handleOwnerDeleteAdmin);
+app.post('/api/v1/owner/admins/:id/delete', requireOwnerAuth, handleOwnerDeleteAdmin);
+app.post('/api/owner/admins/:id/delete', requireOwnerAuth, handleOwnerDeleteAdmin);
 
 // Owner: Query Licenses Created by Specific Admin
 const handleOwnerGetAdminLicenses = async (req, res) => {

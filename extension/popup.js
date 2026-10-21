@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     downloadBtn.addEventListener('click', () => {
       downloadBtn.disabled = true;
-      downloadBtn.innerHTML = '<span>⏳ Starting Download...</span>';
+      downloadBtn.innerHTML = '<span>Starting Download...</span>';
 
       chrome.runtime.sendMessage({
         action: 'START_DOWNLOAD',

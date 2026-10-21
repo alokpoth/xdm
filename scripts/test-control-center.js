@@ -190,7 +190,7 @@ async function main() {
 
   for (const suiteKey of suitesToRun) {
     const suite = SUITES[suiteKey];
-    console.log(`▶ RUNNING SUITE: ${suite.name}`);
+    console.log(`[>] RUNNING SUITE: ${suite.name}`);
     console.log(`  ${suite.description}\n`);
 
     const result = await suite.run();

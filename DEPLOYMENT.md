@@ -288,7 +288,7 @@ The license server strictly enforces privacy principles:
 | **Desktop Client Engine** |  Fully Implemented (`LicenseManager.js`) | Configured with public key & 7-day grace period. |
 | **Automated Test Suite (19 Tests)** |  100% Passed (`tests/license-system.test.js`) | Can run in CI/CD pipelines (`node --test`). |
 | **Production Domain & Public DNS** |  Production Active | Configured DNS A-record on `xdm.zihan.xyz`. |
-| **Public HTTPS / SSL Certificate** | ⏳ Local HTTP | Run Let's Encrypt / Certbot on production server. |
+| **Public HTTPS / SSL Certificate** | Pending (Local HTTP) | Run Let's Encrypt / Certbot on production server. |
 
 ---
 

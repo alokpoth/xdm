@@ -352,6 +352,17 @@ class DownloadManager {
 
     task.childProcess = child;
 
+    child.on('error', (err) => {
+      task.childProcess = null;
+      if (task.status !== 'paused' && task.status !== 'cancelled') {
+        task.status = 'error';
+        task.error = `Video download process error: ${err.message}`;
+        task.log(`Video download process error: ${err.message}`, 'error');
+        this.saveState();
+        this.broadcastTelemetry();
+      }
+    });
+
     child.on('close', (code) => {
       task.childProcess = null;
       if (code === 0) {
@@ -363,7 +374,13 @@ class DownloadManager {
         task.error = null;
         try {
           const files = fs.readdirSync(task.saveDir);
-          const matched = files.find(f => f.startsWith(safeTitlePrefix));
+          const matchedFiles = files.filter(f => f.startsWith(safeTitlePrefix) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
+          matchedFiles.sort((a, b) => {
+            try {
+              return fs.statSync(path.join(task.saveDir, b)).mtimeMs - fs.statSync(path.join(task.saveDir, a)).mtimeMs;
+            } catch (e) { return 0; }
+          });
+          const matched = matchedFiles[0];
           if (matched) {
             const actualPath = path.join(task.saveDir, matched);
             const stat = fs.statSync(actualPath);

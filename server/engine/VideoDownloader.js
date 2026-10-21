@@ -48,7 +48,11 @@ class VideoDownloader {
     }
 
     try {
-      const pythonFfmpeg = require('child_process').execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"').toString().trim();
+      const pythonFfmpeg = require('child_process').execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"', {
+        timeout: 2000,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).toString().trim();
       if (pythonFfmpeg && fs.existsSync(pythonFfmpeg)) {
         this._cachedFfmpeg = pythonFfmpeg;
         return pythonFfmpeg;

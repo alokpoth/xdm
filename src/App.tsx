@@ -321,7 +321,14 @@ export const App: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).electronAPI?.onClipboardUrlDetected) {
       const unsub = (window as any).electronAPI.onClipboardUrlDetected((data: { url: string }) => {
         if (licenseRef.current?.isBanned || licenseRef.current?.status === 'banned') return;
-        const isUserPro = Boolean(licenseRef.current?.isPro || licenseRef.current?.isAdmin);
+        const isUserPro = Boolean(
+          licenseRef.current?.isPro ||
+          licenseRef.current?.isAdmin ||
+          licenseRef.current?.status === 'pro' ||
+          licenseRef.current?.status === 'grace' ||
+          licenseRef.current?.status === 'active' ||
+          licenseRef.current?.edition === 'pro'
+        );
         if (isUserPro && data && data.url && settingsRef.current.clipboardMonitoring !== false) {
           setClipboardUrl(data.url);
         }

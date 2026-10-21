@@ -103,9 +103,14 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
       } else {
         // Auto check clipboard for valid URL
         navigator.clipboard?.readText().then(text => {
-          if (text && (text.startsWith('http://') || text.startsWith('https://')) && !url) {
-            setUrl(text);
-            triggerProbe(text);
+          if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+            setUrl(prev => {
+              if (!prev) {
+                triggerProbe(text);
+                return text;
+              }
+              return prev;
+            });
           }
         }).catch(() => {});
       }

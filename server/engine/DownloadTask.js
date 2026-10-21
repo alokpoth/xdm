@@ -1058,8 +1058,10 @@ class DownloadTask {
     const fdToClose = this.fileFd;
     this.fileFd = null;
     if (fdToClose) {
+      let closeAttempts = 0;
       const tryClose = () => {
-        if (this.pendingWrites > 0) {
+        closeAttempts++;
+        if (this.pendingWrites > 0 && closeAttempts < 40) {
           setTimeout(tryClose, 25);
         } else {
           try { fs.closeSync(fdToClose); } catch (e) {}
