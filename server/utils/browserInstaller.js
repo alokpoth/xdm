@@ -62,6 +62,10 @@ class BrowserInstaller {
       ['HKCU\\Software\\Google\\Chrome\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
       ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'path', extPath],
       ['HKCU\\Software\\Microsoft\\Edge\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
+      ['HKCU\\Software\\BraveSoftware\\Brave-Browser\\Extensions\\' + EXTENSION_ID, 'path', extPath],
+      ['HKCU\\Software\\BraveSoftware\\Brave-Browser\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
+      ['HKCU\\Software\\BraveSoftware\\Brave\\Extensions\\' + EXTENSION_ID, 'path', extPath],
+      ['HKCU\\Software\\BraveSoftware\\Brave\\Extensions\\' + EXTENSION_ID, 'version', VERSION],
       // Allowlist policies so Chromium runs the extension without requiring manual developer mode
       ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallAllowlist', '1', EXTENSION_ID],
       ['HKCU\\Software\\Policies\\Google\\Chrome\\ExtensionInstallSources', '1', 'file:///*'],
@@ -86,16 +90,81 @@ class BrowserInstaller {
     return { success: true, message: 'External extensions JSON and Registry written successfully' };
   }
 
-  // Open Chrome / Edge directly with the extension loaded without requiring Dev Mode toggles
+  getBrowserExe(browser = 'chrome') {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const progFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const progFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+    if (browser === 'brave') {
+      const candidates = [
+        path.join(progFiles, 'BraveSoftware/Brave-Browser/Application/brave.exe'),
+        path.join(progFilesX86, 'BraveSoftware/Brave-Browser/Application/brave.exe'),
+        path.join(localAppData, 'BraveSoftware/Brave-Browser/Application/brave.exe')
+      ];
+      for (const c of candidates) if (fs.existsSync(c)) return c;
+      return 'brave';
+    }
+    if (browser === 'edge') {
+      const candidates = [
+        path.join(progFilesX86, 'Microsoft/Edge/Application/msedge.exe'),
+        path.join(progFiles, 'Microsoft/Edge/Application/msedge.exe'),
+        path.join(localAppData, 'Microsoft/Edge/Application/msedge.exe')
+      ];
+      for (const c of candidates) if (fs.existsSync(c)) return c;
+      return 'msedge';
+    }
+    const candidates = [
+      path.join(progFiles, 'Google/Chrome/Application/chrome.exe'),
+      path.join(progFilesX86, 'Google/Chrome/Application/chrome.exe'),
+      path.join(localAppData, 'Google/Chrome/Application/chrome.exe')
+    ];
+    for (const c of candidates) if (fs.existsSync(c)) return c;
+    return 'chrome';
+  }
+
+  // Reveal the extension directory in Windows File Explorer so user can easily drag and drop into browser
+  openExtensionFolder() {
+    const extPath = this.extensionDir;
+    try {
+      if (process.platform === 'win32') {
+        const { spawn } = require('child_process');
+        spawn('explorer.exe', [extPath], { detached: true, stdio: 'ignore' }).unref();
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // Launch browser directly to extensions manager page (e.g. brave://extensions or chrome://extensions)
+  openExtensionsPage(browser = 'chrome') {
+    const browserExe = this.getBrowserExe(browser);
+    const targetUrl = browser === 'brave' 
+      ? 'brave://extensions' 
+      : (browser === 'edge' ? 'edge://extensions' : 'chrome://extensions');
+
+    const { spawn } = require('child_process');
+    try {
+      spawn(browserExe, [targetUrl], { detached: true, stdio: 'ignore' }).unref();
+      return true;
+    } catch (e) {
+      try {
+        spawn('cmd.exe', ['/c', 'start', browserExe, targetUrl], { detached: true, stdio: 'ignore' }).unref();
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+  }
+
+  // Open Chrome / Edge / Brave with the extension loaded
   openBrowserWithExtension(browser = 'chrome') {
     const extPath = this.extensionDir;
     const { spawn } = require('child_process');
-    const browserExe = browser === 'edge' ? 'msedge' : (browser === 'brave' ? 'brave' : 'chrome');
+    const browserExe = this.getBrowserExe(browser);
 
     try {
       spawn(browserExe, [
         `--load-extension=${extPath}`,
-        `--disable-extensions-except=${extPath}`,
         '--no-default-browser-check',
         'http://localhost:19684'
       ], {

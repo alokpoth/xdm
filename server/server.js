@@ -401,6 +401,20 @@ app.post('/api/extension/launch-browser', (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/extension/open-folder', (req, res) => {
+  const success = browserInstaller.openExtensionFolder();
+  res.json({ success, path: browserInstaller.extensionDir });
+});
+
+app.post('/api/extension/open-extensions-page', (req, res) => {
+  const { browser } = req.body;
+  const safeBrowser = ['chrome', 'edge', 'brave'].includes(String(browser || '').toLowerCase())
+    ? String(browser).toLowerCase()
+    : 'chrome';
+  const success = browserInstaller.openExtensionsPage(safeBrowser);
+  res.json({ success });
+});
+
 // Browser Integration Script (Tampermonkey / Userscript to intercept all downloads into XDM)
 app.get('/extension/xdm-helper.user.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
