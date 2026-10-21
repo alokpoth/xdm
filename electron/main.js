@@ -456,13 +456,13 @@ ipcMain.handle('app:show-notification', (event, { title, body, filePath }) => {
         body: body || 'Download completed!',
         icon: fs.existsSync(iconPath) ? iconPath : undefined
       });
-      if (filePath) {
-        notif.on('click', () => {
-          if (mainWindow) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.show();
-            mainWindow.focus();
-          }
+      notif.on('click', () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        }
+        if (filePath) {
           try {
             if (fs.existsSync(filePath)) {
               shell.showItemInFolder(filePath);
@@ -471,8 +471,8 @@ ipcMain.handle('app:show-notification', (event, { title, body, filePath }) => {
               if (fs.existsSync(parentDir)) shell.openPath(parentDir);
             }
           } catch (e) {}
-        });
-      }
+        }
+      });
       notif.show();
       return true;
     }
@@ -485,8 +485,8 @@ ipcMain.handle('app:show-notification', (event, { title, body, filePath }) => {
 let clipboardMonitoringEnabled = true;
 let lastClipboardText = '';
 
-const DOWNLOAD_EXTS_REGEX = /\.(zip|rar|7z|tar|gz|bz2|iso|xz|tgz|exe|msi|dmg|pkg|deb|rpm|apk|pdf|doc|docx|xls|xlsx|ppt|pptx|mp4|mkv|avi|mov|flv|wmv|webm|mp3|wav|flac|aac|ogg|m4a|epub)(\?.*)?$/i;
-const MEDIA_URL_REGEX = /(youtube\.com\/watch\?v=|youtu\.be\/|facebook\.com\/.*\/videos|fb\.watch\/|instagram\.com\/(reel|p)\/|tiktok\.com\/@.*\/video|twitter\.com\/.*\/status|x\.com\/.*\/status|vimeo\.com\/\d+)/i;
+const DOWNLOAD_EXTS_REGEX = /\.(zip|rar|7z|tar|gz|bz2|iso|xz|tgz|exe|msi|dmg|pkg|deb|rpm|apk|pdf|doc|docx|xls|xlsx|ppt|pptx|mp4|mkv|avi|mov|flv|wmv|webm|mp3|wav|flac|aac|ogg|m4a|epub)$/i;
+const MEDIA_URL_REGEX = /(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/|facebook\.com\/(reel\/|watch\/|.*\/videos)|fb\.watch\/|instagram\.com\/(reel|p)\/|tiktok\.com\/@.*\/video|twitter\.com\/.*\/status|x\.com\/.*\/status|vimeo\.com\/\d+)/i;
 
 function startClipboardMonitor() {
   try {
@@ -506,7 +506,10 @@ function startClipboardMonitor() {
       lastClipboardText = text;
 
       if (/^https?:\/\//i.test(text)) {
-        if (DOWNLOAD_EXTS_REGEX.test(text) || MEDIA_URL_REGEX.test(text)) {
+        const cleanPath = text.split('?')[0].split('#')[0];
+        const isDownloadFile = DOWNLOAD_EXTS_REGEX.test(cleanPath);
+        const isMediaSite = MEDIA_URL_REGEX.test(text);
+        if (isDownloadFile || isMediaSite) {
           if (mainWindow && mainWindow.webContents) {
             mainWindow.webContents.send('clipboard:url-detected', { url: text });
           }

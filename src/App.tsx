@@ -169,10 +169,12 @@ export const App: React.FC = () => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'INIT') {
-            setDownloads(msg.payload.downloads || []);
+            const initialDownloads = msg.payload.downloads || [];
+            setDownloads(initialDownloads);
             if (msg.payload.settings) setSettings(msg.payload.settings);
             if (msg.payload.stats) setStats(msg.payload.stats);
             if (msg.payload.license) setLicense(msg.payload.license);
+            prevCompletedCountRef.current = initialDownloads.filter((d: any) => d.status === 'completed').length;
           } else if (msg.type === 'TELEMETRY') {
             const newDownloads: DownloadItem[] = msg.payload.downloads || [];
             setDownloads(newDownloads);
@@ -214,7 +216,7 @@ export const App: React.FC = () => {
                 licenseRef.current?.edition === 'pro'
               );
               if (isUserPro && settingsRef.current.windowsNotifications !== false && typeof window !== 'undefined' && (window as any).electronAPI?.showNotification) {
-                const latestFinished = completedDownloads[0];
+                const latestFinished = [...completedDownloads].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))[0];
                 (window as any).electronAPI.showNotification({
                   title: 'Download Completed',
                   body: latestFinished ? latestFinished.fileName : 'File downloaded successfully',

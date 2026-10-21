@@ -200,7 +200,14 @@ const TopNavbarComponent: React.FC<TopNavbarProps> = ({
                 <span className="text-emerald-400 font-normal">Active</span>
               </div>
               {speedOptions.map((opt) => {
-                const isProUser = Boolean(license?.isPro);
+                const isProUser = Boolean(
+                  license?.isPro ||
+                  license?.isAdmin ||
+                  license?.status === 'pro' ||
+                  license?.status === 'grace' ||
+                  license?.status === 'active' ||
+                  license?.edition === 'pro'
+                );
                 const isLocked = !isProUser && opt.value > 0;
 
                 return (

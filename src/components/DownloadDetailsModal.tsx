@@ -40,6 +40,12 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'segments' | 'speed' | 'logs' | 'info'>('segments');
 
   useEffect(() => {
+    if (item?.id) {
+      setActiveTab('segments');
+    }
+  }, [item?.id]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && item) onClose();
     };
@@ -269,9 +275,12 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
                 {[...(item.segments || [])].sort((a, b) => a.start - b.start).map((seg) => {
-                  const segTotal = Math.max(1, seg.end - seg.start + 1);
+                  const isUnknownTotal = !isFinite(seg.end) || seg.end <= seg.start;
+                  const segTotal = isUnknownTotal ? 0 : Math.max(1, seg.end - seg.start + 1);
                   const segDownloaded = Math.max(0, seg.current - seg.start);
-                  const segPercent = Math.min(100, (segDownloaded / segTotal) * 100);
+                  const segPercent = isUnknownTotal 
+                    ? (seg.status === 'completed' ? 100 : (item.progress || 0)) 
+                    : Math.min(100, (segDownloaded / segTotal) * 100);
 
                   return (
                     <div
@@ -307,7 +316,9 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400 theme-text-secondary font-mono">
                         <span className="tabular-nums">
-                          {formatBytes(segDownloaded)} / {formatBytes(segTotal)} ({segPercent.toFixed(0)}%)
+                          {isUnknownTotal 
+                            ? `${formatBytes(segDownloaded)} (Stream)` 
+                            : `${formatBytes(segDownloaded)} / ${formatBytes(segTotal)} (${segPercent.toFixed(0)}%)`}
                         </span>
                         <span className="text-emerald-400 font-bold tabular-nums">
                           {formatSpeed(seg.speed)}
