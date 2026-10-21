@@ -279,31 +279,35 @@ function compareSemver(v1, v2) {
 app.get('/api/check-update', (req, res) => {
   const currentVersion = '1.0.11';
   const https = require('https');
-  const ghReq = https.get('https://api.github.com/repos/zihanfakir/xdm/releases/latest', {
+  
+  // Probe official GitLab API for latest release tags
+  const glReq = https.get('https://gitlab.com/api/v4/projects/zihanfakir%2Fxdm/releases', {
     headers: {
       'User-Agent': 'XDM-Turbo-Client/1.0.11',
-      'Accept': 'application/vnd.github.v3+json'
+      'Accept': 'application/json'
     },
     timeout: 7000
-  }, (ghRes) => {
+  }, (glRes) => {
     let raw = '';
-    ghRes.on('data', chunk => raw += chunk);
-    ghRes.on('end', () => {
+    glRes.on('data', chunk => raw += chunk);
+    glRes.on('end', () => {
       try {
-        if (ghRes.statusCode === 200) {
-          const release = JSON.parse(raw);
-          const latestTag = (release.tag_name || '').replace(/^v/i, '');
-          const isNewer = compareSemver(latestTag, currentVersion) > 0;
-          const exeAsset = (release.assets || []).find(a => a.name && a.name.endsWith('.exe'));
-          return res.json({
-            updateAvailable: isNewer,
-            currentVersion,
-            latestVersion: latestTag || currentVersion,
-            releaseName: release.name || `Version ${latestTag}`,
-            releaseNotes: release.body || '',
-            downloadUrl: exeAsset ? exeAsset.browser_download_url : (release.html_url || 'https://github.com/zihanfakir/xdm/releases'),
-            publishedAt: release.published_at
-          });
+        if (glRes.statusCode === 200) {
+          const releases = JSON.parse(raw);
+          if (Array.isArray(releases) && releases.length > 0) {
+            const latest = releases[0];
+            const latestTag = (latest.tag_name || '').replace(/^v/i, '');
+            const isNewer = compareSemver(latestTag, currentVersion) > 0;
+            return res.json({
+              updateAvailable: isNewer,
+              currentVersion,
+              latestVersion: latestTag || currentVersion,
+              releaseName: latest.name || `Version ${latestTag}`,
+              releaseNotes: latest.description || '',
+              downloadUrl: 'https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.0.11.exe?inline=false',
+              publishedAt: latest.released_at || latest.created_at
+            });
+          }
         }
         return res.json({
           updateAvailable: false,
@@ -317,12 +321,12 @@ app.get('/api/check-update', (req, res) => {
     });
   });
 
-  ghReq.on('error', (err) => {
-    res.json({ updateAvailable: false, currentVersion, offline: true, error: err.message });
+  glReq.on('error', () => {
+    res.json({ updateAvailable: false, currentVersion, offline: true });
   });
 
-  ghReq.on('timeout', () => {
-    ghReq.destroy();
+  glReq.on('timeout', () => {
+    glReq.destroy();
     res.json({ updateAvailable: false, currentVersion, timeout: true });
   });
 });

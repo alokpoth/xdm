@@ -210,21 +210,8 @@ FunctionEnd
   CreateShortCut "$SMPROGRAMS\XDM Turbo.lnk" "$INSTDIR\XDM Turbo.exe" "" "$INSTDIR\XDM Turbo.exe" 0 "" "" "XDM Turbo Download Manager"
   CreateShortCut "$DESKTOP\XDM Turbo.lnk" "$INSTDIR\XDM Turbo.exe" "" "$INSTDIR\XDM Turbo.exe" 0 "" "" "XDM Turbo Download Manager"
 
-  # Native browser integration configuration (Clean external extensions JSON, 100% safe & trusted)
-  CreateDirectory "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions"
-  FileOpen $0 "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
-  FileClose $0
 
-  CreateDirectory "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions"
-  FileOpen $0 "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
-  FileClose $0
 
-  CreateDirectory "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions"
-  FileOpen $0 "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json" w
-  FileWrite $0 '{"external_dir": "$INSTDIR\resources\extension", "external_version": "1.0.11"}'
-  FileClose $0
 
   # Register Windows Startup (Silent background tray launch on Windows boot)
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "XDM Turbo" '"$INSTDIR\XDM Turbo.exe" --hidden'
@@ -243,9 +230,6 @@ FunctionEnd
   Delete "$SMPROGRAMS\XDM Turbo.lnk"
   Delete "$DESKTOP\XDM Turbo.lnk"
 
-  Delete "$LOCALAPPDATA\Google\Chrome\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json"
-  Delete "$LOCALAPPDATA\Microsoft\Edge\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json"
-  Delete "$LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\External Extensions\oglkcogpmnehcnhnaehelcikpijjblgc.json"
 
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "XDM Turbo"
 !macroend

@@ -18,7 +18,6 @@ function getIconPath(fileName = 'icon.ico') {
 }
 
 // Performance & Memory flags for Chromium - Turbo launch & 60fps GPU acceleration
-app.commandLine.appendSwitch('disable-site-isolation-trials');
 app.commandLine.appendSwitch('v8-cache-options', 'code');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('enable-fast-unload');
@@ -41,6 +40,8 @@ const gotTheLock = app.requestSingleInstanceLock();
 let mainWindow = null;
 let tray = null;
 let serverProcess = null;
+let isAppQuitting = false;
+let clipboardInterval = null;
 
 if (!gotTheLock) {
   app.quit();
@@ -180,11 +181,16 @@ function createWindow() {
 
   tryLoad();
 
+  let initialLoadFinished = false;
+  mainWindow.webContents.once('did-finish-load', () => {
+    initialLoadFinished = true;
+  });
+
   mainWindow.webContents.on('did-fail-load', () => {
-    if (loadAttempts < maxAttempts) {
+    if (!initialLoadFinished && loadAttempts < maxAttempts) {
       loadAttempts++;
       setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow && !mainWindow.isDestroyed() && !initialLoadFinished) {
           tryLoad();
         }
       }, 150);
@@ -192,7 +198,7 @@ function createWindow() {
   });
 
   mainWindow.on('close', (event) => {
-    if (app.isQuitting) {
+    if (isAppQuitting || app.isQuitting) {
       return;
     }
     // Always intercept close and hide to system tray so downloads continue in background
@@ -242,23 +248,27 @@ function createTray() {
       {
         label: 'Pause All Downloads',
         click: () => {
-          http.request({
+          const req = http.request({
             hostname: '127.0.0.1',
             port: 19684,
             path: '/api/downloads/pause-all',
             method: 'POST'
-          }).end();
+          });
+          req.on('error', () => {});
+          req.end();
         }
       },
       {
         label: 'Resume All Downloads',
         click: () => {
-          http.request({
+          const req = http.request({
             hostname: '127.0.0.1',
             port: 19684,
             path: '/api/downloads/resume-all',
             method: 'POST'
-          }).end();
+          });
+          req.on('error', () => {});
+          req.end();
         }
       },
       { type: 'separator' },
@@ -370,15 +380,15 @@ ipcMain.handle('shell:open-path', async (event, filePath) => {
   if (!filePath || typeof filePath !== 'string') return 'Invalid file path';
   try {
     const ext = path.extname(filePath).toLowerCase();
-    const dangerousExts = ['.bat', '.cmd', '.vbs', '.ps1', '.reg'];
+    const dangerousExts = ['.bat', '.cmd', '.vbs', '.ps1', '.reg', '.exe', '.msi', '.scr', '.com', '.pif', '.wsf', '.jse'];
     if (dangerousExts.includes(ext) && mainWindow) {
       const response = await dialog.showMessageBox(mainWindow, {
         type: 'warning',
-        buttons: ['Cancel', 'Run Script'],
+        buttons: ['Cancel', 'Open File'],
         defaultId: 0,
         cancelId: 0,
         title: 'Security Notice',
-        message: `The file "${path.basename(filePath)}" contains executable script code. Are you sure you want to run it?`
+        message: `The file "${path.basename(filePath)}" is an executable file or script. Are you sure you want to run it?`
       });
       if (response.response !== 1) {
         return 'Execution cancelled by user';
@@ -391,8 +401,13 @@ ipcMain.handle('shell:open-path', async (event, filePath) => {
 });
 
 ipcMain.handle('shell:show-item-in-folder', async (event, filePath) => {
-  shell.showItemInFolder(filePath);
-  return true;
+  if (!filePath || typeof filePath !== 'string') return false;
+  try {
+    shell.showItemInFolder(filePath);
+    return true;
+  } catch (e) {
+    return false;
+  }
 });
 
 ipcMain.handle('shell:open-external', async (event, url) => {
@@ -478,7 +493,12 @@ function startClipboardMonitor() {
     lastClipboardText = clipboard.readText().trim();
   } catch (e) {}
 
-  setInterval(() => {
+  if (clipboardInterval) {
+    clearInterval(clipboardInterval);
+    clipboardInterval = null;
+  }
+
+  clipboardInterval = setInterval(() => {
     if (!clipboardMonitoringEnabled || !mainWindow || mainWindow.isDestroyed()) return;
     try {
       const text = clipboard.readText().trim();
@@ -498,6 +518,12 @@ function startClipboardMonitor() {
 
 ipcMain.handle('clipboard:set-monitoring', (event, enabled) => {
   clipboardMonitoringEnabled = Boolean(enabled);
+  if (!clipboardMonitoringEnabled && clipboardInterval) {
+    clearInterval(clipboardInterval);
+    clipboardInterval = null;
+  } else if (clipboardMonitoringEnabled && !clipboardInterval) {
+    startClipboardMonitor();
+  }
   return clipboardMonitoringEnabled;
 });
 
@@ -521,10 +547,15 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  isAppQuitting = true;
   app.isQuitting = true;
 });
 
 app.on('will-quit', () => {
+  if (clipboardInterval) {
+    clearInterval(clipboardInterval);
+    clipboardInterval = null;
+  }
   if (tray) {
     try { tray.destroy(); } catch (e) {}
     tray = null;
@@ -532,7 +563,7 @@ app.on('will-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (app.isQuitting) {
+  if (isAppQuitting || app.isQuitting) {
     app.quit();
   }
   // In XDM Turbo, closing all windows keeps the background download engine and tray active!

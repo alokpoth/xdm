@@ -127,7 +127,7 @@ function verifyAdminSession(token) {
   }
 }
 
-function requireAdminAuth(req, res, next) {
+async function requireAdminAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Unauthorized: Admin authentication token required' });
@@ -140,12 +140,29 @@ function requireAdminAuth(req, res, next) {
     return res.status(401).json({ success: false, error: 'Session expired or invalid. Please log in again.' });
   }
 
-  req.admin = session;
-  next();
+  try {
+    await db.ready();
+    const adminRecord = await db.getAdminById(session.adminId);
+    if (!adminRecord) {
+      return res.status(401).json({ success: false, error: 'Admin account not found or removed.' });
+    }
+    if (adminRecord.status === 'banned') {
+      return res.status(403).json({ success: false, error: 'Your admin account has been suspended by the Owner.' });
+    }
+    req.admin = {
+      ...session,
+      role: adminRecord.role,
+      status: adminRecord.status || 'active'
+    };
+    next();
+  } catch (err) {
+    req.admin = session;
+    next();
+  }
 }
 
-function requireOwnerAuth(req, res, next) {
-  requireAdminAuth(req, res, () => {
+async function requireOwnerAuth(req, res, next) {
+  await requireAdminAuth(req, res, () => {
     if (req.admin.role !== 'owner' && req.admin.role !== 'superadmin') {
       return res.status(403).json({ success: false, error: 'Access denied: Master Owner authority required' });
     }

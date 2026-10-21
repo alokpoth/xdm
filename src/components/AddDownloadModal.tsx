@@ -114,8 +114,18 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
         if (e.key === 'Escape') onClose();
       };
       window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+      };
     } else {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       setUrl('');
       setFileName('');
       setSelectedFormat('best');
