@@ -24,8 +24,8 @@ interface DownloadDetailsModalProps {
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onRestart: (id: string) => void;
-  onOpenFile: (id: string) => void;
-  onOpenFolder: (id: string) => void;
+  onOpenFile: (id: string, filePath?: string) => void;
+  onOpenFolder: (id: string, filePath?: string) => void;
 }
 
 export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
@@ -159,7 +159,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
               </button>
             ) : (
               <button
-                onClick={() => onOpenFile(item.id)}
+                onClick={() => onOpenFile(item.id, item.filePath)}
                 className="btn-emerald-glow px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 cursor-pointer focus:outline-none select-none transition-all active:scale-95"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -168,7 +168,7 @@ export const DownloadDetailsModal: React.FC<DownloadDetailsModalProps> = ({
             )}
 
             <button
-              onClick={() => onOpenFolder(item.id)}
+              onClick={() => onOpenFolder(item.id, item.filePath)}
               className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none select-none active:scale-95 shadow-sm"
               title="Open Folder"
             >

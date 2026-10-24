@@ -304,7 +304,7 @@ app.get('/api/check-update', (req, res) => {
               latestVersion: latestTag || currentVersion,
               releaseName: latest.name || `Version ${latestTag}`,
               releaseNotes: latest.description || '',
-              downloadUrl: 'https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.0.11.exe?inline=false',
+              downloadUrl: `https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.${latestTag || currentVersion}.exe?inline=false`,
               publishedAt: latest.released_at || latest.created_at
             });
           }

@@ -404,6 +404,7 @@ class DownloadManager {
       }
       this.saveState();
       this.broadcastTelemetry();
+      this.processQueue();
     });
   }
 
@@ -471,12 +472,34 @@ class DownloadManager {
       connections: chosenConnections,
       isPro,
       isVideoStream: true,
-      formatId: chosenFormat
+      formatId: chosenFormat,
+      onProgress: (t) => {
+        this.broadcastTelemetry();
+        if (t && (t.status === 'completed' || t.status === 'error')) {
+          this.processQueue();
+        }
+      }
     });
 
     this.tasks.set(task.id, task);
     this.saveState();
-    this.startVideoDownloadStream(task);
+
+    const autoStart = options.autoStart ?? this.settings.autoStart ?? true;
+    let running = 0;
+    for (const t of this.tasks.values()) {
+      if (t.status === 'downloading') running++;
+    }
+    const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
+
+    if (autoStart && running < maxLimit) {
+      this.startVideoDownloadStream(task);
+    } else {
+      task.status = 'queued';
+      if (running >= maxLimit) {
+        task.log(`Task placed in queue (concurrency limit: ${maxLimit})`);
+      }
+    }
+    this.saveState();
     return task.toJSON();
   }
 
@@ -526,14 +549,31 @@ class DownloadManager {
       speedLimit: isPro ? (this.settings.speedLimit || 0) * 1024 : 0,
       category: options.category || 'others',
       formatId: options.formatId || 'best',
-      onProgress: () => this.broadcastTelemetry()
+      onProgress: (t) => {
+        this.broadcastTelemetry();
+        if (t && (t.status === 'completed' || t.status === 'error')) {
+          this.processQueue();
+        }
+      }
     });
 
     this.tasks.set(task.id, task);
     this.saveState();
 
-    if (options.autoStart ?? this.settings.autoStart) {
+    const autoStart = options.autoStart ?? this.settings.autoStart ?? true;
+    let running = 0;
+    for (const t of this.tasks.values()) {
+      if (t.status === 'downloading') running++;
+    }
+    const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
+
+    if (autoStart && running < maxLimit) {
       await task.start();
+    } else {
+      task.status = 'queued';
+      if (running >= maxLimit) {
+        task.log(`Task placed in queue (concurrency limit: ${maxLimit})`);
+      }
     }
 
     this.saveState();
@@ -695,9 +735,9 @@ class DownloadManager {
       throw new Error('File not found on disk');
     }
 
-    // Windows native open without vulnerable cmd.exe shell interpretation
+    // Windows native open with default registered application
     if (process.platform === 'win32') {
-      spawn('explorer.exe', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
+      spawn('cmd.exe', ['/c', 'start', '""', task.filePath], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     } else if (process.platform === 'darwin') {
       spawn('open', [task.filePath], { detached: true, stdio: 'ignore' }).unref();
     } else {

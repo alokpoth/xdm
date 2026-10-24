@@ -115,6 +115,7 @@ export const App: React.FC = () => {
   const [copiedBanDeviceId, setCopiedBanDeviceId] = useState(false);
 
   const prevCompletedCountRef = useRef<number>(0);
+  const hasInitializedRef = useRef<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
   const settingsRef = useRef<Settings>(settings);
   const licenseRef = useRef<LicenseInfo | null>(license);
@@ -175,6 +176,7 @@ export const App: React.FC = () => {
             if (msg.payload.stats) setStats(msg.payload.stats);
             if (msg.payload.license) setLicense(msg.payload.license);
             prevCompletedCountRef.current = initialDownloads.filter((d: any) => d.status === 'completed').length;
+            hasInitializedRef.current = true;
           } else if (msg.type === 'TELEMETRY') {
             const newDownloads: DownloadItem[] = msg.payload.downloads || [];
             setDownloads(newDownloads);
@@ -203,7 +205,7 @@ export const App: React.FC = () => {
             // Check if any download just finished
             const completedDownloads = newDownloads.filter(d => d.status === 'completed');
             const completedCount = completedDownloads.length;
-            if (completedCount > prevCompletedCountRef.current && prevCompletedCountRef.current > 0) {
+            if (hasInitializedRef.current && completedCount > prevCompletedCountRef.current) {
               if (settingsRef.current.soundNotification) playCompletionSound();
 
               // Windows Native Toast Notification (PRO ONLY)!
@@ -447,11 +449,19 @@ export const App: React.FC = () => {
     await fetch(`/api/downloads/${id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
   }, []);
 
-  const handleOpenFile = useCallback(async (id: string) => {
+  const handleOpenFile = useCallback(async (id: string, filePath?: string) => {
+    if (filePath && typeof window !== 'undefined' && (window as any).electronAPI?.openPath) {
+      await (window as any).electronAPI.openPath(filePath);
+      return;
+    }
     await fetch(`/api/downloads/${id}/open`, { method: 'POST' });
   }, []);
 
-  const handleOpenFolder = useCallback(async (id: string) => {
+  const handleOpenFolder = useCallback(async (id: string, filePath?: string) => {
+    if (filePath && typeof window !== 'undefined' && (window as any).electronAPI?.showItemInFolder) {
+      await (window as any).electronAPI.showItemInFolder(filePath);
+      return;
+    }
     await fetch(`/api/downloads/${id}/open-folder`, { method: 'POST' });
   }, []);
 

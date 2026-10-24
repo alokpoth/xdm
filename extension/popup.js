@@ -50,7 +50,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           }, 1500);
         } else {
           downloadBtn.disabled = false;
-          downloadBtn.innerHTML = '<span>Failed to send</span>';
+          const msg = (res && res.error) ? res.error : 'Failed to send';
+          downloadBtn.innerHTML = `<span>${msg}</span>`;
+          setTimeout(() => {
+            downloadBtn.innerHTML = '<span>Download with XDM Turbo</span>';
+          }, 3000);
         }
       });
     });

@@ -420,7 +420,8 @@
                 `;
               }, 2500);
             } else {
-              showToast(`Please ensure XDM Turbo is running on your PC`);
+              const errMsg = (res && res.error) ? res.error : 'Please ensure XDM Turbo is running on your PC';
+              showToast(errMsg);
               btn.innerHTML = `
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

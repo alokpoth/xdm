@@ -27,8 +27,8 @@ interface DownloadRowProps {
   onResume: (id: string) => void;
   onRestart: (id: string) => void;
   onDelete: (id: string, deleteFile: boolean) => void;
-  onOpenFile: (id: string) => void;
-  onOpenFolder: (id: string) => void;
+  onOpenFile: (id: string, filePath?: string) => void;
+  onOpenFolder: (id: string, filePath?: string) => void;
   onInspect: (item: DownloadItem) => void;
 }
 
@@ -251,7 +251,7 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenFile(item.id);
+                onOpenFile(item.id, item.filePath);
               }}
               className="h-8 flex items-center space-x-1 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
               title="Open Finished File"
@@ -265,7 +265,7 @@ export const DownloadRow: React.FC<DownloadRowProps> = React.memo(({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenFolder(item.id);
+              onOpenFolder(item.id, item.filePath);
             }}
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 hover:text-white transition-all shrink-0 active:scale-90 cursor-pointer focus:outline-none select-none"
             title="Show in Folder"

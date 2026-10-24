@@ -137,7 +137,7 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
       setProbeResult(null);
       setProbeError(null);
     }
-  }, [isOpen, defaultSaveDir, defaultConnections, onClose, initialUrl]);
+  }, [isOpen, defaultSaveDir, defaultConnections, onClose, initialUrl, isPro]);
 
   const triggerProbe = async (targetUrl: string) => {
     if (!targetUrl || (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://'))) return;
