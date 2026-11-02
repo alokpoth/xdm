@@ -387,6 +387,14 @@ app.get('/api/extension/status', (req, res) => {
   });
 });
 
+app.get('/api/extension/path', (req, res) => {
+  const extPath = path.resolve(__dirname, '../extension');
+  res.json({
+    path: extPath,
+    extensionDir: extPath
+  });
+});
+
 app.post('/api/extension/auto-install', async (req, res) => {
   const result = await browserInstaller.registerInRegistry();
   res.json(result);

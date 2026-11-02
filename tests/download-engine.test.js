@@ -278,3 +278,30 @@ test('DownloadManager Free Tier: Extension downloads strictly require verified P
   assert.equal(mgr.isProVerified(), false, 'Default installation must not be PRO');
   mgr.destroy();
 });
+
+test('DownloadManager Queue Concurrency: resumeDownload and resumeAll strictly respect maxConcurrentDownloads', () => {
+  const DownloadManager = require('../server/engine/DownloadManager');
+  const tempDir = path.join(os.tmpdir(), `xdm_test_queue_${Date.now()}`);
+  const mgr = new DownloadManager({ storageDir: tempDir });
+
+  // Add 3 mock tasks in paused state
+  const task1 = new DownloadTask({ id: 'task_1', url: 'http://127.0.0.1/1.bin', status: 'downloading' });
+  const task2 = new DownloadTask({ id: 'task_2', url: 'http://127.0.0.1/2.bin', status: 'paused' });
+  const task3 = new DownloadTask({ id: 'task_3', url: 'http://127.0.0.1/3.bin', status: 'paused' });
+
+  mgr.tasks.set(task1.id, task1);
+  mgr.tasks.set(task2.id, task2);
+  mgr.tasks.set(task3.id, task3);
+
+  // Free edition has maxLimit = 1. task1 is already downloading.
+  // Resuming task2 must place it in 'queued' state, not start downloading
+  mgr.resumeDownload('task_2');
+  assert.equal(task2.status, 'queued', 'task_2 must be queued when active downloads >= maxLimit');
+
+  // Resuming all when task1 is running should set paused tasks to queued
+  mgr.resumeAll();
+  assert.equal(task2.status, 'queued');
+  assert.equal(task3.status, 'queued');
+
+  mgr.destroy();
+});

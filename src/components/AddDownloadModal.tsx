@@ -225,8 +225,9 @@ export const AddDownloadModal: React.FC<AddDownloadModalProps> = ({
         formatId: selectedFormat
       });
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setProbeError(err?.message || 'Failed to start download');
     } finally {
       setSubmitting(false);
     }

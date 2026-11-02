@@ -608,12 +608,26 @@ class DownloadManager {
     if (this.isBanned()) return false;
     const task = this.tasks.get(id);
     if (task) {
-      if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
-        this.startVideoDownloadStream(task);
-        return true;
+      if (task.status === 'downloading' || task.status === 'completed') return true;
+      let running = 0;
+      for (const t of this.tasks.values()) {
+        if (t.status === 'downloading') running++;
       }
-      task.resume();
+      const isPro = this.isProVerified();
+      const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
+
+      if (running < maxLimit) {
+        if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+          this.startVideoDownloadStream(task);
+        } else {
+          task.resume();
+        }
+      } else {
+        task.status = 'queued';
+        task.log(`Task placed in queue (concurrency limit: ${maxLimit})`);
+      }
       this.saveState();
+      this.broadcastTelemetry();
       return true;
     }
     return false;
@@ -626,18 +640,50 @@ class DownloadManager {
         try { task.childProcess.kill(); } catch (e) {}
         task.childProcess = null;
       }
+      task.progress = 0;
+      task.downloadedBytes = 0;
+      task.speed = 0;
+      task.eta = 0;
+      task.error = null;
+      task.errorMessage = null;
+
+      let running = 0;
+      for (const t of this.tasks.values()) {
+        if (t.id !== id && t.status === 'downloading') running++;
+      }
+      const isPro = this.isProVerified();
+      const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
+
       if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
-        task.progress = 0;
-        task.downloadedBytes = 0;
-        task.speed = 0;
-        task.eta = 0;
-        task.error = null;
         task.log('Video download restarted');
-        this.startVideoDownloadStream(task);
+        if (running < maxLimit) {
+          this.startVideoDownloadStream(task);
+        } else {
+          task.status = 'queued';
+          task.log(`Task placed in queue (concurrency limit: ${maxLimit})`);
+        }
+        this.saveState();
+        this.broadcastTelemetry();
         return true;
       }
-      task.restart();
+
+      if (running < maxLimit) {
+        task.restart();
+      } else {
+        task.isPaused = false;
+        task.isCancelled = false;
+        task.status = 'queued';
+        task.cleanup();
+        task.lastReportedProgress = 0;
+        task.segments = [];
+        try {
+          if (fs.existsSync(task.filePath)) fs.unlinkSync(task.filePath);
+          if (fs.existsSync(task.metaPath)) fs.unlinkSync(task.metaPath);
+        } catch (e) {}
+        task.log(`Download reset and placed in queue (concurrency limit: ${maxLimit})`);
+      }
       this.saveState();
+      this.broadcastTelemetry();
       return true;
     }
     return false;
@@ -675,15 +721,12 @@ class DownloadManager {
   resumeAll() {
     if (this.isBanned()) return;
     for (const task of this.tasks.values()) {
-      if (task.status === 'paused' || task.status === 'queued') {
-        if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
-          this.startVideoDownloadStream(task);
-        } else {
-          task.resume();
-        }
+      if (task.status === 'paused') {
+        task.status = 'queued';
       }
     }
     this.saveState();
+    this.processQueue();
   }
 
   clearFinished() {

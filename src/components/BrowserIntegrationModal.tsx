@@ -48,10 +48,11 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
 
   const handleCopyPath = async () => {
     try {
-      const res = await fetch('/api/extension/path');
+      const res = await fetch('/api/extension/status');
       const data = await res.json();
-      if (data.path) {
-        navigator.clipboard?.writeText(data.path);
+      const targetPath = data.path || data.extensionDir;
+      if (targetPath) {
+        navigator.clipboard?.writeText(targetPath);
         setCopiedPath(true);
         setTimeout(() => setCopiedPath(false), 2500);
       }
