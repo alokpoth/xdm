@@ -309,25 +309,48 @@ const SidebarComponent: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Brand & Author Info */}
-      <div className="shrink-0 mt-3 px-1 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-        <span>XDM Turbo v1.0.11</span>
+      {/* Brand & Alokpoth Ecosystem Footer */}
+      <div className="shrink-0 mt-3 pt-2.5 border-t border-white/[0.06] px-1 flex flex-col space-y-1.5 text-[10px] text-slate-500">
+        <div className="flex items-center justify-between font-mono">
+          <span>XDM Turbo v1.1.0</span>
+          <a
+            href="https://xdm.zihan.xyz"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                (window as any).electronAPI.openExternal('https://xdm.zihan.xyz');
+              } else {
+                window.open('https://xdm.zihan.xyz', '_blank');
+              }
+            }}
+            className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center space-x-1"
+          >
+            <span>xdm.zihan.xyz</span>
+            <ExternalLink className="w-2.5 h-2.5" />
+          </a>
+        </div>
         <a
-          href="https://xdm.zihan.xyz"
+          href="https://alokpoth.zihan.xyz"
           target="_blank"
           rel="noreferrer"
           onClick={(e) => {
             e.preventDefault();
             if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
-              (window as any).electronAPI.openExternal('https://xdm.zihan.xyz');
+              (window as any).electronAPI.openExternal('https://alokpoth.zihan.xyz');
             } else {
-              window.open('https://xdm.zihan.xyz', '_blank');
+              window.open('https://alokpoth.zihan.xyz', '_blank');
             }
           }}
-          className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer flex items-center space-x-1"
+          className="flex items-center justify-center space-x-1.5 py-1 px-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.05] text-slate-400 hover:text-white transition-all cursor-pointer"
+          title="Alokpoth • আলোকপথ Ecosystem"
         >
-          <span>xdm.zihan.xyz</span>
-          <ExternalLink className="w-2.5 h-2.5" />
+          <span className="text-[9px] uppercase tracking-wider opacity-70">from</span>
+          <img src="/alokpoth-icon-dark.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-dark" />
+          <img src="/alokpoth-icon-light.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-light" />
+          <span className="font-bold tracking-tight text-slate-300 theme-text-primary">Alokpoth</span>
+          <span className="text-[9px] opacity-65">• আলোকপথ</span>
         </a>
       </div>
     </aside>

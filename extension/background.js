@@ -193,8 +193,8 @@ if (chrome.downloads && chrome.downloads.onCreated) {
       if (res.ok) {
         // Cancel browser's slow single-thread download only after XDM successfully accepts the job
         try {
-          chrome.downloads.cancel(downloadItem.id);
-          chrome.downloads.erase({ id: downloadItem.id });
+          Promise.resolve(chrome.downloads.cancel(downloadItem.id)).catch(() => {});
+          Promise.resolve(chrome.downloads.erase({ id: downloadItem.id })).catch(() => {});
         } catch (e) {}
         notify('XDM Turbo', 'Captured download: ' + (downloadItem.filename || downloadItem.url));
       }
@@ -315,16 +315,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       }
 
-      // Direct stream URLs (.mp4, cdninstagram, fbcdn, bytestart) go directly to Turbo 32-connection engine
-      // YouTube page URLs go to VideoDownloader (yt-dlp) to resolve formats and merge streams
-      const isDirectStream = targetUrl.includes('.mp4') || 
-                             targetUrl.includes('cdninstagram.com') || 
-                             targetUrl.includes('fbcdn.net') || 
-                             targetUrl.includes('bytestart=') || 
-                             targetUrl.includes('mime=video');
+      // Direct stream URLs (.mp4, cdninstagram, fbcdn, bytestart) go directly to Turbo 64-connection engine
+      // Video page URLs go to VideoDownloader (yt-dlp) to resolve formats and merge streams
+      const isYouTube = /youtube\.com\/|youtu\.be\//i.test(targetUrl);
+      const isDirectStream = !isYouTube && (
+        targetUrl.includes('.mp4') || 
+        targetUrl.includes('cdninstagram.com') || 
+        targetUrl.includes('fbcdn.net') || 
+        targetUrl.includes('googlevideo.com') ||
+        targetUrl.includes('bytestart=') || 
+        targetUrl.includes('mime=video')
+      );
 
-      const isYouTube = /youtube\.com|youtu\.be/i.test(targetUrl);
-      const endpoint = (isYouTube && !isDirectStream) ? `${XDM_BASE}/api/video/download` : `${XDM_BASE}/api/downloads`;
+      const endpoint = isYouTube && !isDirectStream ? `${XDM_BASE}/api/video/download` : `${XDM_BASE}/api/downloads`;
 
       const cleanTitle = (payload.title || 'Video_Download').replace(/[<>:"/\\|?*]+/g, '_').trim();
       const fileName = isDirectStream ? `${cleanTitle}.mp4` : undefined;

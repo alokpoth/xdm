@@ -72,7 +72,7 @@ wss.on('connection', (ws) => {
 
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.0.11' });
+  res.json({ status: 'ok', name: 'XDM Turbo Engine', version: '1.1.0', publisher: 'Alokpoth' });
 });
 
 app.get('/api/default-dir', (req, res) => {
@@ -116,7 +116,7 @@ app.post('/api/video/info', async (req, res) => {
 
 app.post('/api/video/download', async (req, res) => {
   try {
-    const { url, formatId, title, saveDir, connections } = req.body;
+    const { url, formatId, title, saveDir, connections, autoStart } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const isFromExtension = req.headers['x-xdm-source'] === 'extension' || 
@@ -132,15 +132,16 @@ app.post('/api/video/download', async (req, res) => {
       });
     }
 
+    const isYouTubePage = /youtube\.com\/|youtu\.be\//i.test(url);
     // If url is a direct media stream (e.g. from Instagram CDN, Facebook CDN, or raw MP4), route to Turbo engine
-    if (url.includes('.mp4') || url.includes('cdninstagram.com') || url.includes('fbcdn.net') || url.includes('mime=video') || url.includes('bytestart=')) {
+    if (!isYouTubePage && (url.includes('.mp4') || url.includes('cdninstagram.com') || url.includes('fbcdn.net') || url.includes('mime=video') || url.includes('bytestart='))) {
       const cleanTitle = (title || 'Video_Download').replace(/[<>:"/\\|?*]+/g, '_').trim();
       const task = await manager.addDownload({
         url,
         fileName: `${cleanTitle}.mp4`,
         connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4),
         saveDir,
-        autoStart: true
+        autoStart: autoStart !== undefined ? autoStart : true
       });
       return res.json(task);
     }
@@ -150,7 +151,8 @@ app.post('/api/video/download', async (req, res) => {
       formatId, 
       title, 
       saveDir, 
-      connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4) 
+      connections: parseInt(connections, 10) || (manager.isProVerified() ? 64 : 4),
+      autoStart: autoStart !== undefined ? autoStart : true
     });
     res.json(task);
   } catch (err) {
@@ -277,13 +279,13 @@ function compareSemver(v1, v2) {
 }
 
 app.get('/api/check-update', (req, res) => {
-  const currentVersion = '1.0.11';
+  const currentVersion = '1.1.0';
   const https = require('https');
   
   // Probe official GitLab API for latest release tags
   const glReq = https.get('https://gitlab.com/api/v4/projects/zihanfakir%2Fxdm/releases', {
     headers: {
-      'User-Agent': 'XDM-Turbo-Client/1.0.11',
+      'User-Agent': 'XDM-Turbo-Client/1.1.0',
       'Accept': 'application/json'
     },
     timeout: 7000
@@ -295,16 +297,20 @@ app.get('/api/check-update', (req, res) => {
         if (glRes.statusCode === 200) {
           const releases = JSON.parse(raw);
           if (Array.isArray(releases) && releases.length > 0) {
-            const latest = releases[0];
+            const sorted = [...releases].sort((a, b) =>
+              compareSemver((b.tag_name || '').replace(/^v/i, ''), (a.tag_name || '').replace(/^v/i, ''))
+            );
+            const latest = sorted[0];
             const latestTag = (latest.tag_name || '').replace(/^v/i, '');
             const isNewer = compareSemver(latestTag, currentVersion) > 0;
+            const setupLink = latest.assets?.links?.find((l) => /setup.*\.exe/i.test(l.url || l.direct_asset_url || ''));
             return res.json({
               updateAvailable: isNewer,
               currentVersion,
               latestVersion: latestTag || currentVersion,
               releaseName: latest.name || `Version ${latestTag}`,
               releaseNotes: latest.description || '',
-              downloadUrl: `https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.${latestTag || currentVersion}.exe?inline=false`,
+              downloadUrl: (setupLink && (setupLink.direct_asset_url || setupLink.url)) || `https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.${latestTag || currentVersion}.exe?inline=false`,
               publishedAt: latest.released_at || latest.created_at
             });
           }
@@ -377,18 +383,18 @@ app.post('/api/license/sync', async (req, res) => {
 const browserInstaller = require('./utils/browserInstaller');
 
 app.get('/api/extension/status', (req, res) => {
-  const extPath = path.resolve(__dirname, '../extension');
+  const extPath = browserInstaller.extensionDir;
   res.json({
     installed: true,
     extensionId: 'oglkcogpmnehcnhnaehelcikpijjblgc',
-    version: '1.0.11',
+    version: '1.1.0',
     path: extPath,
     extensionDir: extPath
   });
 });
 
 app.get('/api/extension/path', (req, res) => {
-  const extPath = path.resolve(__dirname, '../extension');
+  const extPath = browserInstaller.extensionDir;
   res.json({
     path: extPath,
     extensionDir: extPath

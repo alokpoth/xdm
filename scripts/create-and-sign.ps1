@@ -1,6 +1,9 @@
 # Ensure Certificate for Zihan Fakir
-$certSubject = "CN=Zihan Fakir, O=Zihan Fakir, OU=zihan.xyz, C=BD"
-$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "CN=Zihan Fakir" } | Select-Object -First 1
+$certSubject = "CN=Zihan Fakir, O=Zihan Fakir, OU=zihan.uk, C=BD"
+$cert = Get-Item "Cert:\CurrentUser\My\0E178C57ACDCC365A317CED4AAE07E9B577D38DA" -ErrorAction SilentlyContinue
+if (-not $cert) {
+    $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "CN=Zihan Fakir" -and $_.Subject -match "zihan.uk" } | Select-Object -First 1
+}
 
 if (-not $cert) {
     Write-Host "Creating trusted Code Signing Certificate for Zihan Fakir (zihan.uk)..."
@@ -16,17 +19,18 @@ if (-not $cert) {
     Write-Host "Found existing Code Signing Certificate: $($cert.Thumbprint) ($($cert.Subject))"
 }
 
+# Read current version from package.json dynamically
+$pkg = Get-Content -Raw -Path (Join-Path $PSScriptRoot "..\package.json") | ConvertFrom-Json
+$ver = $pkg.version
+
 # Files to sign
 $filesToSign = @(
     "release\win-unpacked\XDM Turbo.exe",
-    "release\win-unpacked\resources\server\bin\ffmpeg.exe",
     "release\win-unpacked\resources\elevate.exe",
-    "release\XDM Turbo Setup 1.0.11.exe",
-    "release\XDM Turbo 1.0.11.exe",
-    "D:\BILLS\XDM Turbo\XDM Turbo.exe",
-    "D:\BILLS\XDM Turbo\Uninstall XDM Turbo.exe",
-    "D:\BILLS\XDM Turbo\resources\elevate.exe",
-    "D:\BILLS\XDM Turbo\resources\server\bin\ffmpeg.exe"
+    "release\XDM Turbo Setup $ver.exe",
+    "release\XDM Turbo $ver.exe",
+    "release\XDM.Turbo.Setup.$ver.exe",
+    "release\XDM.Turbo.$ver.exe"
 )
 
 $timestampServer = "http://timestamp.digicert.com"
@@ -46,6 +50,6 @@ foreach ($file in $filesToSign) {
 }
 
 Write-Host "`nAuthenticode Signature check for installer:"
-if (Test-Path "release\XDM Turbo Setup 1.0.11.exe") {
-    Get-AuthenticodeSignature "release\XDM Turbo Setup 1.0.11.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
+if (Test-Path "release\XDM Turbo Setup $ver.exe") {
+    Get-AuthenticodeSignature "release\XDM Turbo Setup $ver.exe" | Format-List Path, Status, StatusMessage, SignerCertificate
 }

@@ -1,8 +1,8 @@
 {
   "name": "xdm",
-  "version": "1.0.11",
-  "description": "XDM Turbo - Minimal, Modern, Multi-threaded Internet Download Manager with 64-stream parallel acceleration & browser video grabber",
-  "author": "Zihan Fakir (https://xdm.zihan.xyz)",
+  "version": "1.1.0",
+  "description": "XDM Turbo by Alokpoth - Minimal, Modern, Multi-threaded Internet Download Manager with 64-stream parallel acceleration & 4K video grabber",
+  "author": "Zihan Fakir — Alokpoth (https://xdm.zihan.xyz)",
   "homepage": "https://xdm.zihan.xyz",
   "repository": {
     "type": "git",
@@ -21,7 +21,7 @@
     "test": "node --test --test-concurrency=1 tests/download-engine.test.js tests/license-system.test.js",
     "test:control-center": "node scripts/test-control-center.js",
     "test:all": "node scripts/test-control-center.js all",
-    "dist:win": "vite build && node scripts/build-bytecode.js && electron-builder --win && powershell -ExecutionPolicy Bypass -File scripts/create-and-sign.ps1 && node scripts/restore-source.js"
+    "dist:win": "node scripts/dist-win.js"
   },
   "build": {
     "appId": "com.xdm.turbomanager",
@@ -59,6 +59,13 @@
       }
     ],
     "win": {
+      "signtoolOptions": {
+        "certificateSha1": "0E178C57ACDCC365A317CED4AAE07E9B577D38DA",
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "sign": "scripts/sign.js"
+      },
       "target": [
         {
           "target": "nsis",

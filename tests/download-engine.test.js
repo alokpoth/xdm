@@ -305,3 +305,86 @@ test('DownloadManager Queue Concurrency: resumeDownload and resumeAll strictly r
 
   mgr.destroy();
 });
+
+test('DownloadTask Probe: HEAD 405 falls back to GET Range 0-0 with Content-Disposition & rejects 404', async () => {
+  const server = http.createServer((req, res) => {
+    if (req.url === '/blocked-head') {
+      if (req.method === 'HEAD') {
+        res.writeHead(405, { 'Content-Type': 'text/plain' });
+        return res.end('Method Not Allowed');
+      }
+      if (req.headers.range === 'bytes=0-0') {
+        res.writeHead(206, {
+          'Content-Range': 'bytes 0-0/2097152',
+          'Content-Disposition': 'attachment; filename="alokpoth-bundle.zip"',
+          'Content-Type': 'application/zip'
+        });
+        return res.end('A');
+      }
+      res.writeHead(200, { 'Content-Length': '2097152' });
+      return res.end();
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  });
+
+  const port = await new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+  });
+
+  const tempDir = path.join(os.tmpdir(), `xdm_test_probe_${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  const task1 = new DownloadTask({
+    url: `http://127.0.0.1:${port}/blocked-head`,
+    saveDir: tempDir
+  });
+  const info = await task1.probeUrl();
+  assert.equal(info.fileName, 'alokpoth-bundle.zip');
+  assert.equal(info.totalBytes, 2097152);
+  assert.equal(info.resumable, true);
+  assert.equal(info.category, 'compressed');
+
+  const task404 = new DownloadTask({
+    url: `http://127.0.0.1:${port}/missing-file`,
+    saveDir: tempDir
+  });
+  await assert.rejects(() => task404.probeUrl(), /HTTP 404/);
+
+  try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
+  await new Promise((resolve) => server.close(resolve));
+});
+
+test('DownloadManager Concurrency & Video Queue: probing counts toward active cap and autoStart false stays queued', async () => {
+  const DownloadManager = require('../server/engine/DownloadManager');
+  const tempDir = path.join(os.tmpdir(), `xdm_test_probing_${Date.now()}`);
+  const mgr = new DownloadManager({ storageDir: tempDir });
+
+  // Active task currently probing must count against Free tier maxConcurrentDownloads=1
+  const probingTask = new DownloadTask({ id: 'task_probing', url: 'http://127.0.0.1/p.bin', status: 'probing' });
+  const pausedTask = new DownloadTask({ id: 'task_paused', url: 'http://127.0.0.1/q.bin', status: 'paused' });
+  mgr.tasks.set(probingTask.id, probingTask);
+  mgr.tasks.set(pausedTask.id, pausedTask);
+
+  mgr.resumeDownload('task_paused');
+  assert.equal(pausedTask.status, 'queued', 'Paused task must wait in queue while another task is probing');
+
+  // pauseAll must pause queued and probing tasks as well
+  mgr.pauseAll();
+  assert.equal(probingTask.status, 'paused');
+  assert.equal(pausedTask.status, 'paused');
+
+  // Video download with autoStart: false must stay queued cleanly
+  const vidTask = await mgr.addVideoDownload({
+    url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+    title: 'Queued Sample Video',
+    formatId: 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+    saveDir: tempDir,
+    autoStart: false
+  });
+  assert.equal(vidTask.status, 'queued');
+
+  mgr.destroy();
+  try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
+});

@@ -169,7 +169,7 @@
           <span>Download Video</span>
         </div>
         <div class="xdm-panel-menu">
-          <div class="xdm-menu-header">XDM Turbo Video Grabber</div>
+          <div class="xdm-menu-header">XDM Turbo • from Alokpoth</div>
           <button class="xdm-opt-btn" data-quality="best">
             <span class="xdm-opt-label">
               <svg class="xdm-opt-icon xdm-icon-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -401,7 +401,7 @@
               autoStart: true
             }
           }, (res) => {
-            if (res && res.success) {
+            if (!chrome.runtime.lastError && res && res.success) {
               btn.innerHTML = `
                 <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none">
                   <polyline points="20 6 9 17 4 12"></polyline>

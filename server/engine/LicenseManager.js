@@ -24,7 +24,7 @@ class LicenseManager {
     this._cachedDeviceId = null;
     this.deviceId = options.deviceId || this.computeDeviceId();
     this.deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`;
-    this.clientVersion = '1.0.11';
+    this.clientVersion = '1.1.0';
     this.downloadManager = options.downloadManager || null;
 
     // Commercial License State: Default is Free Edition. PRO features unlock only with a valid paid license key

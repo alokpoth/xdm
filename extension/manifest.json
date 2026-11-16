@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "XDM Turbo - Download Manager Integration",
-  "version": "1.0.11",
-  "author": "Zihan Fakir (https://xdm.zihan.xyz)",
+  "version": "1.1.0",
+  "author": "Zihan Fakir — Alokpoth (https://xdm.zihan.xyz)",
   "homepage_url": "https://xdm.zihan.xyz",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3YAEqXuBf8YgKW2L+Wd7J3eeluqwjUXZVRqZQKimeE2aXEiauSVC/GDhczyZQV1lw6GVjkJb0KKn7xOvUcnSHfoZ8Wau7GdThkLfp/2L4LbP3DksKEwKqZ6OmQJrUrrTWjypU1y2xVtydd9d75nHngt7bs9TwPkgIWUEQrc4OkDA1cnewS2syTrlExYSZ+rqHGFyt14FYuUFA5cHroOQr83xTXLEQjSeTDau1OSmEW5D1cu03p2GYWSv275VUY190acOGWiJZWvBuvXBm0ZmUIdZRWuR9iCm0cdvkMb8XHSnY8JI6PsZIbcdLKvF9s6aSmd4fuAmfLEbPvvtVK6kWQIDAQAB",
   "description": "IDM-style video grabber for YouTube, Facebook, and all sites, with Turbo multi-thread download interception.",

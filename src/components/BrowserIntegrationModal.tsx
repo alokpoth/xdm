@@ -15,12 +15,13 @@ export const BrowserIntegrationModal: React.FC<BrowserIntegrationModalProps> = (
   const [copiedPath, setCopiedPath] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

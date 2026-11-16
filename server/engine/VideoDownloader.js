@@ -10,8 +10,10 @@ class VideoDownloader {
   }
 
   getNodePath() {
-    if (this._cachedNode && fs.existsSync(this._cachedNode)) {
-      return this._cachedNode;
+    if (this._cachedNode !== undefined) {
+      if (this._cachedNode === null || fs.existsSync(this._cachedNode)) {
+        return this._cachedNode;
+      }
     }
     const candidates = [
       'C:\\Program Files\\nodejs\\node.exe',
@@ -20,12 +22,25 @@ class VideoDownloader {
       path.join(process.env.LOCALAPPDATA || '', 'Programs/node/node.exe')
     ];
     for (const c of candidates) {
-      if (fs.existsSync(c)) {
+      if (c && fs.existsSync(c)) {
         this._cachedNode = c;
         return c;
       }
     }
-    return 'node';
+    try {
+      const cmd = process.platform === 'win32' ? 'where.exe node' : 'which node';
+      const resolved = require('child_process').execSync(cmd, {
+        timeout: 2000,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).toString().split(/\r?\n/)[0]?.trim();
+      if (resolved && fs.existsSync(resolved)) {
+        this._cachedNode = resolved;
+        return resolved;
+      }
+    } catch (e) {}
+    this._cachedNode = null;
+    return null;
   }
 
   getFfmpegPath() {
@@ -98,9 +113,7 @@ class VideoDownloader {
         ...execInfo.baseArgs,
         '--dump-json',
         '--no-playlist',
-        '--no-warnings',
-        '--geo-bypass',
-        '--extractor-args', 'youtube:player_client=android,web,tv'
+        '--no-warnings'
       ];
 
       if (nodePath) {
@@ -116,8 +129,20 @@ class VideoDownloader {
       const child = spawn(execInfo.cmd, args, { windowsHide: true });
       let stdout = '';
       let stderr = '';
+      let settled = false;
+
+      const timeoutTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try { child.kill(); } catch (e) {}
+        reject(new Error('Video info request timed out after 45 seconds'));
+      }, 45000);
+      if (timeoutTimer.unref) timeoutTimer.unref();
 
       child.on('error', (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutTimer);
         reject(new Error('Video engine runtime failed to spawn: ' + err.message));
       });
 
@@ -125,6 +150,9 @@ class VideoDownloader {
       child.stderr.on('data', (d) => { stderr += d.toString(); });
 
       child.on('close', (code) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutTimer);
         if (code !== 0) {
           return reject(new Error(stderr.trim() || `yt-dlp exited with code ${code}`));
         }
@@ -229,6 +257,10 @@ class VideoDownloader {
     cleanTitle = cleanTitle.replace(/[.\s]+$/, '');
     const safeTitle = (cleanTitle || 'video').substring(0, 120);
 
+    if (saveDir && !fs.existsSync(saveDir)) {
+      try { fs.mkdirSync(saveDir, { recursive: true }); } catch (e) {}
+    }
+
     const outTemplate = path.join(saveDir, `${safeTitle}.%(ext)s`);
     const ffmpegPath = this.getFfmpegPath();
     const fragments = String(Math.min(Math.max(options.connections || 64, 1), 64));
@@ -239,8 +271,6 @@ class VideoDownloader {
       ...execInfo.baseArgs,
       '--newline',
       '--no-playlist',
-      '--geo-bypass',
-      '--extractor-args', 'youtube:player_client=android,web,tv',
       '--concurrent-fragments', fragments, // User selected or up to 64 parallel threads for turbo video segment download!
       '--progress-template', 'DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes_estimate)s',
       '-o', outTemplate

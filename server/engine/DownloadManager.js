@@ -38,6 +38,16 @@ class DownloadManager {
 
     this.licenseManager = options.licenseManager || new LicenseManager({ storageDir: this.storageDir, downloadManager: this });
     this.licenseManager.onStatusChange = (status) => {
+      const isPro = this.isProVerified();
+      for (const task of this.tasks.values()) {
+        task.isPro = isPro;
+        if (!isPro) {
+          task.connections = Math.min(task.connections || 4, 4);
+          if (typeof task.setSpeedLimit === 'function') {
+            task.setSpeedLimit(0);
+          }
+        }
+      }
       this.broadcast({
         type: 'LICENSE_UPDATE',
         payload: status
@@ -138,6 +148,26 @@ class DownloadManager {
     }
   }
 
+  countActiveDownloads(excludeId = null) {
+    let running = 0;
+    for (const t of this.tasks.values()) {
+      if (excludeId && t.id === excludeId) continue;
+      if (t.status === 'downloading' || t.status === 'probing') running++;
+    }
+    return running;
+  }
+
+  createTaskProgressHandler() {
+    return (t) => {
+      const isTerminal = Boolean(t && (t.status === 'completed' || t.status === 'error'));
+      this.broadcastTelemetry(isTerminal);
+      if (isTerminal) {
+        this.saveState();
+        this.processQueue();
+      }
+    };
+  }
+
   loadState() {
     try {
       if (fs.existsSync(this.storageFile)) {
@@ -153,10 +183,10 @@ class DownloadManager {
           const task = new DownloadTask({
             ...item,
             isPro,
-            speedLimit: (this.settings.speedLimit || 0) * 1024,
+            speedLimit: isPro ? (this.settings.speedLimit || 0) * 1024 : 0,
             isVideoStream: isVid,
             formatId: item.formatId || 'best',
-            onProgress: () => this.broadcastTelemetry()
+            onProgress: this.createTaskProgressHandler()
           });
           this.tasks.set(task.id, task);
         }
@@ -357,9 +387,11 @@ class DownloadManager {
       if (task.status !== 'paused' && task.status !== 'cancelled') {
         task.status = 'error';
         task.error = `Video download process error: ${err.message}`;
+        task.errorMessage = task.error;
         task.log(`Video download process error: ${err.message}`, 'error');
         this.saveState();
-        this.broadcastTelemetry();
+        this.broadcastTelemetry(true);
+        this.processQueue();
       }
     });
 
@@ -372,9 +404,10 @@ class DownloadManager {
         task.eta = 0;
         task.completedAt = Date.now();
         task.error = null;
+        task.errorMessage = null;
         try {
           const files = fs.readdirSync(task.saveDir);
-          const matchedFiles = files.filter(f => f.startsWith(safeTitlePrefix) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
+          const matchedFiles = files.filter(f => f.startsWith(safeTitlePrefix) && !f.endsWith('.part') && !f.endsWith('.ytdl') && !f.endsWith('.tmp'));
           matchedFiles.sort((a, b) => {
             try {
               return fs.statSync(path.join(task.saveDir, b)).mtimeMs - fs.statSync(path.join(task.saveDir, a)).mtimeMs;
@@ -399,11 +432,12 @@ class DownloadManager {
         if (task.status !== 'paused' && task.status !== 'cancelled') {
           task.status = 'error';
           task.error = `Video download process exited with code ${code}`;
+          task.errorMessage = task.error;
           task.log(`Video download process exited with code ${code}`, 'error');
         }
       }
       this.saveState();
-      this.broadcastTelemetry();
+      this.broadcastTelemetry(true);
       this.processQueue();
     });
   }
@@ -446,7 +480,7 @@ class DownloadManager {
       fs.mkdirSync(saveDir, { recursive: true });
     }
 
-    const taskId = 'xdm_vid_' + Date.now();
+    const taskId = 'xdm_vid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     let chosenConnections = options.connections || this.settings.defaultConnections || 64;
     let chosenFormat = options.formatId || 'best';
     const isPro = this.isProVerified();
@@ -473,22 +507,14 @@ class DownloadManager {
       isPro,
       isVideoStream: true,
       formatId: chosenFormat,
-      onProgress: (t) => {
-        this.broadcastTelemetry();
-        if (t && (t.status === 'completed' || t.status === 'error')) {
-          this.processQueue();
-        }
-      }
+      onProgress: this.createTaskProgressHandler()
     });
 
     this.tasks.set(task.id, task);
     this.saveState();
 
     const autoStart = options.autoStart ?? this.settings.autoStart ?? true;
-    let running = 0;
-    for (const t of this.tasks.values()) {
-      if (t.status === 'downloading') running++;
-    }
+    const running = this.countActiveDownloads(task.id);
     const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
 
     if (autoStart && running < maxLimit) {
@@ -519,7 +545,8 @@ class DownloadManager {
           title: options.fileName || info.title,
           connections: options.connections || this.settings.defaultConnections || 64,
           saveDir: options.saveDir,
-          category: options.category
+          category: options.category,
+          autoStart: options.autoStart
         });
       } catch (e) {
         // Fall back to direct download task if video info fails
@@ -549,25 +576,18 @@ class DownloadManager {
       speedLimit: isPro ? (this.settings.speedLimit || 0) * 1024 : 0,
       category: options.category || 'others',
       formatId: options.formatId || 'best',
-      onProgress: (t) => {
-        this.broadcastTelemetry();
-        if (t && (t.status === 'completed' || t.status === 'error')) {
-          this.processQueue();
-        }
-      }
+      onProgress: this.createTaskProgressHandler()
     });
 
     this.tasks.set(task.id, task);
     this.saveState();
 
     const autoStart = options.autoStart ?? this.settings.autoStart ?? true;
-    let running = 0;
-    for (const t of this.tasks.values()) {
-      if (t.status === 'downloading') running++;
-    }
+    const running = this.countActiveDownloads(task.id);
     const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
 
     if (autoStart && running < maxLimit) {
+      task.status = 'probing';
       await task.start();
     } else {
       task.status = 'queued';
@@ -608,11 +628,8 @@ class DownloadManager {
     if (this.isBanned()) return false;
     const task = this.tasks.get(id);
     if (task) {
-      if (task.status === 'downloading' || task.status === 'completed') return true;
-      let running = 0;
-      for (const t of this.tasks.values()) {
-        if (t.status === 'downloading') running++;
-      }
+      if (task.status === 'downloading' || task.status === 'probing' || task.status === 'completed') return true;
+      const running = this.countActiveDownloads(id);
       const isPro = this.isProVerified();
       const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
 
@@ -647,10 +664,7 @@ class DownloadManager {
       task.error = null;
       task.errorMessage = null;
 
-      let running = 0;
-      for (const t of this.tasks.values()) {
-        if (t.id !== id && t.status === 'downloading') running++;
-      }
+      const running = this.countActiveDownloads(id);
       const isPro = this.isProVerified();
       const maxLimit = isPro ? (this.settings.maxConcurrentDownloads || 3) : 1;
 
@@ -711,11 +725,18 @@ class DownloadManager {
         try { task.childProcess.kill(); } catch (e) {}
         task.childProcess = null;
       }
-      if (task.status === 'downloading') {
-        task.pause();
+      if (task.status === 'downloading' || task.status === 'probing' || task.status === 'queued') {
+        if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
+          task.status = 'paused';
+          task.speed = 0;
+          task.eta = 0;
+        } else {
+          task.pause();
+        }
       }
     }
     this.saveState();
+    this.broadcastTelemetry(true);
   }
 
   resumeAll() {
@@ -747,10 +768,7 @@ class DownloadManager {
       }
       return;
     }
-    let running = 0;
-    for (const task of this.tasks.values()) {
-      if (task.status === 'downloading') running++;
-    }
+    let running = this.countActiveDownloads();
 
     // Free edition is strictly capped at 1 active download at a time! (PRO allows up to 10)
     const maxLimit = this.isProVerified() 
@@ -763,6 +781,7 @@ class DownloadManager {
           if (task.isVideoStream || (task.id && task.id.startsWith('xdm_vid_'))) {
             this.startVideoDownloadStream(task);
           } else {
+            task.status = 'probing';
             task.start();
           }
           running++;

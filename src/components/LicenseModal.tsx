@@ -546,7 +546,27 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
             <span className="text-slate-600 font-mono text-xs">|</span>
-            <span className="text-xs text-slate-400 theme-text-secondary font-mono">v1.0.11</span>
+            <span className="text-xs text-slate-400 theme-text-secondary font-mono">v1.1.0</span>
+            <span className="text-slate-600 font-mono text-xs hidden sm:inline">|</span>
+            <a
+              href="https://alokpoth.zihan.xyz"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                  (window as any).electronAPI.openExternal('https://alokpoth.zihan.xyz');
+                } else {
+                  window.open('https://alokpoth.zihan.xyz', '_blank');
+                }
+              }}
+              className="hidden sm:inline-flex items-center space-x-1.5 text-[11px] text-slate-400 hover:text-white theme-text-secondary cursor-pointer transition-colors"
+            >
+              <span className="opacity-70">from</span>
+              <img src="/alokpoth-icon-dark.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-dark" />
+              <img src="/alokpoth-icon-light.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-light" />
+              <span className="font-bold tracking-tight">Alokpoth</span>
+            </a>
           </div>
           <button
             type="button"

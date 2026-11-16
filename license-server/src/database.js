@@ -618,7 +618,7 @@ class LicenseDatabase {
           options.userId || null,
           options.deviceName || 'Desktop PC',
           options.osPlatform || 'Windows',
-          options.clientVersion || '1.0.11',
+          options.clientVersion || '1.1.0',
           options.ipAddress || null,
           now,
           now

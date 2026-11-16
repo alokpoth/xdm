@@ -8,9 +8,14 @@ if (-not $cert) {
 }
 Write-Host "Using Certificate: $($cert.Subject) ($($cert.Thumbprint))"
 
+$pkg = Get-Content -Raw -Path (Join-Path $PSScriptRoot "..\package.json") | ConvertFrom-Json
+$ver = $pkg.version
+
 $files = @(
-    "release\XDM Turbo Setup 1.0.11.exe",
-    "release\XDM Turbo 1.0.11.exe",
+    "release\XDM Turbo Setup $ver.exe",
+    "release\XDM Turbo $ver.exe",
+    "release\XDM.Turbo.Setup.$ver.exe",
+    "release\XDM.Turbo.$ver.exe",
     "release\win-unpacked\XDM Turbo.exe"
 )
 

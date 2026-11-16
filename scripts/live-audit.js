@@ -106,7 +106,7 @@ async function runFullAudit() {
         deviceId: testDeviceId1,
         deviceName: 'Audit Device 1',
         osPlatform: 'win32',
-        clientVersion: '1.0.11'
+        clientVersion: '1.1.0'
       })
     });
     const act1Data = await act1Res.json();
@@ -122,7 +122,7 @@ async function runFullAudit() {
         deviceId: testDeviceId2,
         deviceName: 'Audit Device 2',
         osPlatform: 'win32',
-        clientVersion: '1.0.11'
+        clientVersion: '1.1.0'
       })
     });
     const act2Data = await act2Res.json();

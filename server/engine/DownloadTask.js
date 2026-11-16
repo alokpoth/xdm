@@ -123,6 +123,100 @@ class DownloadTask {
     return formatXdmFileName(name);
   }
 
+  resolveProbeMetadata(res, parsed) {
+    let guessedName = '';
+    const disposition = res.headers['content-disposition'];
+    if (disposition) {
+      const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      if (utf8Match && utf8Match[1]) {
+        try {
+          guessedName = decodeURIComponent(utf8Match[1].trim());
+        } catch (e) {
+          guessedName = utf8Match[1].trim();
+        }
+      } else {
+        const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
+        if (match && match[1]) {
+          guessedName = match[1].trim();
+        }
+      }
+    }
+
+    if (!guessedName) {
+      const pathname = parsed.pathname || '';
+      const basename = path.basename(pathname);
+      if (basename && basename !== '/') {
+        try {
+          guessedName = decodeURIComponent(basename);
+        } catch (e) {
+          guessedName = basename;
+        }
+      } else {
+        guessedName = 'download_' + Date.now();
+      }
+    }
+
+    let baseSanitized = this.sanitizeFileName(this.fileName || guessedName);
+    let ext = path.extname(baseSanitized);
+
+    let totalBytes = 0;
+    let resumable = false;
+    if (res.statusCode === 206) {
+      resumable = true;
+      const contentRange = res.headers['content-range'];
+      if (contentRange) {
+        const match = contentRange.match(/\/(\d+)/);
+        if (match) totalBytes = parseInt(match[1], 10);
+      }
+    } else {
+      const len = res.headers['content-length'];
+      if (len) totalBytes = parseInt(len, 10);
+      resumable = res.headers['accept-ranges'] === 'bytes';
+    }
+
+    this.totalBytes = totalBytes;
+    this.resumable = resumable;
+    this.contentType = res.headers['content-type'] || 'application/octet-stream';
+
+    // Auto-append appropriate media extension if missing from URL
+    if (!ext || ext === '.') {
+      if (this.contentType.includes('video/mp4') || this.url.includes('.mp4') || this.url.includes('cdninstagram') || this.url.includes('fbcdn')) {
+        baseSanitized += '.mp4';
+        ext = '.mp4';
+      } else if (this.contentType.includes('video/webm') || this.url.includes('.webm')) {
+        baseSanitized += '.webm';
+        ext = '.webm';
+      } else if (this.contentType.includes('audio/mp3') || this.contentType.includes('audio/mpeg')) {
+        baseSanitized += '.mp3';
+        ext = '.mp3';
+      }
+    }
+
+    this.fileName = path.basename(baseSanitized);
+    this.category = this.detectCategory(ext);
+
+    const resolvedSaveDir = path.resolve(this.saveDir);
+    const targetPath = path.resolve(resolvedSaveDir, this.fileName);
+    if (!targetPath.startsWith(resolvedSaveDir)) {
+      this.fileName = `safe_${Date.now()}_${path.extname(this.fileName)}`;
+      this.filePath = path.join(resolvedSaveDir, this.fileName);
+    } else {
+      this.filePath = targetPath;
+    }
+    this.metaPath = this.filePath + '.xdm.meta';
+
+    this.log(`File: ${this.fileName} | Size: ${(this.totalBytes / (1024*1024)).toFixed(2)} MB | Resumable: ${this.resumable}`);
+
+    return {
+      url: this.url,
+      fileName: this.fileName,
+      totalBytes: this.totalBytes,
+      resumable: this.resumable,
+      category: this.category,
+      contentType: this.contentType
+    };
+  }
+
   async probeUrl() {
     this.status = 'probing';
     this.log(`Probing URL: ${this.url}`);
@@ -154,6 +248,7 @@ class DownloadTask {
           }, (res) => {
             // Handle redirects
             if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+              try { res.destroy(); } catch (e) {}
               if (redirects++ > maxRedirects) {
                 return reject(new Error('Too many redirects'));
               }
@@ -163,81 +258,20 @@ class DownloadTask {
               return doProbe(redirectUrl);
             }
 
-            // Extract file name
-            let guessedName = '';
-            const disposition = res.headers['content-disposition'];
-            if (disposition) {
-              const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-              if (utf8Match && utf8Match[1]) {
-                guessedName = decodeURIComponent(utf8Match[1]);
-              } else {
-                const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
-                if (match && match[1]) {
-                  guessedName = match[1];
-                }
-              }
+            // Many CDNs reject HEAD requests with 403, 405, or 501; fall back to GET range 0-0
+            if (res.statusCode >= 400) {
+              try { res.destroy(); } catch (e) {}
+              this.log(`HEAD probe returned HTTP ${res.statusCode}. Falling back to GET range probe...`, 'warn');
+              return this.probeWithGet(targetUrl).then(resolve).catch(reject);
             }
 
-            if (!guessedName) {
-              const pathname = parsed.pathname;
-              const basename = path.basename(pathname);
-              guessedName = basename && basename !== '/' ? decodeURIComponent(basename) : 'download_' + Date.now();
-            }
-
-            let baseSanitized = this.sanitizeFileName(this.fileName || guessedName);
-            let ext = path.extname(baseSanitized);
-
-            // Extract length and range support
-            const len = res.headers['content-length'];
-            this.totalBytes = len ? parseInt(len, 10) : 0;
-            this.contentType = res.headers['content-type'] || 'application/octet-stream';
-
-            // Auto-append appropriate media extension if missing from URL
-            if (!ext || ext === '.') {
-              if (this.contentType.includes('video/mp4') || this.url.includes('.mp4') || this.url.includes('cdninstagram') || this.url.includes('fbcdn')) {
-                baseSanitized += '.mp4';
-                ext = '.mp4';
-              } else if (this.contentType.includes('video/webm') || this.url.includes('.webm')) {
-                baseSanitized += '.webm';
-                ext = '.webm';
-              } else if (this.contentType.includes('audio/mp3') || this.contentType.includes('audio/mpeg')) {
-                baseSanitized += '.mp3';
-                ext = '.mp3';
-              }
-            }
-
-            this.fileName = path.basename(baseSanitized);
-            this.category = this.detectCategory(ext);
-            
-            const acceptRanges = res.headers['accept-ranges'];
-            this.resumable = acceptRanges === 'bytes';
-
-            this.log(`File: ${this.fileName} | Size: ${(this.totalBytes / (1024*1024)).toFixed(2)} MB | Resumable: ${this.resumable}`);
-            
-            const resolvedSaveDir = path.resolve(this.saveDir);
-            const targetPath = path.resolve(resolvedSaveDir, this.fileName);
-            if (!targetPath.startsWith(resolvedSaveDir)) {
-              this.fileName = `safe_${Date.now()}_${path.extname(this.fileName)}`;
-              this.filePath = path.join(resolvedSaveDir, this.fileName);
-            } else {
-              this.filePath = targetPath;
-            }
-            this.metaPath = this.filePath + '.xdm.meta';
-
+            const metadata = this.resolveProbeMetadata(res, parsed);
             try { res.destroy(); } catch (e) {}
-
-            resolve({
-              url: this.url,
-              fileName: this.fileName,
-              totalBytes: this.totalBytes,
-              resumable: this.resumable,
-              category: this.category,
-              contentType: this.contentType
-            });
+            resolve(metadata);
           });
 
           req.on('error', (err) => {
-            // Some servers reject HEAD requests with 403 or 405. Fall back to GET range 0-0
+            // Some servers reject HEAD requests at transport level. Fall back to GET range 0-0
             this.log(`HEAD probe failed (${err.message}). Trying GET probe...`, 'warn');
             this.probeWithGet(targetUrl).then(resolve).catch(reject);
           });
@@ -294,46 +328,14 @@ class DownloadTask {
               return doProbeGet(redirectUrl);
             }
 
-            let totalBytes = 0;
-            let resumable = false;
-
-            if (res.statusCode === 206) {
-              resumable = true;
-              const contentRange = res.headers['content-range'];
-              if (contentRange) {
-                const match = contentRange.match(/\/(\d+)/);
-                if (match) totalBytes = parseInt(match[1], 10);
-              }
-            } else {
-              const len = res.headers['content-length'];
-              if (len) totalBytes = parseInt(len, 10);
+            if (res.statusCode >= 400) {
+              try { res.destroy(); } catch (e) {}
+              return reject(new Error(`Server returned HTTP ${res.statusCode}`));
             }
 
-            let guessedName = path.basename(parsed.pathname) || 'download_' + Date.now();
-            this.fileName = path.basename(this.sanitizeFileName(this.fileName || guessedName));
-            this.totalBytes = totalBytes;
-            this.resumable = resumable;
-
-            const resolvedSaveDir = path.resolve(this.saveDir);
-            const targetPath = path.resolve(resolvedSaveDir, this.fileName);
-            if (!targetPath.startsWith(resolvedSaveDir)) {
-              this.fileName = `safe_${Date.now()}_${path.extname(this.fileName)}`;
-              this.filePath = path.join(resolvedSaveDir, this.fileName);
-            } else {
-              this.filePath = targetPath;
-            }
-            this.metaPath = this.filePath + '.xdm.meta';
-            this.category = this.detectCategory(path.extname(this.fileName));
-
+            const metadata = this.resolveProbeMetadata(res, parsed);
             try { res.destroy(); } catch (e) {}
-            resolve({
-              url: this.url,
-              fileName: this.fileName,
-              totalBytes: this.totalBytes,
-              resumable: this.resumable,
-              category: this.category,
-              contentType: res.headers['content-type'] || 'application/octet-stream'
-            });
+            resolve(metadata);
           });
 
           req.on('timeout', () => {
@@ -446,7 +448,7 @@ class DownloadTask {
   }
 
   async start() {
-    if (this.status === 'downloading') return;
+    if (this.status === 'downloading' || this.status === 'probing') return;
     this.isPaused = false;
     this.isCancelled = false;
     this.error = null;
@@ -456,6 +458,8 @@ class DownloadTask {
       if (!this.fileName || !this.totalBytes) {
         await this.probeUrl();
       }
+
+      if (this.isPaused || this.isCancelled) return;
 
       // Ensure directory exists
       if (!fs.existsSync(this.saveDir)) {
@@ -507,10 +511,15 @@ class DownloadTask {
       });
 
     } catch (err) {
+      if (this.isPaused || this.isCancelled) return;
       this.status = 'error';
       this.error = err.message;
+      this.errorMessage = err.message;
       this.log(`Start error: ${err.message}`, 'error');
       this.cleanup();
+      if (this.onProgressCallback) {
+        this.onProgressCallback(this);
+      }
     }
   }
 
@@ -545,6 +554,18 @@ class DownloadTask {
       headers,
       timeout: 30000
     }, (res) => {
+      // Follow 3xx redirects on segment stream (e.g. rotated pre-signed CDN links)
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        try { res.destroy(); } catch (e) {}
+        this.activeStreams.delete(seg.id);
+        seg._redirects = (seg._redirects || 0) + 1;
+        if (seg._redirects <= 5) {
+          this.url = new URL(res.headers.location, parsed).toString();
+          this.downloadSegment(seg);
+          return;
+        }
+      }
+
       // Check if server returned 200 OK
       if (res.statusCode === 200) {
         if (seg.id > 0) {
@@ -584,6 +605,7 @@ class DownloadTask {
           }
         }
       } else if (res.statusCode !== 206) {
+        try { res.destroy(); } catch (e) {}
         if (res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 408 && res.statusCode !== 429) {
           seg.status = 'error';
           this.log(`Segment #${seg.id} fatal HTTP client error: ${res.statusCode}`, 'error');
@@ -928,7 +950,7 @@ class DownloadTask {
   }
 
   pause() {
-    if (this.status !== 'downloading') return;
+    if (this.status !== 'downloading' && this.status !== 'probing' && this.status !== 'queued') return;
     this.isPaused = true;
     this.status = 'paused';
     this.speed = 0;

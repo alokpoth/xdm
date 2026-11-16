@@ -56,7 +56,13 @@ export const Titlebar: React.FC<TitlebarProps> = React.memo(({ activeConnections
             TURBO
           </span>
           <span className="hidden md:inline-flex text-[9px] text-slate-500 theme-text-secondary font-mono font-medium ml-1">
-            v1.0.11
+            v1.1.0
+          </span>
+          <span className="hidden lg:inline-flex items-center space-x-1 text-[9px] text-slate-400 theme-text-secondary font-medium ml-1 pl-1.5 border-l border-white/[0.12]">
+            <span className="opacity-70">from</span>
+            <img src="/alokpoth-icon-dark.png" alt="Alokpoth" className="w-2.5 h-2.5 object-contain alokpoth-logo-dark" />
+            <img src="/alokpoth-icon-light.png" alt="Alokpoth" className="w-2.5 h-2.5 object-contain alokpoth-logo-light" />
+            <span className="font-bold tracking-tight text-slate-300 theme-text-primary">Alokpoth</span>
           </span>
         </div>
       </div>

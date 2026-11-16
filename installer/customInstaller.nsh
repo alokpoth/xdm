@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# XDM Turbo v1.0.11 — Premium Dark Obsidian Modern UI Theme
+# XDM Turbo v1.1.0 — Premium Dark Obsidian Modern UI Theme (from Alokpoth)
 # Developed by Zihan Fakir (https://xdm.zihan.xyz)
 # Obsidian: #070B13, Surface: #161920, Emerald: #10B981, Pure White: #FFFFFF
 # -----------------------------------------------------------------------------
@@ -74,29 +74,6 @@ Function customWelcomeShow
   ${EndIf}
 FunctionEnd
 
-Function customDirectoryShow
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  ${If} $0 != 0
-    SetCtlColors $0 0xF1F5F9 0x070B13
-    GetDlgItem $1 $0 1006
-    ${If} $1 != 0
-      SetCtlColors $1 0xF1F5F9 0x070B13
-    ${EndIf}
-    GetDlgItem $1 $0 1019
-    ${If} $1 != 0
-      SetCtlColors $1 0xF1F5F9 0x161920
-    ${EndIf}
-    GetDlgItem $1 $0 1023
-    ${If} $1 != 0
-      SetCtlColors $1 0x94A3B8 0x070B13
-    ${EndIf}
-    GetDlgItem $1 $0 1024
-    ${If} $1 != 0
-      SetCtlColors $1 0x94A3B8 0x070B13
-    ${EndIf}
-  ${EndIf}
-FunctionEnd
-
 Function customInstFilesShow
   FindWindow $0 "#32770" "" $HWNDPARENT
   ${If} $0 != 0
@@ -140,11 +117,6 @@ FunctionEnd
   !define MUI_WELCOMEPAGE_TEXT "Get ready for the fastest, most powerful download experience on Windows.$\r$\n$\r$\n- Turbo Multi-Stream Speed Acceleration (64 Parallel Streams)$\r$\n- 4K & High-Definition Video Downloader$\r$\n- 1-Click Browser Integration for Chrome, Edge & Brave$\r$\n- 100% Secure, Clean & Ad-Free$\r$\n$\r$\nClick Next to start the quick installation."
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW customWelcomeShow
   !insertmacro MUI_PAGE_WELCOME
-!macroend
-
-!macro customDirectoryPage
-  !define MUI_PAGE_CUSTOMFUNCTION_SHOW customDirectoryShow
-  !insertmacro MUI_PAGE_DIRECTORY
 !macroend
 
 !macro customPageAfterChangeDir
@@ -198,7 +170,7 @@ FunctionEnd
 
 !macro customHeader
   ShowInstDetails nevershow
-  BrandingText "XDM Turbo Download Manager"
+  BrandingText "XDM Turbo v1.1.0 - from Alokpoth"
 !macroend
 
 !macro customInstall

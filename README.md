@@ -1,14 +1,15 @@
 # XDM Turbo - Next-Gen Internet Download Manager
 
-[![Version](https://img.shields.io/badge/version-1.0.11-emerald.svg)](https://github.com/zihanfakir/xdm/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-emerald.svg)](https://gitlab.com/zihanfakir/xdm/-/releases)
 [![Website](https://img.shields.io/badge/website-xdm.zihan.xyz-blue.svg)](https://xdm.zihan.xyz)
+[![Alokpoth](https://img.shields.io/badge/from-Alokpoth-0f172a.svg)](https://alokpoth.zihan.xyz)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://github.com/zihanfakir/xdm/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://gitlab.com/zihanfakir/xdm/-/releases)
 
-> **High-Performance Internet Download Manager with Minimalist Dark UI & 64-Stream Bandwidth Saturation Turbo Engine**
+> **High-Performance Internet Download Manager with Minimalist Dark UI & 64-Stream Bandwidth Saturation Turbo Engine — from [Alokpoth (আলোকপথ)](https://alokpoth.zihan.xyz)**
 > 
 > - **Official Website & Downloads:** [https://xdm.zihan.xyz](https://xdm.zihan.xyz)  
-> - **Author:** [Zihan Fakir](https://xdm.zihan.xyz) (@zihanfakir)  
+> - **Publisher:** [Alokpoth](https://alokpoth.zihan.xyz) • **Author:** [Zihan Fakir](https://zihan.uk) (@zihanfakir)  
 > - **PRO Activation Support:** WhatsApp: `@zihanfakir` | Telegram: `@zihanfakir`
 
 XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging up to 64 concurrent HTTP Range connections, dynamic segment subdivision (work-stealing), direct pre-allocated disk writes, and universal browser 4K media interception.

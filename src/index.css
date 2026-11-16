@@ -425,3 +425,14 @@ html.light-theme header button.hover\:bg-white\/\[0\.08\]:hover {
 html.light-theme .bg-black\/20 {
   background-color: rgba(0, 0, 0, 0.08) !important;
 }
+
+/* Alokpoth Dual-Theme Brand Mark */
+.alokpoth-logo-light {
+  display: none;
+}
+html.light-theme .alokpoth-logo-dark {
+  display: none;
+}
+html.light-theme .alokpoth-logo-light {
+  display: inline-block;
+}

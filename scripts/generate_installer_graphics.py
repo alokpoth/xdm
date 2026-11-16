@@ -99,12 +99,12 @@ def create_sidebar_bmp(filename, is_uninstall=False):
     # Bottom branding badge
     draw.line([(20, height - 52), (width - 20, height - 52)], fill=(30, 48, 68))
     
-    author_text = "Official Release • 2026"
+    author_text = "from Alokpoth • 2026"
     bbox = draw.textbbox((0, 0), author_text, font=font_credit)
     tw = bbox[2] - bbox[0]
     draw.text(((width - tw) // 2, height - 42), author_text, fill=(226, 232, 240), font=font_credit)
 
-    site_text = "xdm.zihan.xyz • v1.0.11"
+    site_text = "xdm.zihan.xyz • v1.1.0"
     bbox = draw.textbbox((0, 0), site_text, font=font_credit)
     tw = bbox[2] - bbox[0]
     draw.text(((width - tw) // 2, height - 26), site_text, fill=(16, 185, 129), font=font_credit)
@@ -139,7 +139,7 @@ def create_header_bmp(filename):
     font_link = get_font("segoe", 7, is_bold=False)
 
     draw.text((10, 10), "XDM TURBO", fill=(255, 255, 255), font=font_h)
-    draw.text((10, 26), "v1.0.11 • 64X TURBO", fill=(16, 185, 129), font=font_sub)
+    draw.text((10, 26), "v1.1.0 • ALOKPOTH", fill=(16, 185, 129), font=font_sub)
     draw.text((10, 40), "xdm.zihan.xyz", fill=(100, 116, 139), font=font_link)
 
     img.save(filename, 'BMP')

@@ -620,8 +620,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 liquid-modal-footer border-t border-white/[0.08] flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2.5">
-            <span className="text-xs text-slate-400 theme-text-secondary">XDM Turbo Preferences</span>
+            <span className="text-xs text-slate-400 theme-text-secondary">XDM Turbo v1.1.0</span>
             <span className="text-slate-600 font-mono text-xs">•</span>
+            <a
+              href="https://alokpoth.zihan.xyz"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof window !== 'undefined' && (window as any).electronAPI?.openExternal) {
+                  (window as any).electronAPI.openExternal('https://alokpoth.zihan.xyz');
+                } else {
+                  window.open('https://alokpoth.zihan.xyz', '_blank');
+                }
+              }}
+              className="hidden sm:inline-flex items-center space-x-1 text-xs text-slate-400 hover:text-white theme-text-secondary cursor-pointer transition-colors"
+            >
+              <span className="opacity-70">from</span>
+              <img src="/alokpoth-icon-dark.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-dark" />
+              <img src="/alokpoth-icon-light.png" alt="Alokpoth" className="w-3 h-3 object-contain alokpoth-logo-light" />
+              <span className="font-bold">Alokpoth</span>
+            </a>
+            <span className="text-slate-600 font-mono text-xs hidden sm:inline">•</span>
             <a
               href="https://xdm.zihan.xyz"
               target="_blank"

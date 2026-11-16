@@ -113,12 +113,23 @@ export const App: React.FC = () => {
   const [checkingOnlineBan, setCheckingOnlineBan] = useState(false);
   const [unbanFeedback, setUnbanFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [copiedBanDeviceId, setCopiedBanDeviceId] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const prevCompletedCountRef = useRef<number>(0);
+  const seenCompletedIdsRef = useRef<Set<string>>(new Set());
   const hasInitializedRef = useRef<boolean>(false);
+  const errorToastTimerRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const settingsRef = useRef<Settings>(settings);
   const licenseRef = useRef<LicenseInfo | null>(license);
+
+  const showActionError = useCallback((message: string) => {
+    setActionError(message);
+    if (errorToastTimerRef.current) clearTimeout(errorToastTimerRef.current);
+    errorToastTimerRef.current = setTimeout(() => {
+      setActionError(null);
+      errorToastTimerRef.current = null;
+    }, 4500);
+  }, []);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -175,7 +186,9 @@ export const App: React.FC = () => {
             if (msg.payload.settings) setSettings(msg.payload.settings);
             if (msg.payload.stats) setStats(msg.payload.stats);
             if (msg.payload.license) setLicense(msg.payload.license);
-            prevCompletedCountRef.current = initialDownloads.filter((d: any) => d.status === 'completed').length;
+            seenCompletedIdsRef.current = new Set(
+              initialDownloads.filter((d: any) => d.status === 'completed').map((d: any) => d.id)
+            );
             hasInitializedRef.current = true;
           } else if (msg.type === 'TELEMETRY') {
             const newDownloads: DownloadItem[] = msg.payload.downloads || [];
@@ -202,10 +215,14 @@ export const App: React.FC = () => {
               });
             }
 
-            // Check if any download just finished
+            // Detect newly completed downloads by unique ID rather than total count
             const completedDownloads = newDownloads.filter(d => d.status === 'completed');
-            const completedCount = completedDownloads.length;
-            if (hasInitializedRef.current && completedCount > prevCompletedCountRef.current) {
+            const newlyCompleted = hasInitializedRef.current
+              ? completedDownloads.filter(d => !seenCompletedIdsRef.current.has(d.id))
+              : [];
+            seenCompletedIdsRef.current = new Set(completedDownloads.map(d => d.id));
+
+            if (newlyCompleted.length > 0) {
               if (settingsRef.current.soundNotification) playCompletionSound();
 
               // Windows Native Toast Notification (PRO ONLY)!
@@ -218,7 +235,7 @@ export const App: React.FC = () => {
                 licenseRef.current?.edition === 'pro'
               );
               if (isUserPro && settingsRef.current.windowsNotifications !== false && typeof window !== 'undefined' && (window as any).electronAPI?.showNotification) {
-                const latestFinished = [...completedDownloads].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))[0];
+                const latestFinished = newlyCompleted[newlyCompleted.length - 1];
                 (window as any).electronAPI.showNotification({
                   title: 'Download Completed',
                   body: latestFinished ? latestFinished.fileName : 'File downloaded successfully',
@@ -226,7 +243,6 @@ export const App: React.FC = () => {
                 });
               }
             }
-            prevCompletedCountRef.current = completedCount;
           } else if (msg.type === 'SETTINGS_UPDATE') {
             if (msg.payload) setSettings(msg.payload);
           } else if (msg.type === 'LICENSE_UPDATE') {
@@ -433,48 +449,87 @@ export const App: React.FC = () => {
     if (!res.ok) throw new Error(data.error || 'Failed to start download');
   }, []);
 
+  const postEngineAction = useCallback(async (url: string, method: 'POST' | 'DELETE' = 'POST', fallbackError = 'Action failed') => {
+    try {
+      const res = await fetch(url, { method });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showActionError(data.error || data.message || fallbackError);
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      showActionError(err?.message || fallbackError);
+      return false;
+    }
+  }, [showActionError]);
+
   const handlePause = useCallback(async (id: string) => {
-    await fetch(`/api/downloads/${id}/pause`, { method: 'POST' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}/pause`, 'POST', 'Failed to pause download');
+  }, [postEngineAction]);
 
   const handleResume = useCallback(async (id: string) => {
-    await fetch(`/api/downloads/${id}/resume`, { method: 'POST' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}/resume`, 'POST', 'Failed to resume download');
+  }, [postEngineAction]);
 
   const handleRestart = useCallback(async (id: string) => {
-    await fetch(`/api/downloads/${id}/restart`, { method: 'POST' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}/restart`, 'POST', 'Failed to restart download');
+  }, [postEngineAction]);
 
   const handleDelete = useCallback(async (id: string, deleteFile = false) => {
-    await fetch(`/api/downloads/${id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}?deleteFile=${deleteFile}`, 'DELETE', 'Failed to delete download');
+  }, [postEngineAction]);
 
   const handleOpenFile = useCallback(async (id: string, filePath?: string) => {
     if (filePath && typeof window !== 'undefined' && (window as any).electronAPI?.openPath) {
       await (window as any).electronAPI.openPath(filePath);
       return;
     }
-    await fetch(`/api/downloads/${id}/open`, { method: 'POST' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}/open`, 'POST', 'File not found on disk');
+  }, [postEngineAction]);
 
   const handleOpenFolder = useCallback(async (id: string, filePath?: string) => {
     if (filePath && typeof window !== 'undefined' && (window as any).electronAPI?.showItemInFolder) {
       await (window as any).electronAPI.showItemInFolder(filePath);
       return;
     }
-    await fetch(`/api/downloads/${id}/open-folder`, { method: 'POST' });
-  }, []);
+    await postEngineAction(`/api/downloads/${id}/open-folder`, 'POST', 'Target folder unavailable');
+  }, [postEngineAction]);
 
   const handlePauseAll = useCallback(async () => {
-    await fetch('/api/downloads/pause-all', { method: 'POST' });
-  }, []);
+    await postEngineAction('/api/downloads/pause-all', 'POST', 'Failed to pause all downloads');
+  }, [postEngineAction]);
 
   const handleResumeAll = useCallback(async () => {
-    await fetch('/api/downloads/resume-all', { method: 'POST' });
-  }, []);
+    await postEngineAction('/api/downloads/resume-all', 'POST', 'Failed to resume all downloads');
+  }, [postEngineAction]);
 
   const handleClearFinished = useCallback(async () => {
-    await fetch('/api/downloads/clear-finished', { method: 'POST' });
+    await postEngineAction('/api/downloads/clear-finished', 'POST', 'Failed to clear finished tasks');
+  }, [postEngineAction]);
+
+  const handleOpenAddModal = useCallback(() => {
+    setPrefilledUrl('');
+    setIsAddModalOpen(true);
+  }, []);
+
+  const handleCloseAddModal = useCallback(() => {
+    setIsAddModalOpen(false);
+    setPrefilledUrl('');
+  }, []);
+
+  const handleOpenSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
+  const handleCloseSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
+  const handleOpenBrowserModal = useCallback(() => setIsBrowserModalOpen(true), []);
+  const handleCloseBrowserModal = useCallback(() => setIsBrowserModalOpen(false), []);
+  const handleOpenLicenseModal = useCallback(() => setIsLicenseModalOpen(true), []);
+  const handleCloseLicenseModal = useCallback(() => setIsLicenseModalOpen(false), []);
+  const handleCloseDetailsModal = useCallback(() => setInspectedItemId(null), []);
+  const handleOpenUpdateModal = useCallback(() => setIsUpdateModalOpen(true), []);
+  const handleCloseUpdateModal = useCallback(() => setIsUpdateModalOpen(false), []);
+  const handleDownloadUpdateUrl = useCallback((url: string) => {
+    setPrefilledUrl(url);
+    setIsAddModalOpen(true);
   }, []);
 
   const handleSaveSettings = useCallback(async (newSettings: Partial<Settings>) => {
@@ -641,20 +696,17 @@ export const App: React.FC = () => {
           downloads={downloads}
           stats={stats}
           license={license}
-          onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+          onOpenLicenseModal={handleOpenLicenseModal}
         />
 
         {/* Center Content Area */}
         <div className="flex-1 flex flex-col min-w-0 app-main-bg bg-[#0f1115] relative overflow-hidden">
           {/* Top Action Bar */}
           <TopNavbar
-            onOpenAddModal={() => {
-              setPrefilledUrl('');
-              setIsAddModalOpen(true);
-            }}
-            onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
-            onOpenBrowserModal={() => setIsBrowserModalOpen(true)}
-            onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+            onOpenAddModal={handleOpenAddModal}
+            onOpenSettingsModal={handleOpenSettingsModal}
+            onOpenBrowserModal={handleOpenBrowserModal}
+            onOpenLicenseModal={handleOpenLicenseModal}
             license={license}
             onPauseAll={handlePauseAll}
             onResumeAll={handleResumeAll}
@@ -664,7 +716,7 @@ export const App: React.FC = () => {
             speedLimit={settings.speedLimit}
             onSpeedLimitChange={handleSpeedLimitChange}
             updateAvailable={Boolean(updateInfo?.updateAvailable)}
-            onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+            onOpenUpdateModal={handleOpenUpdateModal}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
@@ -794,25 +846,36 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* Action Error Toast Banner */}
+      {actionError && (
+        <div className="fixed bottom-6 left-6 z-50 max-w-sm p-3.5 rounded-2xl bg-rose-950/95 border border-rose-500/60 shadow-2xl flex items-center space-x-3 backdrop-blur-xl animate-slideInUp select-none">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span className="text-xs font-medium text-rose-100 flex-1">{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-rose-300 hover:text-white p-1 rounded-md hover:bg-white/[0.08] cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Add Download Modal */}
       <AddDownloadModal
         isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setPrefilledUrl('');
-        }}
+        onClose={handleCloseAddModal}
         onAddDownload={handleAddDownload}
         defaultSaveDir={settings.defaultSaveDir}
         defaultConnections={settings.defaultConnections}
         initialUrl={prefilledUrl}
         isPro={isEffectivePro}
-        onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+        onOpenLicenseModal={handleOpenLicenseModal}
       />
 
       {/* IDM Segment & Speed Inspector Modal */}
       <DownloadDetailsModal
         item={inspectedItem}
-        onClose={() => setInspectedItemId(null)}
+        onClose={handleCloseDetailsModal}
         onPause={handlePause}
         onResume={handleResume}
         onRestart={handleRestart}
@@ -823,24 +886,24 @@ export const App: React.FC = () => {
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={handleCloseSettingsModal}
         settings={settings}
         onSave={handleSaveSettings}
         isPro={isEffectivePro}
         license={license}
-        onOpenLicenseModal={() => setIsLicenseModalOpen(true)}
+        onOpenLicenseModal={handleOpenLicenseModal}
       />
 
       {/* Browser Integration Modal */}
       <BrowserIntegrationModal
         isOpen={isBrowserModalOpen}
-        onClose={() => setIsBrowserModalOpen(false)}
+        onClose={handleCloseBrowserModal}
       />
 
       {/* License & Activation Modal */}
       <LicenseModal
         isOpen={isLicenseModalOpen}
-        onClose={() => setIsLicenseModalOpen(false)}
+        onClose={handleCloseLicenseModal}
         license={license}
         onActivate={handleActivateLicense}
         onDeactivate={handleDeactivateLicense}
@@ -849,12 +912,9 @@ export const App: React.FC = () => {
       {/* In-App Auto-Update Modal */}
       <UpdateModal
         isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
+        onClose={handleCloseUpdateModal}
         updateInfo={updateInfo}
-        onDownloadUpdate={(url) => {
-          setPrefilledUrl(url);
-          setIsAddModalOpen(true);
-        }}
+        onDownloadUpdate={handleDownloadUpdateUrl}
       />
 
       {/* Strict Device Ban Lockdown Fullscreen Screen */}
