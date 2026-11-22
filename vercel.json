@@ -4,12 +4,12 @@
   "redirects": [
     {
       "source": "/download/setup",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.Setup.1.1.0.exe",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.1.0.exe?inline=false",
       "permanent": false
     },
     {
       "source": "/download/portable",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.1.1.0.exe",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.1.1.0.exe?inline=false",
       "permanent": false
     },
     {
@@ -19,32 +19,22 @@
     },
     {
       "source": "/XDM.Turbo.Setup.1.1.0.exe",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.Setup.1.1.0.exe",
-      "permanent": false
-    },
-    {
-      "source": "/XDM.Turbo.1.1.0.exe",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.1.1.0.exe",
-      "permanent": false
-    },
-    {
-      "source": "/setup.exe",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.Setup.1.1.0.exe",
-      "permanent": false
-    },
-    {
-      "source": "/download",
-      "destination": "https://github.com/zdot-cloud/xdm/releases/download/v1.1.0/XDM.Turbo.Setup.1.1.0.exe",
-      "permanent": false
-    },
-    {
-      "source": "/mirror/gitlab/setup",
       "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.1.0.exe?inline=false",
       "permanent": false
     },
     {
-      "source": "/mirror/gitlab/portable",
+      "source": "/XDM.Turbo.1.1.0.exe",
       "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.1.1.0.exe?inline=false",
+      "permanent": false
+    },
+    {
+      "source": "/setup.exe",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.1.0.exe?inline=false",
+      "permanent": false
+    },
+    {
+      "source": "/download",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.1.0.exe?inline=false",
       "permanent": false
     }
   ],
