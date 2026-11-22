@@ -155,7 +155,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
               </h2>
               <p className="text-[11px] text-slate-400 theme-text-secondary font-medium">
                 {isBanned
-                  ? 'Unauthorized cracking attempt detected • Hardware permanently locked'
+                  ? 'License integrity violation detected • Hardware permanently locked'
                   : isPro 
                     ? `Authenticated via Central License Server • 64 Parallel Streams • ${license?.expiresAt ? (() => {
                         const days = Math.max(0, Math.ceil((license.expiresAt - Date.now()) / (24 * 60 * 60 * 1000)));
@@ -182,7 +182,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
               <div>
                 <h4 className="font-bold text-xs uppercase tracking-wide text-rose-300">Device Locked Due to Tampering</h4>
                 <p className="text-[11px] text-rose-200/90 mt-1 leading-relaxed">
-                  {license?.banReason || 'Unauthorized file modification, token forgery, or cracking attempts were detected on this computer. This hardware device ID has been permanently blocked by anti-piracy protection.'}
+                  {license?.banReason || 'Unauthorized file modification, token forgery, or license integrity violations were detected on this computer. This hardware device ID has been blocked by security protection.'}
                 </p>
               </div>
             </div>

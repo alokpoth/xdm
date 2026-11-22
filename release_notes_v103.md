@@ -2,7 +2,7 @@
 
 -  **10x Faster IDM Turbo Engine:**
   - Upgraded to **32 parallel Range connection threads** by default with 512 socket pooling.
-  - Enabled **TCP_NODELAY** across all streaming sockets to bypass Nagle buffering and ISP latency bottlenecks.
+  - Enabled **TCP_NODELAY** across all streaming sockets to eliminate Nagle buffering and network latency bottlenecks.
   - Replaced blocking disk writes with **asynchronous non-blocking file streaming**, allowing network sockets to achieve full line-rate throughput without event loop starvation.
 -  **Fixed Erratic Progress Bar Jumps ("Download line jumping back and forth"):**
   - Replaced the fractured per-row segment bar with an ultra-smooth, unified master progress bar with smooth CSS transitions.
@@ -10,7 +10,7 @@
   - Ensured all dynamic split chunks are sorted by starting byte offset in both UI components (`SegmentProgressBar` and `DownloadDetailsModal`).
 -  **Smooth Non-Elevated Installation (`asInvoker`):**
   - Configured installer execution level to `asInvoker` and disabled administrator requirement so Windows UAC elevation warnings are completely eliminated.
-  - Added clear SmartScreen bypass guidance for first-time launch.
+  - Added clear SmartScreen first-launch run guidance for users.
 -  **100% Bug-Free State Machine:**
   - Resolved socket destruction error loop where completed segments previously cycled into retry states.
   - Added asynchronous disk write flush verification before marking completion.

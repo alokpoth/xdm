@@ -6,16 +6,16 @@
  * Generates unique Base32 product keys registered directly in SQLite / Turso database.
  * 
  * Usage:
- *   node scripts/keygen.js                                     -> Generates 1 PRO key (1 device limit, Lifetime)
- *   node scripts/keygen.js --admin                             -> Generates 1 MASTER ADMIN Key (64 streams)
- *   node scripts/keygen.js --duration 3day                     -> Generates 1 PRO key valid for 3 days
- *   node scripts/keygen.js --days 3                            -> Generates 1 PRO key valid for 3 days
- *   node scripts/keygen.js --count 5                           -> Generates 5 PRO keys
- *   node scripts/keygen.js --name "Rahim" --email "r@test.com" -> Issues key with customer metadata
- *   node scripts/keygen.js --devices 3                         -> Allows up to 3 devices on this key
- *   node scripts/keygen.js --verify <KEY>                      -> Inspects key status & bound devices in DB
- *   node scripts/keygen.js --update <KEY> --days 3             -> Updates existing key expiration in DB
- *   node scripts/keygen.js --stats                             -> Inspects database metrics overview
+ *   node scripts/issue-license.js                                     -> Generates 1 PRO key (1 device limit, Lifetime)
+ *   node scripts/issue-license.js --admin                             -> Generates 1 MASTER ADMIN Key (64 streams)
+ *   node scripts/issue-license.js --duration 3day                     -> Generates 1 PRO key valid for 3 days
+ *   node scripts/issue-license.js --days 3                            -> Generates 1 PRO key valid for 3 days
+ *   node scripts/issue-license.js --count 5                           -> Generates 5 PRO keys
+ *   node scripts/issue-license.js --name "Rahim" --email "r@test.com" -> Issues key with customer metadata
+ *   node scripts/issue-license.js --devices 3                         -> Allows up to 3 devices on this key
+ *   node scripts/issue-license.js --verify <KEY>                      -> Inspects key status & bound devices in DB
+ *   node scripts/issue-license.js --update <KEY> --days 3             -> Updates existing key expiration in DB
+ *   node scripts/issue-license.js --stats                             -> Inspects database metrics overview
  */
 
 const db = require('../license-server/src/database');

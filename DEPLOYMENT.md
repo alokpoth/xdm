@@ -301,7 +301,7 @@ node --test tests/license-system.test.js
 
 ### 2. Generate a License Key from Terminal
 ```bash
-node scripts/keygen.js --count 1 --name "Customer Name" --devices 1
+node scripts/issue-license.js --count 1 --name "Customer Name" --devices 1
 ```
 
 ### 3. Start Local License Server

@@ -1,10 +1,10 @@
 # XDM Turbo - Next-Gen Internet Download Manager
 
-[![Version](https://img.shields.io/badge/version-1.1.0-emerald.svg)](https://gitlab.com/zihanfakir/xdm/-/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-emerald.svg)](https://xdm.zihan.xyz)
 [![Website](https://img.shields.io/badge/website-xdm.zihan.xyz-blue.svg)](https://xdm.zihan.xyz)
 [![Alokpoth](https://img.shields.io/badge/from-Alokpoth-0f172a.svg)](https://alokpoth.zihan.xyz)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://gitlab.com/zihanfakir/xdm/-/releases)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue.svg)](https://xdm.zihan.xyz)
 
 > **High-Performance Internet Download Manager with Minimalist Dark UI & 64-Stream Bandwidth Saturation Turbo Engine — from [Alokpoth (আলোকপথ)](https://alokpoth.zihan.xyz)**
 > 
@@ -12,14 +12,14 @@
 > - **Publisher:** [Alokpoth](https://alokpoth.zihan.xyz) • **Author:** [Zihan Fakir](https://zihan.uk) (@zihanfakir)  
 > - **PRO Activation Support:** WhatsApp: `@zihanfakir` | Telegram: `@zihanfakir`
 
-XDM Turbo is an open-source download manager engineered to extract **100% of your device's available network bandwidth** by leveraging up to 64 concurrent HTTP Range connections, dynamic segment subdivision (work-stealing), direct pre-allocated disk writes, and universal browser 4K media interception.
+XDM Turbo is a high-performance download manager engineered to extract **100% of your device's available network bandwidth** by leveraging up to 64 concurrent HTTP Range connections, dynamic segment subdivision (work-stealing), direct pre-allocated disk writes, and universal browser media stream integration.
 
 ---
 
 ## Key Features
 
 ### 1. Full Bandwidth Saturation (64-Stream Turbo Engine)
-- **1 to 64 Parallel Connections:** Splits large files into up to 64 concurrent HTTP Range byte streams to bypass single-stream ISP limits and server-side connection caps.
+- **1 to 64 Parallel Connections:** Splits large files into up to 64 concurrent HTTP Range byte streams to maximize single-connection throughput and overcome server-side connection bottlenecks.
 - **Dynamic Segment Subdivision (Adaptive Work Stealing):** When one stream finishes downloading early, XDM actively subdivides the largest remaining unfinished segment and re-assigns idle connections instantly, keeping all pipes 100% saturated until the last byte.
 - **Zero Disk-Thrashing Assembly:** Writes data directly to pre-allocated file byte offsets, eliminating tedious post-download file joining delays.
 - **Full Pause & Resume Support:** Persists exact byte positions per segment in `.meta` state files. Resume interrupted downloads instantly.
@@ -32,7 +32,7 @@ XDM Turbo is an open-source download manager engineered to extract **100% of you
 - **Speed Limiter:** Dial in exact bandwidth limits (2 MB/s, 10 MB/s, 50 MB/s) or run on Unlimited Turbo.
 
 ### 3. Browser Integration & Background Tray Lifecycle
-- **Universal Video Grabber:** Injects a floating download button over YouTube, Reels, TikTok, Vimeo, and web video players with 1080p, 4K, and MP3 extraction.
+- **Universal Video Grabber:** Injects a floating download button over web video players, media streams, and HTML5 video platforms with 1080p, 4K, and MP3 extraction.
 - **System Tray Background Operation:** Minimizes to the Windows system notification area on window close, ensuring background downloads never interrupt.
 - **Browser Interceptor (Tampermonkey / Violentmonkey):** Includes a built-in Userscript companion (`http://127.0.0.1:19684/extension/xdm-helper.user.js`) that automatically intercepts download clicks across Chrome, Edge, Brave, and Firefox.
 - **Local REST & WebSocket API:** Fully scriptable via `curl` and WebSocket telemetry.

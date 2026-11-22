@@ -344,7 +344,7 @@ test('Remote Revocation: Permanent revocation causes heartbeat failure and free 
       'Authorization': `Bearer ${adminToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ reason: 'Piracy or TOS breach' })
+    body: JSON.stringify({ reason: 'Policy or TOS breach' })
   });
   assert.equal(revokeRes.status, 200);
 
@@ -709,14 +709,14 @@ test('Concurrency: Parallel activations on a 1-device key ensure strict atomic s
   assert.equal(blockedCount, 2, 'Other concurrent requests must be rejected with 403');
 });
 
-test('Anti-Backdoor: Client strictly rejects activation when server denies fake key', async () => {
-  const testStorageDir = path.join(os.tmpdir(), `xdm_test_${Date.now()}_nobackdoor`);
+test('Security: Client strictly rejects activation when server denies fake key', async () => {
+  const testStorageDir = path.join(os.tmpdir(), `xdm_test_${Date.now()}_security`);
   const client = new LicenseManager({
     storageDir: testStorageDir,
     serverUrl: SERVER_URL
   });
 
-  const res = await client.activate('XDM-FAKE-NONEXISTENT-KEY', 'Pirate User');
+  const res = await client.activate('XDM-FAKE-NONEXISTENT-KEY', 'Unauthorized User');
   assert.equal(res.success, false);
   assert.equal(client.isPro(), false);
   assert.equal(client.getStatus().status, 'free');
