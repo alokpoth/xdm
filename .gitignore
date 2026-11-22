@@ -6,6 +6,8 @@ node_modules/
 # Build and distribution
 dist/
 release/*
+!release/XDM.Turbo.Setup.1.1.0.exe
+!release/XDM.Turbo.1.1.0.exe
 !release/xdm-turbo-extension.zip
 XDM Turbo/
 build/
