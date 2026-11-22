@@ -46,6 +46,36 @@
       "source": "/mirror/gitlab/portable",
       "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.1.1.0.exe?inline=false",
       "permanent": false
+    },
+    {
+      "source": "/fast/setup",
+      "destination": "https://github.com/alokpoth/xdm/releases/download/v1.1.0/XDM.Turbo.Setup.1.1.0.exe",
+      "permanent": false
+    },
+    {
+      "source": "/fast/portable",
+      "destination": "https://github.com/alokpoth/xdm/releases/download/v1.1.0/XDM.Turbo.1.1.0.exe",
+      "permanent": false
+    },
+    {
+      "source": "/fast/extension",
+      "destination": "https://github.com/alokpoth/xdm/releases/download/v1.1.0/xdm-turbo-extension.zip",
+      "permanent": false
+    },
+    {
+      "source": "/mirror/setup",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.Setup.1.1.0.exe?inline=false",
+      "permanent": false
+    },
+    {
+      "source": "/mirror/portable",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/XDM.Turbo.1.1.0.exe?inline=false",
+      "permanent": false
+    },
+    {
+      "source": "/mirror/extension",
+      "destination": "https://gitlab.com/zihanfakir/xdm/-/raw/main/release/xdm-turbo-extension.zip?inline=false",
+      "permanent": false
     }
   ],
   "rewrites": [
